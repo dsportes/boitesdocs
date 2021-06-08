@@ -29,14 +29,15 @@ Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bi
 - les données cryptées par K, ne sont lisibles dans le serveur que quand elles ont été transmises aussi en clair dans une opération. 
 
 #### Avatar 
-- `id` : entier depuis 5 bytes aléatoires.
-- `clé` : SHA id + 8 bytes aléatoires + pseudo. Permet de lire la carte de visite.
+- `id` : entier **pair** depuis 5 bytes aléatoires.
 - `pseudo` : nom lisible et immuable, entre 6 et 20 caractères.
+- `clé` : SHA id + 8 bytes aléatoires + pseudo. Permet de lire la carte de visite.
+- c1 : clé de cryptage des
 
 #### Groupe
-- `id` : entier depuis 5 bytes aléatoires.  
+- `id` : entier **impair** depuis 5 bytes aléatoires.  
 - `code` : lisible (comme un nom de fichier) et immuable.
-- `clé` : SHA id + 8 bytes aléatoires + code. Permet d'accéder à la liste des membres du groupe
+- `clé` : SHA id + 8 bytes aléatoires + code. Permet d'accéder à la liste des membres du groupe.
 
 #### Secret
 - `id` : entier depuis 6 bytes aléatoires.  
@@ -53,27 +54,37 @@ Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bi
 Les comptes sont censés avoir au maximum N semaines entre 2 connexions faute de quoi ils sont considérés comme disparus. En foi de quoi les *suppressions* d'objet doivent continuer à apparaître avec un état *supprimé / résilié* au moins N semaines : ils ne sont *purgés* (effectivement détruits) que quand leur `dhc` avec un état détruit a plus de N semaines.
 
 ##### Version des rows
-Les rows des tables devant être chargées sur les clients ont une version, un entier qui s'incrémente de 1 à chaque mise à jour.   
-En poids forts de ce numéro il est ajouté s le numéro de sauvegarde, a priori une sauvegarde par jour. Le format est donc `sssssvvvvvv`.
-- pour un row donné sa version les versions est croissant au cours du temps pour un row.
-- chaque row mis à jour à sa propre version afin que la détection de mises à jour simultanées ne 
-- il peut y avoir des rows de numéro de sauvegarde 12 qui figurent déjà sur la 11. Ils figureront deux fois.
-	- la sauvegarde 11 a tous les rows antérieurs à la 12.
-	- les sauvegardes respectent l'atomicité des commit.
+Les rows des tables devant être présents sur les clients ont une version, de manière à pouvoir être chargés sur les postes clients de manière incrémentale : la version est donc croissante avec le temps et figure dans tous les rows de ces tables.  
+- utiliser une date-heure présente l'inconvénient de laisser une meta-donnée intelligible en base ;
+- utiliser un compteur universel a l'inconvénient de facilement deviner des liaisons entre objets : par exemple tous les secrets paratagés entre N avatars d'un même groupe vont avoir la même version (ou très proches selon l'option). Crypter l'appartenance d'un avatar à un groupe alors qu'on peut la lire de facto dans les versions est un problème.
+- utiliser un compteur par objet rend complexe la génération de SQL avec des filtres qui associent chaque objet à sa dernière version connue.
 
-Plusieurs rows committés par la même transaction ont des versions différentes mais un numéro de sauvegarde identique. Il n'est pas possible de savoir s'ils ont faits partie de la même transaction, ni à quelle heure, ni d'établir des corrélations entre id dès lors que le nombre de transactions journalières est significatifs.
+Or il apparaît que les transactions portant sur plusieurs objets avatars / groupes / secrets ne sont pas si fréquentes, d'où l'option suivante :
+- _chaque avatar a son compteur de version spécifique_, tous les rows des tables identifiées par un avatar partagent ce même espace de comptage. De ce fait les relations à l'occasion de créations de liens privilégiés entre avatars par exemple, ou à lors du paratge d'un secret, entre avatars ne laissent pas de traces interprétables en bases de données.
+- _tous les autres objets peuvent partager un même compteur_ : ils n'ont pas de transactions de mises à jour entre eux (pas entre groupes, ni entre groupe et secrets). Les cartes de visite et quelques autres objets (invitations ...) n'ont aussi des transactions que portant sur eux-mêmes et peuvent donc utiliser le compteur universel.
+
+##### Table `version` - CP : `id`
+
+	CREATE TABLE "version" (
+	"id"	INTEGER,
+	"v"		INTEGER,
+	PRIMARY KEY("id")
+	) WITHOUT ROWID;
+
+L'id est celui d'un avatar : par convention l'id 0 est celui du compteur générique.  
+Il y donc un incrément de v à chaque transaction.
+
+>_Remarque_ : on peut aussi imaginer qu'au lieu d'un compteur par avatar on ait N compteurs (par exemple 349 -premier-, plus un pour l'universel), un compteur pour plusieurs avatars, typiquement le reste de la division de leur id par N afin de réduire la table. Dans ce cas l'avantage est qu'on a une table à un seul row avec en data un array d'entiers sur 4 bytes.
+>Le nombre de collisions n'est pas un problème et détecter des proximités entre avatars dans ce cas devient un exercice très incertain (fiabilité de 1 sur 350).
+
+	CREATE TABLE "versions" ("data"  BLOB);
 
 ## Tables
 
 ### Singleton d'état global du serveur
-Ce singleton d'id 1 est un JSON où le serveur peut stocker des données persistantes à propos de son état global : par exemple les date-heures d'exécution des derniers traitements GC, la dhc du dernier backup de la base...
+Ce singleton est un JSON où le serveur peut stocker des données persistantes à propos de son état global : par exemple les date-heures d'exécution des derniers traitements GC, la dhc du dernier backup de la base...
 
-	CREATE TABLE "etat" (
-	"id"	INTEGER,
-	"v"		INTEGER,
-	"data"	TEXT,
-	PRIMARY KEY("id")
-	) WITHOUT ROWID;
+	CREATE TABLE "etat" ("data"	BLOB);
 
 
 ### Avatars et Groupes : volumes et quotas
@@ -167,7 +178,7 @@ Phrase secrète : un début de 16 caractères au moins et une fin de 16 caractè
 	) WITHOUT ROWID;
 	CREATE UNIQUE INDEX "dpbh_compte" ON "compte" ( "dpbh" )
 	
-- `v` :
+- `v` : espace des avatars
 - `dpbh` : pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbsh` : hash du SHA du PBKFD2 de la phrase complète pour quasi-authentifier une connexion.
 - `kx` : clé K du compte, crypté par la X (phrase secrète courante).
@@ -184,7 +195,7 @@ Phrase secrète : un début de 16 caractères au moins et une fin de 16 caractè
 **Remarques :** 
 - un row `compte` ne peut être modifié que par une transaction du compte.
 - il est synchronisé lorsqu'il y a deux sessions ouvertes en parallèle sur le même compte depuis 2 browsers.
-- chaque mise à jour vérifie que la `dhc` actuellement en base est bien celle à partir de laquelle l'édition a été faite.
+- chaque mise à jour vérifie que `v` actuellement en base est bien celle à partir de laquelle l'édition a été faite.
 
 ### Avatars / groupes : carte de visite
 Cette table donne la carte de visite de chaque avatar ou groupe, cryptée par leur clé.
@@ -200,7 +211,7 @@ Cette table donne la carte de visite de chaque avatar ou groupe, cryptée par le
     CREATE INDEX "dhc_avcv" ON "avcv" ( "dhc" )
 	
 - `id` : id de l'avatar ou du groupe.
-- `v` :
+- `v` : espace universel. Les transactions ne modifie qu'une seule carte à la fois.
 - `cvag` : carte de visite cryptée par la clé de l'avatar ou du groupe. 
   - `photo` : photo ou icône.
   - `info` : court texte informatif.
@@ -239,20 +250,20 @@ Dans un contact d'avatar *lié*, il y a deux clés.
 - dans les tables `avc1` et `avcontact`, la clé 1 est toujours celle de l'avatar. 
 - quand un avatar A partage un secret avec un avatar B, il crypte *son* exemplaire avec sa clé `c1` et crypte *l'autre* exemplaire pour B avec la clé `c2`.
 
-**Table `avc1` : CP `ida`:**  
-Cette table donne les clés `c1` pour chacun des `nc`.
+**Table `avidc1` : CP `ida`:**  
+Cette table donne les couples `id + c1` pour chacun des `nc`. Elle énumère tous les avatars et groupes en contact (avec leur `c1` d'accès aux secrets).
 
-    CREATE TABLE "avcles" (
+    CREATE TABLE "avidc1" (
     "ida"   INTEGER,
     "v"		INTEGER,
-    "c1k"  BLOB,
+    "idc1k"  BLOB,
     PRIMARY KEY("ida")
     ) WITHOUT ROWID;
     CREATE INDEX "ida_v_avcontact" ON "avcontact" ( "ida", "v" )
 
 - `ida` : id de l'avatar A.
-- `v` :
-- `c1k` [ ] : table donnant la clé de cryptage `c1` tirée aléatoirement pour chaque `nc` (qui est l'index dans cette table).
+- `v` : espace de l'avatar.
+- `idc1k` [ ] : table donnant la clé de cryptage `id + c1` tirée aléatoirement pour chaque `nc` (qui est l'index dans cette table). `id` est une redondance puisqu'on le retrouve dans `avcontact` mais ça permet à l'avatar d'avoir la liste de ses contacts en une fois.
 
 **Table : CP `ida nc`:**
 
@@ -268,26 +279,29 @@ Cette table donne les clés `c1` pour chacun des `nc`.
 
 - `ida` : id de l'avatar A
 - `nc` : numéro de contact.
-- `v` :
+- `v` : espace de l'avatar.
 - `st` : statut.
 	- contact libre avec un avatar : 0
-	- contact lié avec un avatar : 1xyz
+	- contact lié avec un avatar : 2xyz
 		- x : 1: en attente, 2:accepté, 3:refusé, 8:résilié, 9:disparu.
 		- y : 0/1: A accepte les partages de B.
 		- z : 0/1: B accepte les partages de A.
-	- contact de groupe : 2xyz
+	- contact de groupe : 1xyz
 		- x : 2:accepté, 3:refusé, 8:résilié, 9:disparu.
 		- y : 1:lecteur, 2:auteur, 3:administrateur.
 		- z : plus haut y jamais atteint.
 - `datac1` : information cryptée par la clé `c1` associée au `nc`.
 	- `id` : `id` de l'avatar ou du groupe.
-	- `cle` : suffixe aléatoire.
+	- `cle` : suffixe aléatoire (accès à la carte de visite).
 	- `nom` : *pseudo de l'avatar* ou *code* du groupe. Pour un parrainage de compte, c'est la phrase complète de reconnaissance (d'où A pourra retrouver le row de parrainage).
 	- *pour un contact lié avec un avatar*
 		- `c2` : clé `c2`. C'est la clé `c1` de B pour son contact avec A.
 		- `dna` : dernière note écrite par A pour B.
 		- `dnb` : dernière note écrite par B pour A.
-	- `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar à son contact avatar ou groupe (sans `qm1 qm2`).
+	  - `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar à son contact avatar.
+  - *pour un contact groupe*
+    - `c2` : clé du groupe.
+    - `q1 q2` : balance des quotas donnés / reçus par l'avatar au groupe.
 - `datak` : information cryptée par la clé K de A.
   - `info` : information libre donnée par A à propos du contact.
   - `mc` : liste des mots clés associés au contact.
@@ -326,7 +340,6 @@ Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase
 
     CREATE TABLE "parrain" (
     "dpbh"  INTEGER,
-    "v"  	INTEGER,
     "dlv"  INTEGER,
     "st"  TEXT,
     "pbcsh"  BLOB,
@@ -336,7 +349,6 @@ Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase
     CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" )
 
 - `dpbh` : hash du PBKFD2 du début de la phrase secrète de parrainage.
-- `v` :
 - `dlv` : la date limite de validité permettant de purger les parrainages.
 - `st` : trois chiffres : 
   - (1) : 0: invitation lancée, 1: acceptée, 9: refusée
@@ -350,7 +362,7 @@ Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase
   - `q1 q2 qm1 qm2` : quotas proposés par le parrain.
 
 **La parrain créé un contact *lié* pour le filleul** dont le pseudo est encore inconnu à ce stade mais il a préparé une `id`, une `clé`, et la clé `c2`.  
-Pour mémoire la phrase complète est mise à la place du *pseudo*, ce qui permet le cas échéant au parrain de la retrouver (voire d'adapter son invitation).
+La phrase complète est mise à la place du *pseudo*, ce qui permet le cas échéant au parrain de la retrouver (voire d'adapter son invitation).
 
 **Si le filleul ne fait rien à temps** : le GC s'effectuera sur la `dlv` par simple *delete*.
 
@@ -364,7 +376,7 @@ A et B se sont rencontrés dans la *vraie* vie mais ni l'un ni l'autre n'a les c
 - soit s'inviter à créer un contact *lié*,
 - soit pour B inviter A à participer à un groupe.
 
-Une rencontre est juste un row qui va permettre à A de transmettre à B son `id / clé / pseudo` à B en utilisant une phrase de rencontre convenue entre eux.  
+Une rencontre est juste un row qui va permettre à A de transmettre à B son `id / clé / pseudo` en utilisant une phrase de rencontre convenue entre eux.  
 En accédant à cette rencontre B peut ainsi inscrire A comme contact *libre* : ensuite il pourra normalement l'inviter à un contact *lié* ou l'inviter à un groupe.
 
 Une rencontre est identifiée par `dpbh` le hash du PBKFD2 du début de la phrase de reconnaissance.
@@ -410,13 +422,15 @@ Un groupe est caractérisé par :
     CREATE INDEX "idg_v_grentete" ON "grentete" ( "idg", "v" )
 
 - `idg` : id du groupe.
-- `v` : 
+- `v` : espace générique
 - `st` : statut : 1)ouvert, 2)fermé, 3)ré-ouverture en vote, 4)archivé 
 - `mcg` : liste des mots clés prédéfinis pour le groupe.
 - `idclg` [`idm + nc + c1`]: liste indexée par le numéro de membre cryptée par la clé du groupe `cg`. Pour chaque membre actif `nm`, ce qu'il faut pour lui partager un secret :
 	- `idm` : l'id du membre.
 	- `nc` : son numéro de contact qui lui permettra de retrouver la clé `c1` associée.
-	- `c1` : cette clé qui va crypter les données du secrets pour `idm`.
+	- `c1` : clé pour crypter les données du secrets pour `idm`.
+
+Pour partager un secret avec tous les memebres d'un groupe, une session cliente d'un des membres peut ainsi constituer une _liste de diffusion_ pour créer / mettre à jour les rows `avsecret` (l'idm du membre, son nc et le cryptage de la clé du secret par la clé du groupe).
 
 ##### Détail de chaque membre
 Chaque membre d'un groupe a une entrée pour le groupe identifiée par un numéro de membre `nm` attribué en séquence.   
@@ -483,15 +497,13 @@ Le statut comporte trois chiffres `xyz` :
 	
 
 ### Secrets
-- `id` : entier depuis 6 bytes aléatoires.  
-- `cs` : SHA de id + 15 bytes aléatoires.
+- `id` : entier depuis 6 bytes aléatoires. Le reste de la division par 3 indique si c'est un secret personnel, de couple ou de groupe. 
+- `cs` : SHA de id + 15 bytes aléatoires. Le contenu d'un secret est crypté par la clé `cs` spécifique de chaque secret.
 
-Le contenu d'un secret est crypté par la clé `cs` spécifique de chaque secret et tirée au sort.
-
-`cs` est cryptée pour une clé selon le cas.
-- *secret personnel d'un avatar A* : par la clé K de l'avatar.
-- *secret d'un groupe G* : par la clé du groupe G.
-- *secret d'un couple d'avatars A et B* : A et B connaissent leurs clé `c1` réciproques, l'une comme l'autre pourrait être employée pour crypter `cs`. Par convention on prend `c1` de l'avatar dont l'id est le plus petit.
+`cs` est stockée dans le row cryptée selon le cas :
+- (0) *secret personnel d'un avatar A* : par la clé K de l'avatar.
+- (1) *secret d'un couple d'avatars A et B* : A et B connaissent leurs clé `c1` réciproques, l'une comme l'autre pourrait être employée pour crypter `cs`. Par convention on prend `c1` de l'avatar dont l'id est le plus petit.
+- (2) *secret d'un groupe G* : par la clé du groupe G.
 
 ###### Un secret a toujours un texte et possiblement une pièce jointe
 Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est constituée des 140 premiers caractères de son texte.
@@ -555,9 +567,9 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     CREATE INDEX "nsc_secret" ON "secret" ( "nsc" )
 
 - `ids` : id du secret.
-- `v` :
+- `v` : espace générique.
 - `nsc` : numéro de semaine de création ou 9999 pour un *permanent*.
-- `cs` : clé du secret cryptée par la clé K, celle du groupe ou `c1` d'un des deux avatars.
+- `cs` : clé du secret cryptée par la clé K, celle du groupe ou `c1` d'un des deux avatars d'un couple.
 - `txts` : texte complet gzippé crypté par la clé du secret. 
 - `aps` : données d'aperçu du secret cryptées par la clé du secret.
   - `la` [] : liste des ids des auteurs.
@@ -570,13 +582,11 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     - version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.
   - `r` : référence à un autre secret.
 
-##### Secret de couple / groupe ?
-Comment A déclare détruire un secret sans que ceci affecte B ? De même pour un groupe ? Mettre `nc` à -1 dans `avsecret` ? Remettre un statut / mot clé / flags / path dans `avsecret` ? flags : *à lire*, *lu*, *favori* ... ? annotation personnelle ?
 ### Avatars et groupes : aperçu des secrets
 Tout secret a son aperçu (et les références d'accès au secret complet) distribué chez autant d'avatars qu'ayant accès :
 - un seul pour un secret personnel,
 - deux avatars pour un secret de couple,
-- de 1 à N avatars pour un groupe plus l'exemplaire de référence du groupe..
+- de 1 à N avatars pour un groupe plus l'exemplaire de référence du groupe.
 
 **Table : CP: `ida, idcls`**
 
@@ -594,23 +604,25 @@ Tout secret a son aperçu (et les références d'accès au secret complet) distr
 
 - `id` : id de l'avatar ou du groupe.
 - `idcs` : `id + cs` id du secret + clé du secret, crypté par la clé `c1` (ou `c2/cg`) du contact `nc` de `id`. Un même secret a donc autant d'identifiants et de clé d'accès à sa clé que d'avatars le partageant.
+- `v` : espace de l'avatar.
 - `nc` : numéro de contact chez cet avatar
   - pour un couple d'avatar ou un groupe : lui permet de retrouver la clé avec laquelle `idcls` est crypté. 
   - 0 pour l'exemplaire de référence du groupe (c'est toujours la clé du groupe).
   - 0 pour un secret personnel d'avatar (c'est toujours la clé k).
-- `v` : version du secret.
 - `nsc` : numéro de semaine de création ou 9999 pour un *permanent*.
 - `aps` : données d'aperçu du secret cryptées par la clé du secret.
 
 Pour un secret *supprimé* par son avatar :
-- `nsc` vaut 0 par convention.
-- `dhc` donne la date-heure de suppression.
+- `nsc` vaut -1 par convention.
+- `v` donne la version de suppression.
 - toutes les autres colonnes sont absentes.
 
 # Todo
-### Secret pour un avatar
+### Secret pour un avatar : à ajuster
 - mots dièse, flags, path, commentaires
 - *suppression* de l'exemplaire d'un avatar
+
+Comment A déclare détruire un secret sans que ceci affecte B ? De même pour un groupe ? Mettre `nc` à -1 dans `avsecret` ? Remettre un statut / mot clé / flags / path dans `avsecret` ? flags : *à lire*, *lu*, *favori* ... ? annotation personnelle ?
 
 ### Synchro des cartes de visite :
 - la synchro peut être ouverte dès que le contexte de session est prêt.
