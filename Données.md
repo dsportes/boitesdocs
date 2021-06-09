@@ -63,29 +63,49 @@ Or il apparaît que les transactions portant sur plusieurs objets avatars / grou
 - _chaque avatar a son compteur de version spécifique_, tous les rows des tables identifiées par un avatar partagent ce même espace de comptage. De ce fait les relations à l'occasion de créations de liens privilégiés entre avatars par exemple, ou à lors du paratge d'un secret, entre avatars ne laissent pas de traces interprétables en bases de données.
 - _tous les autres objets peuvent partager un même compteur_ : ils n'ont pas de transactions de mises à jour entre eux (pas entre groupes, ni entre groupe et secrets). Les cartes de visite et quelques autres objets (invitations ...) n'ont aussi des transactions que portant sur eux-mêmes et peuvent donc utiliser le compteur universel.
 
-##### Table `version` - CP : `id`
-
-	CREATE TABLE "version" (
-	"id"	INTEGER,
-	"v"		INTEGER,
-	PRIMARY KEY("id")
-	) WITHOUT ROWID;
-
-L'id est celui d'un avatar : par convention l'id 0 est celui du compteur générique.  
-Il y donc un incrément de v à chaque transaction.
-
->_Remarque_ : on peut aussi imaginer qu'au lieu d'un compteur par avatar on ait N compteurs (par exemple 349 -premier-, plus un pour l'universel), un compteur pour plusieurs avatars, typiquement le reste de la division de leur id par N afin de réduire la table. Dans ce cas l'avantage est qu'on a une table à un seul row avec en data un array d'entiers sur 4 bytes.
->Le nombre de collisions n'est pas un problème et détecter des proximités entre avatars dans ce cas devient un exercice très incertain (fiabilité de 1 sur 350).
-
-	CREATE TABLE "versions" ("data"  BLOB);
-
 ## Tables
+
+`versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde)  
+`etat` (singleton) : état courant permanent du serveur  
+`avgrvq` (id) : volumes et quotas d'un avatar ou groupe  
+`sga` (ida) : signature d'un avatar  
+`sgg` (idg) : signature d'un groupe  
+`sgc` (idc) : signature d'un compte
+`sgs` (ids) : signature d'un secret  
+`compte` (idc) : authentification et données d'un compte  
+`avgrcv` (id) : carte de visite d'un avatar ou groupe  
+`avrsa` (ida) : clé publique d'un avatar  
+`avidc1` (ida) : identifications et clés c1 des contacts d'un avatar  
+`avcontact` (ida, nc) : données d'un contact d'un avatar    
+`avinvit` () (idb) : invitation adressée à B à lier un contact avec A  
+`parrain` (dpbh) : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
+`rencontre` (dpbh) : communication par A de son identifications complète à un compte inconnu  
+`grlmg` (idg) : liste des id + nc + c1 des membres du groupe  
+`grmembre` (idg, nm) : données d'un membre du groupe  
+`grinvit` () (idm) : invitation à M à devenir membre d'un groupe  
+`secret` (ids) : données d'un secret
+`avsecret` (ida, idcs) : aperçu d'un secret pour un avatar (ou référence de son groupe)  
 
 ### Singleton d'état global du serveur
 Ce singleton est un JSON où le serveur peut stocker des données persistantes à propos de son état global : par exemple les date-heures d'exécution des derniers traitements GC, la dhc du dernier backup de la base...
 
 	CREATE TABLE "etat" ("data"	BLOB);
 
+### Table `versions` - CP : `id`
+
+Au lieu d'un compteur par avatar on a N compteurs (par exemple 256 plus un pour l'universel), un compteur pour plusieurs avatars.  
+L'avantage est qu'on a une table à un seul row compact avec en data un array d'entiers sur 4 bytes.
+
+>Le nombre de collisions n'est pas un problème et détecter des proximités entre avatars dans ce cas devient un exercice très incertain (fiabilité de 1 sur 256).
+
+L'id 0 correspondant à l'état courant et l'id 1 à la dernière sauvegarde.
+
+	CREATE TABLE "versions" (
+  "id"  INTEGER,
+  "vu"  INTEGER,
+  "va"  BLOB
+  PRIMARY KEY("id")
+  ) WITHOUT ROWID;
 
 ### Avatars et Groupes : volumes et quotas
 Pour chaque avatar et liste, par convention la *banque centrale* est l'avatar d'id 1, 
@@ -125,7 +145,7 @@ Le GC met à jour sur les tables `sga` le flag alerte/disparu. Pour les autres i
 - *alerte* : le compte / avatar est resté plusieurs mois sans connexion.
 - *disparu* : le compte / avatar / boîte doit être considéré comme disparu.
 
-**Tables `sga sgc sgg sgc` : CP `id`:**
+**Tables `sga sgc sgg sgs` : CP `id`:**
 
       CREATE TABLE "sgx" (
       "id"  INTEGER,
@@ -219,7 +239,7 @@ Cette table donne la carte de visite de chaque avatar ou groupe, cryptée par le
 ### Avatars : clé publique RSA
 Cette table donne la clé RSA (publique) obtenue à la création de l'avatar : elle permet d'inviter un avatar à être contact lié ou à devenir membre d'un groupe.
 
-**Table `avgrcv` : CP `id`**
+**Table `avrsa` : CP `id`**
 
     CREATE TABLE "avrsa" (
     "id"	INTEGER,
@@ -308,6 +328,8 @@ Cette table donne les couples `id + c1` pour chacun des `nc`. Elle énumère tou
 
 Un *contact lié* permet d'échanger un court texte entre A et B pour justifier d'un changement de statut ou n'importe quoi d'autre : en particulier quand A n'accepte pas le partage de secrets avec B, c'est le seul moyen de passer une courte information mutuelle qui n'encombre pas leurs volumes respectifs.
 
+TODO ??? : couper datac1 en 2, une partie immuable et une partie évolutive.
+
 #### Invitation par A de B à lier leurs contacts
 C'est requis pour qu'ils puissent partager des secrets et se donner des quotas.
 
@@ -351,7 +373,7 @@ Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase
 - `dpbh` : hash du PBKFD2 du début de la phrase secrète de parrainage.
 - `dlv` : la date limite de validité permettant de purger les parrainages.
 - `st` : trois chiffres : 
-  - (1) : 0: invitation lancée, 1: acceptée, 9: refusée
+  - (1) : 0: invitation lancée, 1: acceptée, 8: annulée par le parrain, 9: refusée
   - (2) : en cas d'acceptation : le parrain accepte (1) ou refuse (0) le partage de secrets avec son filleul.
   - (3) : en cas d'acceptation : le filleul accepte (1) ou refuse (0) le partage de secrets avec son parrain.
 - `pcbsh` : hash du SHA de X (PBKFD2 de la phrase complète) pour que l'invité puisse être quasi-authentifié. Le filleul doit se rappeler qu'il a une proposition qui l'attend identifiée par une phrase de contact.
@@ -359,7 +381,7 @@ Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase
   - `id cle pseudo` : de l'avatar P.
   - `c1` : de P.
   - `nc` : de P.
-  - `q1 q2 qm1 qm2` : quotas proposés par le parrain.
+  - `q1 q2 qm1 qm2` : quotas donnés par le parrain.
 
 **La parrain créé un contact *lié* pour le filleul** dont le pseudo est encore inconnu à ce stade mais il a préparé une `id`, une `clé`, et la clé `c2`.  
 La phrase complète est mise à la place du *pseudo*, ce qui permet le cas échéant au parrain de la retrouver (voire d'adapter son invitation).
@@ -456,6 +478,7 @@ Les données relatives aux membres sont cryptées par la clé du groupe.
 	- `idi` : id du membre qui l'a invité.
 	- `dna` : dernière note écrite au membre par un animateur (dont le texte d'invitation).
 	- `dnb` : dernière note écrite par le membre (réponse à invitation).
+  - `dlv` : date limite de validité de l'invitation.
 	- `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
 	- `vote` : de réouverture.
 
@@ -481,6 +504,8 @@ Le statut comporte trois chiffres `xyz` :
 - un animateur peut lancer quand il veut un nettoyage pour détecter les membres qui auraient disparus *et* ne seraient plus auteurs d'aucuns secrets.
 
 #### Invitation par I de M à un groupe G
+A revoir : l'invitant devrait pouvoir conserver la liste de ses invitations en cours qu'il a faites. Même chose pour la liste des invitations à créer un lien.  
+En toute rigueur en session ça se retrouve (un membre avec ida comme invitant et un statut en attente).
 
     CREATE TABLE "grinvit" (
     "idm"   INTEGER,
@@ -493,8 +518,7 @@ Le statut comporte trois chiffres `xyz` :
 - `dlv` :
 - `datapub` : crypté par la clé publique du membre invité.
 	- `idg cle code` : du groupe.
-	- `nm` : numéro de membre.
-	
+	- `nm` : numéro de membre de l'invité.
 
 ### Secrets
 - `id` : entier depuis 6 bytes aléatoires. Le reste de la division par 3 indique si c'est un secret personnel, de couple ou de groupe. 
@@ -591,13 +615,13 @@ Tout secret a son aperçu (et les références d'accès au secret complet) distr
 **Table : CP: `ida, idcls`**
 
     CREATE TABLE "avsecret" (
-    "id"	INTEGER,
+    "ida"	INTEGER,
     "idcs"	BLOB,
     "nc"	INTEGER,
     "v"		INTEGER,
     "nsc"	INTEGER,
     "datas"	BLOB,
-    PRIMARY KEY("id", idcls")
+    PRIMARY KEY("id", idcs")
     );
     CREATE INDEX "ida_v_avsecret" ON "avsecret" ( "ida", "v" );
     CREATE INDEX "nsc_avsecret" ON "avsecret" ( "nsc" );
