@@ -72,9 +72,12 @@ Or il apparaît que les transactions portant sur plusieurs objets avatars / grou
 `sgg` (idg) : signature d'un groupe  
 `sgc` (idc) : signature d'un compte
 `sgs` (ids) : signature d'un secret  
+`avrsa` (ida) : clé publique d'un avatar  
+
+_**Tables aussi persistantes sur le client (IDB)**_
+
 `compte` (idc) : authentification et données d'un compte  
 `avgrcv` (id) : carte de visite d'un avatar ou groupe  
-`avrsa` (ida) : clé publique d'un avatar  
 `avidc1` (ida) : identifications et clés c1 des contacts d'un avatar  
 `avcontact` (ida, nc) : données d'un contact d'un avatar    
 `avinvit` () (idb) : invitation adressée à B à lier un contact avec A  
@@ -147,13 +150,13 @@ Le GC met à jour sur les tables `sga` le flag alerte/disparu. Pour les autres i
 
 **Tables `sga sgc sgg sgs` : CP `id`:**
 
-      CREATE TABLE "sgx" (
-      "id"  INTEGER,
-      "dds"  INTEGER,
-      "ad"  INTEGER,
-      PRIMARY KEY("id")
-      ) WITHOUT ROWID;
-      CREATE INDEX "ad_dds_sgx" ON "sgx" ( "ad", "dds" )
+    CREATE TABLE "sgx" (
+    "id"  INTEGER,
+    "dds"  INTEGER,
+    "ad"  INTEGER,
+    PRIMARY KEY("id")
+    ) WITHOUT ROWID;
+    CREATE INDEX "ad_dds_sgx" ON "sgx" ( "ad", "dds" )
 
 - `id` : du compte ou de l'avatar ...
 - `dds` : date (jour) de dernière signature.
@@ -192,8 +195,8 @@ Phrase secrète : un début de 16 caractères au moins et une fin de 16 caractè
 	"dpbh"	INTEGER,
 	"pcbsh"	INTEGER,
 	"kx"   BLOB,
-	"lack"  BLOB,
-	"mck"	BLOB,
+	"mack"  BLOB,
+	"mmck"	BLOB,
 	PRIMARY KEY("id")
 	) WITHOUT ROWID;
 	CREATE UNIQUE INDEX "dpbh_compte" ON "compte" ( "dpbh" )
@@ -202,15 +205,15 @@ Phrase secrète : un début de 16 caractères au moins et une fin de 16 caractè
 - `dpbh` : pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbsh` : hash du SHA du PBKFD2 de la phrase complète pour quasi-authentifier une connexion.
 - `kx` : clé K du compte, crypté par la X (phrase secrète courante).
-- `mck` {} : cryptées par la clé K, map des mots clés déclarés par le compte.
-    - *clé* : id du mot clé de 1 à 255.
-    - *valeur* : libellé du mot clé.
-- `lack` { } : liste des avatars du compte, cryptée par la clé K, 
-    - *clé* : id de l'avatar du compte
-    - *valeur* :
-        - `cle` : clé de l'avatar.
-        - `pseudo` : de l'avatar.
-        - `clepriv` : clé privée asymétrique.
+- `mmck` {} : cryptées par la clé K, map des mots clés déclarés par le compte.
+  - *clé* : id du mot clé de 1 à 255.
+  - *valeur* : libellé du mot clé.
+- `mack` [] : map des avatars du compte, cryptée par la clé K, 
+  - *clé* : id de l'avatar du compte en b64
+  - *valeur* :
+    - `cle` : clé de l'avatar.
+    - `pseudo` : de l'avatar.
+    - `cpriv` : clé privée asymétrique.
 
 **Remarques :** 
 - un row `compte` ne peut être modifié que par une transaction du compte.
