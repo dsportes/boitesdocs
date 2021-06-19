@@ -365,23 +365,28 @@ Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase
 
     CREATE TABLE "parrain" (
     "dpbh"  INTEGER,
+    "idp"   INTEGER,
     "dlv"  INTEGER,
     "st"  TEXT,
     "pbcsh"  BLOB,
+    "datak" BLOB,
     "datax"  BLOB,
     PRIMARY KEY("dpbh")
     ) WITHOUT ROWID;
-    CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" )
+    CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" );
+    CREATE INDEX "idp_parrain" ON "parrain" ( "idp" )
 
 - `dpbh` : hash du PBKFD2 du début de la phrase secrète de parrainage.
+- `idp` : id du parrain.
 - `dlv` : la date limite de validité permettant de purger les parrainages.
 - `st` : trois chiffres : 
   - (1) : 0: invitation lancée, 1: acceptée, 8: annulée par le parrain, 9: refusée
   - (2) : en cas d'acceptation : le parrain accepte (1) ou refuse (0) le partage de secrets avec son filleul.
   - (3) : en cas d'acceptation : le filleul accepte (1) ou refuse (0) le partage de secrets avec son parrain.
 - `pcbsh` : hash du SHA de X (PBKFD2 de la phrase complète) pour que l'invité puisse être quasi-authentifié. Le filleul doit se rappeler qu'il a une proposition qui l'attend identifiée par une phrase de contact.
+- `datak` : phrase de parrainage cryptée par la clé K du compte (pour que P la retrouve).
 - `datax` : données de l'invitation cryptées par la clé X.
-  - `id cle pseudo` : de l'avatar P.
+  - `cle pseudo` : de l'avatar P.
   - `c1` : de P.
   - `nc` : de P.
   - `q1 q2 qm1 qm2` : quotas donnés par le parrain.
@@ -408,18 +413,23 @@ Une rencontre est identifiée par `dpbh` le hash du PBKFD2 du début de la phras
 
     CREATE TABLE "rencontre" (
     "dpbh"  INTEGER,
-    "dlv"  INTEGER,
-    "pbcsh"  BLOB,
-    "datax"  BLOB,
+    "ida"   INTEGER,
+    "dlv"   INTEGER,
+    "pbcsh" BLOB,
+    "datak" BLOB,
+    "datax" BLOB,
     PRIMARY KEY("dpbh")
     ) WITHOUT ROWID;
     CREATE INDEX "dlv_rencontre" ON "rencontre" ( "dlv" )
+    CREATE INDEX "ida_rencontre" ON "renconstre" ( "ida" )
 
 - `dpbh` : hash du PBKFD2 du début de la phrase secrète de rencontre.
+- `ida` : id de l'avatar A initiant la rencontre.
 - `dlv` : la date limite de validité permettant de purger les rencontres.
 - `pcbsh` : hash du SHA de X (PBKFD2 de la phrase complète) pour que B puisse être quasi-authentifié.
+- `datak` : phrase de rencontre cryptée par la clé K du compte (pour que P la retrouve).
 - `datax` : données de l'invitation cryptées par la clé X.
-  - `id cle pseudo` : de A.
+  - `cle pseudo` : de A.
 
 ### Groupe : liste et détail des membres
 - `id` : entier depuis 5 bytes aléatoires.  
