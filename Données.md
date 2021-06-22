@@ -43,7 +43,7 @@ Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bi
 - `id` : entier depuis 6 bytes aléatoires.  
 - `clé` : SHA de id + 15 bytes aléatoires.
 
-#### Attributs génériques
+### Attributs génériques
 - `v` : version, entier.
 - `dds` : date de dernière signature, en nombre de jours depuis le 1/1/2021. Signale que ce jour-là, l'avatar, le compte, le groupe, le secret était *vivant / utile / référencé*. Pour éviter des rapprochements entre eux, la *vraie* date de signature peut être entre 0 et 30 jours *avant*.  Permet de distinguer des seuils d'alerte :
    - aucune : vivant encore récemment.
@@ -53,7 +53,7 @@ Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bi
 
 Les comptes sont censés avoir au maximum N semaines entre 2 connexions faute de quoi ils sont considérés comme disparus. En foi de quoi les *suppressions* d'objet doivent continuer à apparaître avec un état *supprimé / résilié* au moins N semaines : ils ne sont *purgés* (effectivement détruits) que quand leur `dhc` avec un état détruit a plus de N semaines.
 
-##### Version des rows
+### Version des rows
 Les rows des tables devant être présents sur les clients ont une version, de manière à pouvoir être chargés sur les postes clients de manière incrémentale : la version est donc croissante avec le temps et figure dans tous les rows de ces tables.  
 - utiliser une date-heure présente l'inconvénient de laisser une meta-donnée intelligible en base ;
 - utiliser un compteur universel a l'inconvénient de facilement deviner des liaisons entre objets : par exemple tous les secrets paratagés entre N avatars d'un même groupe vont avoir la même version (ou très proches selon l'option). Crypter l'appartenance d'un avatar à un groupe alors qu'on peut la lire de facto dans les versions est un problème.
@@ -365,23 +365,28 @@ Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase
 
     CREATE TABLE "parrain" (
     "dpbh"  INTEGER,
+    "idp"   INTEGER,
     "dlv"  INTEGER,
     "st"  TEXT,
     "pbcsh"  BLOB,
+    "datak" BLOB,
     "datax"  BLOB,
     PRIMARY KEY("dpbh")
     ) WITHOUT ROWID;
-    CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" )
+    CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" );
+    CREATE INDEX "idp_parrain" ON "parrain" ( "idp" )
 
 - `dpbh` : hash du PBKFD2 du début de la phrase secrète de parrainage.
+- `idp` : id du parrain.
 - `dlv` : la date limite de validité permettant de purger les parrainages.
 - `st` : trois chiffres : 
   - (1) : 0: invitation lancée, 1: acceptée, 8: annulée par le parrain, 9: refusée
   - (2) : en cas d'acceptation : le parrain accepte (1) ou refuse (0) le partage de secrets avec son filleul.
   - (3) : en cas d'acceptation : le filleul accepte (1) ou refuse (0) le partage de secrets avec son parrain.
 - `pcbsh` : hash du SHA de X (PBKFD2 de la phrase complète) pour que l'invité puisse être quasi-authentifié. Le filleul doit se rappeler qu'il a une proposition qui l'attend identifiée par une phrase de contact.
+- `datak` : phrase de parrainage cryptée par la clé K du compte (pour que P la retrouve).
 - `datax` : données de l'invitation cryptées par la clé X.
-  - `id cle pseudo` : de l'avatar P.
+  - `cle pseudo` : de l'avatar P.
   - `c1` : de P.
   - `nc` : de P.
   - `q1 q2 qm1 qm2` : quotas donnés par le parrain.
@@ -408,18 +413,23 @@ Une rencontre est identifiée par `dpbh` le hash du PBKFD2 du début de la phras
 
     CREATE TABLE "rencontre" (
     "dpbh"  INTEGER,
-    "dlv"  INTEGER,
-    "pbcsh"  BLOB,
-    "datax"  BLOB,
+    "ida"   INTEGER,
+    "dlv"   INTEGER,
+    "pbcsh" BLOB,
+    "datak" BLOB,
+    "datax" BLOB,
     PRIMARY KEY("dpbh")
     ) WITHOUT ROWID;
     CREATE INDEX "dlv_rencontre" ON "rencontre" ( "dlv" )
+    CREATE INDEX "ida_rencontre" ON "renconstre" ( "ida" )
 
 - `dpbh` : hash du PBKFD2 du début de la phrase secrète de rencontre.
+- `ida` : id de l'avatar A initiant la rencontre.
 - `dlv` : la date limite de validité permettant de purger les rencontres.
 - `pcbsh` : hash du SHA de X (PBKFD2 de la phrase complète) pour que B puisse être quasi-authentifié.
+- `datak` : phrase de rencontre cryptée par la clé K du compte (pour que P la retrouve).
 - `datax` : données de l'invitation cryptées par la clé X.
-  - `id cle pseudo` : de A.
+  - `cle pseudo` : de A.
 
 ### Groupe : liste et détail des membres
 - `id` : entier depuis 5 bytes aléatoires.  
