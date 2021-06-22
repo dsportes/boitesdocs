@@ -81,8 +81,8 @@ _**Tables aussi persistantes sur le client (IDB)**_
 `avidc1` (ida) : identifications et clés c1 des contacts d'un avatar  
 `avcontact` (ida, nc) : données d'un contact d'un avatar    
 `avinvit` () (idb) : invitation adressée à B à lier un contact avec A  
-`parrain` (dpbh) : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
-`rencontre` (dpbh) : communication par A de son identifications complète à un compte inconnu  
+`parrain` (dpbh) ida : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
+`rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu  
 `grlmg` (idg) : liste des id + nc + c1 des membres du groupe  
 `grmembre` (idg, nm) : données d'un membre du groupe  
 `grinvit` () (idm) : invitation à M à devenir membre d'un groupe  
@@ -430,7 +430,7 @@ Un groupe est caractérisé par :
 - sa carte de visite dans `avgrcv`,
 - ses quotas et volumes dans `avgrvq`,
 - sa date de dernière signature dans `sgg`,
-- la liste des clés `c1` de ses membres dans `grentete`.
+- la liste des clés `c1` de ses membres dans `grmlg`.
 - le détail de ses membres dans `grmembre`.
 - la liste de ses secrets dans `avsecrets`.
 
@@ -452,10 +452,10 @@ Un groupe est caractérisé par :
 - `mcg` : liste des mots clés prédéfinis pour le groupe.
 - `idclg` [`idm + nc + c1`]: liste indexée par le numéro de membre cryptée par la clé du groupe `cg`. Pour chaque membre actif `nm`, ce qu'il faut pour lui partager un secret :
 	- `idm` : l'id du membre.
-	- `nc` : son numéro de contact qui lui permettra de retrouver la clé `c1` associée.
+	- `nc` : son numéro de contact qui permet au membre de retrouver la clé `c1` associée au groupe (dans `avidc1`).
 	- `c1` : clé pour crypter les données du secrets pour `idm`.
 
-Pour partager un secret avec tous les memebres d'un groupe, une session cliente d'un des membres peut ainsi constituer une _liste de diffusion_ pour créer / mettre à jour les rows `avsecret` (l'idm du membre, son nc et le cryptage de la clé du secret par la clé du groupe).
+Pour partager un secret avec tous les memebres d'un groupe, une session cliente d'un des membres peut ainsi constituer une _liste de diffusion_ pour créer / mettre à jour les rows `avsecret` (l'id du membre, son nc et le cryptage de la clé du secret par la clé du groupe).
 
 ##### Détail de chaque membre
 Chaque membre d'un groupe a une entrée pour le groupe identifiée par un numéro de membre `nm` attribué en séquence.   
