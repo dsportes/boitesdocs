@@ -162,17 +162,18 @@
 
 ### Invitation à être membre d'un groupe
 **Client**
-- maj de `grlmg` pour `idm` - `nc c1` sont inconnus.
-- création d'un row `grmembre` pour idm
+- maj de `grlmg` pour `idm / nm` - `nc` est inconnu et le sera lors de l'acceptation de M.
+- création d'un `avinvitgr` pour idm
+- création d'un row `grmembre` pour idm (`idg / nm`)
 - *Argument de l'opération*
   - `sid` : de la session.
   - `ida` :
-  - `idm ncm` :
+  - `idm` :
   - `idg nm` : id du groupe
 
 **Opération**
 - vérification de `v` sur `grlmg`.
-- stockage des rows `grlmg` `grmembre`.
+- stockage des rows `grlmg` `grmembre` `avinvitgr`.
 
 **Synchronisation**
 - mise à jour des sessions des groupes (compte `idc`) avec ajout du membre `idm` pour les cartes de visite à synchroniser.
@@ -182,8 +183,9 @@
 
 ### Acceptation de l'invitation à être membre
 **Client**
-- maj `avidc1` pour le groupe (ncg) et génération d'un c1
-- maj `grlmg` pour ajouter `ncg + c1` à l'entrée correspondant à idm.
+- lecture de `avinvitgr`
+- maj `avidcc` pour le groupe (ncg)
+- maj `grlmg` pour ajouter `ncg` à l'entrée correspondant à idm.
 - maj du row `grmembre` pour idm (statut et dnb)
 - *Argument de l'opération*
   - `sid` : de la session.
@@ -192,10 +194,10 @@
 
 **Opération**
 - vérification de `v` sur `grlmg avidc1 grmembre`.
-- stockage des rows `grlmg avidc1 grmembre`.
+- stockage des rows `grlmg avidcc grmembre`.
 
 **Synchronisation**
-- `avidc1` sur idm
+- `avidcc` sur idm
 - `grlmg` sur idg
 - `grmembre` sur idg
 
@@ -208,7 +210,7 @@
 ### Création d'un contact simple
 **Client**  
 Le triplet `id cle pseudo` a été récupéré, soit sur un membre de groupe dont A est membre, soit sur une rencontre.  
-- maj du row `avidc1` après génération d'un `c1`.
+- maj du row `avidcc` après génération d'un `cc`.
 - création d'un row `avcontact`
 - *Argument de l'opération*
   - `sid` : de la session.
@@ -216,12 +218,12 @@ Le triplet `id cle pseudo` a été récupéré, soit sur un membre de groupe don
   - `idb` :
 
 **Opération**
-- vérification de `v` sur `avidc1`.
+- vérification de `v` sur `avidcc`.
 - stockage des rows.
 
 **Synchronisation**
 - mise à jour des sessions des groupes (compte `idc`) avec ajout du contact `idb` dans leur liste de contacts pour carte de visite.
-- `avidc1`
+- `avidcc`
 - `avcontact`
 
 ### Invitation par A de B à lier leurs contacts
@@ -241,12 +243,12 @@ Création d'un row `avinvitct`.
 **Client**
 B n'était pas un contact de A
 - création d'un row `avcontact` pour B
-- création d'un nc / c1 pour B et maj `avidc1` pour le nc de B
+- création d'un `nc` pour B et maj `avidcc` pour le nc de B avec le cc reçu sur l'invitation.
 
 B était déjà contact de A
-- récupération de son nc et c1
-- maj de `avidc1` 
-- maj du avcontact de B avec en c2 le c1 communiqué par B
+- récupération de son nc et du cc de l'invitation.
+- maj de `avidcc` pour y mettre le nouveau cc
+- maj du `avcontact` de B avec dé-cryptage / cryptage de datac1 et datac2 par le nouveau cc communiqué par B
 
 Lecture du row `avcontact` (nc de A dans B) de B et maj avec cryptage du `datac1` avec c2 valant le c1 de A.  
 - *Argument de l'opération*
@@ -255,12 +257,12 @@ Lecture du row `avcontact` (nc de A dans B) de B et maj avec cryptage du `datac1
   - `idb nca` :
 
 **Opération**
-- stockage des row `avidc1 avcontact` de A.
-- stockage des row `avidc1 avcontact` de B.
+- stockage des row `avidcc avcontact` de A.
+- stockage des row `avcontact` de B.
 
 **Synchronisation**
-- `avidc1 avcontact` (de A) sur ida.
-- `avidc1 avcontact` (de B) sur idb.
+- `avidcc avcontact` (de A) sur ida.
+- `avcontact` (de B) sur idb.
 
 ### Mise à jour du statut d'un contact C statut / tweet
 **Client**  
@@ -282,7 +284,7 @@ Lecture du row `avcontact` (nc de A dans B) de B et maj avec cryptage du `datac1
 
 ### Suppression d'un contact simple C
 **Client**  
-- maj du row `avidc1`
+- maj du row `avidcc`
 - suppression du row `avcontact`.
 - *Argument de l'opération*
   - `sid` : de la session.
@@ -290,11 +292,11 @@ Lecture du row `avcontact` (nc de A dans B) de B et maj avec cryptage du `datac1
   - `ida` :
 
 **Opération**
-- vérification de `v` sur `avidc1`.
-- stockage de `avidc1`, suppression de `avcontact`.
+- vérification de `v` sur `avidcc`.
+- stockage de `avidcc`, suppression de `avcontact`.
 
 **Synchronisation**
-- `avidc1`
+- `avidcc`
 - `avcontact` (suppression)
 
 ### Focus sur un groupe ???

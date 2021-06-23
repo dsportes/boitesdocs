@@ -71,23 +71,21 @@ Or il apparaît que les transactions portant sur plusieurs objets avatars / grou
 `sga` (ida) : signature d'un avatar  
 `sgg` (idg) : signature d'un groupe  
 `sgc` (idc) : signature d'un compte
-`sgs` (ids) : signature d'un secret  
 `avrsa` (ida) : clé publique d'un avatar  
 
 _**Tables aussi persistantes sur le client (IDB)**_
 
 `compte` (idc) : authentification et données d'un compte  
 `avgrcv` (id) : carte de visite d'un avatar ou groupe  
-`avidc1` (ida) : identifications et clés c1 des contacts d'un avatar  
+`avidcc` (ida) : identifications et clés c1 des contacts d'un avatar  
 `avcontact` (ida, nc) : données d'un contact d'un avatar    
 `avinvitct` () (idb) : invitation adressée à B à lier un contact avec A  
 `grinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G  
 `parrain` (dpbh) ida : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
 `rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu  
-`grlmg` (idg) : liste des id + nc + c1 des membres du groupe  
+`grlmg` (idg) : liste des id + nc des membres du groupe  
 `grmembre` (idg, nm) : données d'un membre du groupe  
-`secret` (ids) : données d'un secret
-`avsecret` (ida, idcs) : aperçu d'un secret pour un avatar (ou référence de son groupe)  
+`secret` (id, ns) : données d'un secret d'un avatar ou groupe
 
 ### Singleton d'état global du serveur
 Ce singleton est un JSON où le serveur peut stocker des données persistantes à propos de son état global : par exemple les date-heures d'exécution des derniers traitements GC, la dhc du dernier backup de la base...
@@ -96,16 +94,15 @@ Ce singleton est un JSON où le serveur peut stocker des données persistantes �
 
 ### Table `versions` - CP : `id`
 
-Au lieu d'un compteur par avatar on a N compteurs (par exemple 256 plus un pour l'universel), un compteur pour plusieurs avatars.  
+Au lieu d'un compteur par avatar / groupe on a N compteurs (par exemple 256), un compteur pour plusieurs avatars / groupe (le reste d'une division quelconque ou le 4ième bytes).  
 L'avantage est qu'on a une table à un seul row compact avec en data un array d'entiers sur 4 bytes.
 
->Le nombre de collisions n'est pas un problème et détecter des proximités entre avatars dans ce cas devient un exercice très incertain (fiabilité de 1 sur 256).
+>Le nombre de collisions n'est pas vraiment un problème : détecter des proximités entre avatars / groupes dans ce cas devient un exercice très incertain (fiabilité de 1 sur 256).
 
 L'id 0 correspondant à l'état courant et l'id 1 à la dernière sauvegarde.
 
 	CREATE TABLE "versions" (
   "id"  INTEGER,
-  "vu"  INTEGER,
   "va"  BLOB
   PRIMARY KEY("id")
   ) WITHOUT ROWID;
@@ -138,7 +135,7 @@ Les transferts de quotas entre avatars / groupes / banque se font sous la forme 
 **Opération mensuelle**  
 Les volumes mensuels sont mis à 0 le premier de chaque mois à minuit. Le cas échéant l'occasion de sortir des statistiques sur un fichier `xls`. 
 
-### Comptes, avatars, groupes, secrets : signatures 
+### Comptes, avatars, groupes : signatures 
 A chaque connexion d'un compte, si ça fait plus de 20 jours qu'il n'a pas signé, le compte signe pour lui-même, ses avatars et les groupes que ses avatars ont en *contact* :
 - la date de signature du compte est aléatoirement celle d'un jour dans les 10 à 20 derniers jours,
 - la signature de ses avatars sont tirées aléatoirement dans les 10 derniers jours.
@@ -177,11 +174,6 @@ La détection par `dds` trop ancienne d'un groupe,
 
 Les *disparus* depuis plus d'un an sont détruit par le GC.
 
-###### GC des secrets
-Une fois connecté et synchronisé une session de compte dispose de la liste de tous ses secrets.   Si ça plus de X jours qu'il ne l'a pas fait, il pose sa signature sur tous les secrets qu'il référence et qui n'ont pas été signés au cours des X derniers jours.
-
-Le GC détruit tous les secrets non signés (non référencés) dans les N derniers mois.
-
 ### Comptes : authentification et données d'un compte
 Phrase secrète : un début de 16 caractères au moins et une fin de 16 caractères au moins.  
 `pcb` : PBKFD2 de la phrase complète (clé X) - 32 bytes.  
@@ -201,7 +193,7 @@ Phrase secrète : un début de 16 caractères au moins et une fin de 16 caractè
 	) WITHOUT ROWID;
 	CREATE UNIQUE INDEX "dpbh_compte" ON "compte" ( "dpbh" )
 	
-- `v` : espace des avatars
+- `v` : 
 - `dpbh` : pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbsh` : hash du SHA du PBKFD2 de la phrase complète pour quasi-authentifier une connexion.
 - `kx` : clé K du compte, crypté par la X (phrase secrète courante).
@@ -234,7 +226,7 @@ Cette table donne la carte de visite de chaque avatar ou groupe, cryptée par le
     CREATE INDEX "dhc_avcv" ON "avcv" ( "dhc" )
 	
 - `id` : id de l'avatar ou du groupe.
-- `v` : espace universel. Les transactions ne modifie qu'une seule carte à la fois.
+- `v` : 
 - `cvag` : carte de visite cryptée par la clé de l'avatar ou du groupe. 
   - `photo` : photo ou icône.
   - `info` : court texte informatif.
@@ -258,34 +250,29 @@ Les contacts ont un numéro de contact `nc` attribué en séquence à la créati
 Un avatar A peut avoir pour contact :
 - **soit un avatar B**, avec deux états successifs possibles :
 	- **libre** : A a B pour contact `15` et B peut avoir ou non A pour contact `57`, ces situations sont autonomes l'une de l'autre et ni A ni B ne savent rien du contact éventuel de l'autre. A peut décider de perdre B comme contact et B peut décider de perdre A comme contact, puis éventuellement de reprendre B pour contact sous un nouveau numéro `18`.
-	- **lié** : A a B pour contact `15`, B a A pour contact `57` : ces numéros de contacts mutuels sont connus et immuables de part et d'autre. A restreindre la nature de ses échanges avec B mais ne peut plus les rompre tant que B n'a pas disparu.
-- soit un groupe G : si A est membre du groupe G sous un numéro de contact 25, il le restera toujours, même résilié ???
+	- **lié** : A a B pour contact `15`, B a A pour contact `57` : ces numéros de contacts mutuels sont connus et immuables de part et d'autre. A peut restreindre la nature de ses échanges avec B mais ne peut plus les rompre tant que B n'a pas disparu.
+- **soit un groupe G** : si A est membre du groupe G sous un numéro de contact 25, il le restera toujours, même résilié.
 
 A chaque numéro de contact `nc` est associée :
-- une première clé de cryptage `c1` pour les secrets éventuellement partagés entre A et son contact B (pour un avatar) ou G (pour un groupe). 
-	- si B partage un secret S avec A, la clé et l'identifiant de S sont communiqués à A cryptés par cette clé `c1`.
-	- si un membre de G partage un secret S avec A, la clé et l'identifiant de S sont communiqués à A cryptés par cette clé `c1`.
-- une seconde clé de cryptage `c2` :
-	- si A partage un secret S avec B, la clé et l'identifiant de S sont communiqués à B cryptés par cette clé `c2`.
-	- si le contact est un groupe G, `c2` est la clé du groupe.
+- si le contact est un avatar B :
+    - la clé de cryptage `cv` de la carte de visite de B.
+    - la clé de cryptage de contact `cc` pour les secrets partagés entre A et son contact avatar B.
+- si le contact est un groupe G dont A est membre :
+    - la clé de cryptage du groupe `cg` pour les secrets du groupe G et sa carte de visite.
 
-Dans un contact d'avatar *lié*, il y a deux clés. 
-- dans les tables `avc1` et `avcontact`, la clé 1 est toujours celle de l'avatar. 
-- quand un avatar A partage un secret avec un avatar B, il crypte *son* exemplaire avec sa clé `c1` et crypte *l'autre* exemplaire pour B avec la clé `c2`.
+**Table `avidcc` : CP `ida`:**  
+Cette table donne les couples `id + cc/cg` pour chacun des `nc`. Elle énumère tous les avatars et groupes en contact (avec leur clé d'accès aux secrets).
 
-**Table `avidc1` : CP `ida`:**  
-Cette table donne les couples `id + c1` pour chacun des `nc`. Elle énumère tous les avatars et groupes en contact (avec leur `c1` d'accès aux secrets).
-
-    CREATE TABLE "avidc1" (
+    CREATE TABLE "avidcc" (
     "ida"   INTEGER,
     "v"		INTEGER,
     "idc1k"  BLOB,
     PRIMARY KEY("ida")
     ) WITHOUT ROWID;
-    CREATE INDEX "ida_v_avcontact" ON "avcontact" ( "ida", "v" )
+    CREATE INDEX "ida_v_avidcc" ON "avidcc" ( "ida", "v" )
 
 - `ida` : id de l'avatar A.
-- `v` : espace de l'avatar.
+- `v` : 
 - `idc1k` [ ] : table donnant la clé de cryptage `id + c1` tirée aléatoirement pour chaque `nc` (qui est l'index dans cette table). `id` est une redondance puisqu'on le retrouve dans `avcontact` mais ça permet à l'avatar d'avoir la liste de ses contacts en une fois.
 
 **Table : CP `ida nc`:**
@@ -294,7 +281,7 @@ Cette table donne les couples `id + c1` pour chacun des `nc`. Elle énumère tou
     "ida"   INTEGER,
     "nc"	INTEGER,
     "v"  	INTEGER,
-    "datac1"	BLOB,
+    "datac"	BLOB,
     "datak"	BLOB,
     PRIMARY KEY("ida", "nc")
     );
@@ -302,7 +289,7 @@ Cette table donne les couples `id + c1` pour chacun des `nc`. Elle énumère tou
 
 - `ida` : id de l'avatar A
 - `nc` : numéro de contact.
-- `v` : espace de l'avatar.
+- `v` : 
 - `st` : statut.
 	- contact libre avec un avatar : 0
 	- contact lié avec un avatar : 2xyz
@@ -313,25 +300,21 @@ Cette table donne les couples `id + c1` pour chacun des `nc`. Elle énumère tou
 		- x : 2:accepté, 3:refusé, 8:résilié, 9:disparu.
 		- y : 1:lecteur, 2:auteur, 3:administrateur.
 		- z : plus haut y jamais atteint.
-- `datac1` : information cryptée par la clé `c1` associée au `nc`.
+- `datac1` : information cryptée par la clé `cc/cg` associée au `nc`. (immuable après création).
 	- `id` : `id` de l'avatar ou du groupe.
-	- `cle` : suffixe aléatoire (accès à la carte de visite).
+	- `cle` : suffixe aléatoire (accès à la carte de visite pour un avatar).
 	- `nom` : *pseudo de l'avatar* ou *code* du groupe. Pour un parrainage de compte, c'est la phrase complète de reconnaissance (d'où A pourra retrouver le row de parrainage).
+- `datac2` : information cryptée par la clé `cc/cg` associée au `nc`.
+  - `q1 q2` : balance des quotas donnés / reçus par l'avatar au groupe ou à l'avatar B.
 	- *pour un contact lié avec un avatar*
-		- `c2` : clé `c2`. C'est la clé `c1` de B pour son contact avec A.
 		- `dna` : dernière note écrite par A pour B.
 		- `dnb` : dernière note écrite par B pour A.
-	  - `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar à son contact avatar.
-  - *pour un contact groupe*
-    - `c2` : clé du groupe.
-    - `q1 q2` : balance des quotas donnés / reçus par l'avatar au groupe.
+	  - `qm1 qm2` : balance des quotas donnés / reçus par l'avatar à son contact avatar B.
 - `datak` : information cryptée par la clé K de A.
   - `info` : information libre donnée par A à propos du contact.
   - `mc` : liste des mots clés associés au contact.
 
 Un *contact lié* permet d'échanger un court texte entre A et B pour justifier d'un changement de statut ou n'importe quoi d'autre : en particulier quand A n'accepte pas le partage de secrets avec B, c'est le seul moyen de passer une courte information mutuelle qui n'encombre pas leurs volumes respectifs.
-
-TODO ??? : couper datac1 en 2, une partie immuable et une partie évolutive.
 
 #### Invitation par A de B à lier leurs contacts
 C'est requis pour qu'ils puissent partager des secrets et se donner des quotas.
@@ -350,10 +333,10 @@ C'est requis pour qu'ils puissent partager des secrets et se donner des quotas.
 	- `ida` : id de A.
 	- `cle` : de A.
 	- `pseudo` : de A.
-	- `c1` : clé `c1` de A pour ce contact.
+	- `cc` : clé `cc` de ce contact définie par A.
 	- `nc` : numéro du contact de A (pour que B inscrive le statut ...).
 
-B peut créer un contact chez lui, ou récupérer celui existant chez lui pour A s'il l'avait déjà en contact libre, et inscrire les données de A comme contact *lié* chez lui et réciproquement inscrire sa propre clé `c1` en clé `c2` de A.
+B peut créer un contact chez lui, ou récupérer celui existant chez lui pour A s'il l'avait déjà en contact libre, et inscrire les données de A comme contact *lié* chez lui.
 
 #### Invitation par A de M à un groupe G
 L'invitant peut retrouver en session la listes invitations en cours qu'il a faites : un membre de G avec ida comme invitant et un statut en attente.
@@ -368,7 +351,8 @@ L'invitant peut retrouver en session la listes invitations en cours qu'il a fait
 - `idm` : id du membre invité.
 - `dlv` :
 - `datapub` : crypté par la clé publique du membre invité.
-	- `idg cle code` : du groupe.
+	- `idg code` : du groupe.
+  - `cg` : clé du groupe.
 	- `nm` : numéro de membre de l'invité.
 
 ### Parrainage par P de la création d'un compte F (pour un *inconnu* n'ayant pas de compte)
@@ -403,11 +387,11 @@ Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase
 - `datak` : phrase de parrainage cryptée par la clé K du compte (pour que P la retrouve).
 - `datax` : données de l'invitation cryptées par la clé X.
   - `cle pseudo` : de l'avatar P.
-  - `c1` : de P.
+  - `cc` : de P.
   - `nc` : de P.
   - `q1 q2 qm1 qm2` : quotas donnés par le parrain.
 
-**La parrain créé un contact *lié* pour le filleul** dont le pseudo est encore inconnu à ce stade mais il a préparé une `id`, une `clé`, et la clé `c2`.  
+**La parrain créé un contact *lié* pour le filleul** dont le pseudo est encore inconnu à ce stade mais il a préparé une `id` et la clé `cc`.  
 La phrase complète est mise à la place du *pseudo*, ce qui permet le cas échéant au parrain de la retrouver (voire d'adapter son invitation).
 
 **Si le filleul ne fait rien à temps** : le GC s'effectuera sur la `dlv` par simple *delete*.
@@ -450,7 +434,7 @@ Une rencontre est identifiée par `dpbh` le hash du PBKFD2 du début de la phras
 ### Groupe : liste et détail des membres
 - `id` : entier depuis 5 bytes aléatoires.  
 - `code` : lisible (comme un nom de fichier) et immuable.
-- `cg` : SHA id + 8 bytes aléatoires + code. Permet d'accéder à la liste des membres du groupe
+- `cg` : 15 bytes aléatoires. Permet d'accéder à la liste des membres du groupe et à la carte de visite du groupe.
 
 Un groupe est caractérisé par :
 - sa carte de visite dans `avgrcv`,
@@ -467,7 +451,7 @@ Un groupe est caractérisé par :
     "v"  INTEGER,
     "st"	INTEGER,
     "mcg" BLOB,
-    "idclg"  BLOB,
+    "idncg"  BLOB,
     PRIMARY KEY("idg")
     ) WITHOUT ROWID;
     CREATE INDEX "idg_v_grentete" ON "grentete" ( "idg", "v" )
@@ -476,12 +460,9 @@ Un groupe est caractérisé par :
 - `v` : espace générique
 - `st` : statut : 1)ouvert, 2)fermé, 3)ré-ouverture en vote, 4)archivé 
 - `mcg` : liste des mots clés prédéfinis pour le groupe.
-- `idclg` [`idm + nc + c1`]: liste indexée par le numéro de membre cryptée par la clé du groupe `cg`. Pour chaque membre actif `nm`, ce qu'il faut pour lui partager un secret :
+- `idncg` [`idm + nc`]: liste indexée par le numéro de membre (cryptée par la clé du groupe `cg`). Pour chaque membre actif `nm`, la référence de son contact :
 	- `idm` : l'id du membre.
-	- `nc` : son numéro de contact qui permet au membre de retrouver la clé `c1` associée au groupe (dans `avidc1`).
-	- `c1` : clé pour crypter les données du secrets pour `idm`.
-
-Pour partager un secret avec tous les memebres d'un groupe, une session cliente d'un des membres peut ainsi constituer une _liste de diffusion_ pour créer / mettre à jour les rows `avsecret` (l'id du membre, son nc et le cryptage de la clé du secret par la clé du groupe).
+	- `nc` : son numéro de contact qui permet au membre de retrouver la clé `cg` du groupe (dans `avidcc`).
 
 ##### Détail de chaque membre
 Chaque membre d'un groupe a une entrée pour le groupe identifiée par un numéro de membre `nm` attribué en séquence.   
@@ -520,7 +501,7 @@ Le statut comporte trois chiffres `xyz` :
 - tous les membres se connaissent et ont un statut de lecteur / auteur / animateur.
 - seuls les animateurs peuvent :
     - inviter d'autres avatars à rejoindre la liste.
-    - changer les statut des membres non animateurs.
+    - changer les statuts des membres non animateurs.
     - détruire le groupe.
     - attribuer un statut *permanent* à un secret partagé par le groupe.
 - les avatars membres du groupe peuvent s'ils sont auteur / animateur :
@@ -533,13 +514,14 @@ Le statut comporte trois chiffres `xyz` :
 - un animateur peut lancer quand il veut un nettoyage pour détecter les membres qui auraient disparus *et* ne seraient plus auteurs d'aucuns secrets.
 
 ### Secrets
-- `id` : entier depuis 6 bytes aléatoires. Le reste de la division par 3 indique si c'est un secret personnel, de couple ou de groupe. 
-- `cs` : SHA de id + 15 bytes aléatoires. Le contenu d'un secret est crypté par la clé `cs` spécifique de chaque secret.
+Un secret est identifié par,
+- id : l'id du groupe ou de l'avatar proriétaire.
+- ns : un numéro aléatoire relatif à cet id.
 
-`cs` est stockée dans le row cryptée selon le cas :
-- (0) *secret personnel d'un avatar A* : par la clé K de l'avatar.
-- (1) *secret d'un couple d'avatars A et B* : A et B connaissent leurs clé `c1` réciproques, l'une comme l'autre pourrait être employée pour crypter `cs`. Par convention on prend `c1` de l'avatar dont l'id est le plus petit.
-- (2) *secret d'un groupe G* : par la clé du groupe G.
+La clé de cryptage du secret `cs` est selon le cas :
+- (0) *secret personnel d'un avatar A* : la clé K de l'avatar.
+- (1) *secret d'un couple d'avatars A et B* : A et B connaissent leur clé `cc` de contact réciproque.
+- (2) *secret d'un groupe G* : la clé du groupe G.
 
 ###### Un secret a toujours un texte et possiblement une pièce jointe
 Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est constituée des 140 premiers caractères de son texte.
@@ -591,21 +573,22 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 **Table `secret` : CP `ids`**
 
     CREATE TABLE "secret" (
-    "ids"   INTEGER,
+    "id"  INTEGER,
+    "ns"  INTEGER,
     "v"		INTEGER,
     "nsc"	INTEGER,
-    "cs"	BLOB,
     "txts"	BLOB,
     "datas"	BLOB,
-    PRIMARY KEY("ids")
-    ) WITHOUT ROWID;
-    CREATE INDEX "ids_dhc_secret" ON "secret" ( "ids", "dhc" )
+    "ncb"  INTEGER,
+    "dups"	BLOB,
+    PRIMARY KEY("id","ns"));
+    CREATE INDEX "id_v_secret" ON "secret" ("id", "v")
     CREATE INDEX "nsc_secret" ON "secret" ( "nsc" )
 
-- `ids` : id du secret.
-- `v` : espace générique.
+- `id` : id du groupe ou de l'avatar.
+- `ns` : numéro du secret relatif au groupe / avatar.
+- `v` : 
 - `nsc` : numéro de semaine de création ou 9999 pour un *permanent*.
-- `cs` : clé du secret cryptée par la clé K, celle du groupe ou `c1` d'un des deux avatars d'un couple.
 - `txts` : texte complet gzippé crypté par la clé du secret. 
 - `aps` : données d'aperçu du secret cryptées par la clé du secret.
   - `la` [] : liste des ids des auteurs.
@@ -617,70 +600,20 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     - type de la pièce jointe : 0 inconnu, 1, 2 ... selon une liste prédéfinie.
     - version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.
   - `r` : référence à un autre secret.
+- `ncb / dups` : pour un secret de couple A/B (sinon absent).
 
-### Avatars et groupes : aperçu des secrets
-Tout secret a son aperçu (et les références d'accès au secret complet) distribué chez autant d'avatars qu'ayant accès :
-- un seul pour un secret personnel,
-- deux avatars pour un secret de couple,
-- de 1 à N avatars pour un groupe plus l'exemplaire de référence du groupe.
-
-**Table : CP: `ida, idcls`**
-
-    CREATE TABLE "avsecret" (
-    "ida"	INTEGER,
-    "idcs"	BLOB,
-    "nc"	INTEGER,
-    "v"		INTEGER,
-    "nsc"	INTEGER,
-    "datas"	BLOB,
-    PRIMARY KEY("id", idcs")
-    );
-    CREATE INDEX "ida_v_avsecret" ON "avsecret" ( "ida", "v" );
-    CREATE INDEX "nsc_avsecret" ON "avsecret" ( "nsc" );
-
-- `id` : id de l'avatar ou du groupe.
-- `idcs` : `id + cs` id du secret + clé du secret, crypté par la clé `c1` (ou `c2/cg`) du contact `nc` de `id`. Un même secret a donc autant d'identifiants et de clé d'accès à sa clé que d'avatars le partageant.
-- `v` : espace de l'avatar.
-- `nc` : numéro de contact chez cet avatar
-  - pour un couple d'avatar ou un groupe : lui permet de retrouver la clé avec laquelle `idcls` est crypté. 
-  - 0 pour l'exemplaire de référence du groupe (c'est toujours la clé du groupe).
-  - 0 pour un secret personnel d'avatar (c'est toujours la clé k).
-- `nsc` : numéro de semaine de création ou 9999 pour un *permanent*.
-- `aps` : données d'aperçu du secret cryptées par la clé du secret.
-
-Pour un secret *supprimé* par son avatar :
-- `nsc` vaut -1 par convention.
-- `v` donne la version de suppression.
-- toutes les autres colonnes sont absentes.
+#### Secrets de couple, duplication
+Dans le cas d'un secret partagés entre deux avarars A et B (contacts liés), le secret est dupliqué, une fois pour A et une fois pour B :
+- la clé de cryptage du secret est celle du couple : dans l'exemplaire de A id est l'id de A et ncb est le numéro de contact pour B dans A. Cette clé crypte `txts aps dups`.
+- dans `dups`, A va trouver `{idb, nsb}` :
+  - `idb` : l'id de B
+  - `nsb` : le numéro de secret de l'exemplaire pour B.
+- A peut créer les deux exemplaires du secret en générant deux numéros relatifs à A et B afin que la relation entre A et B n'apparaisse pas dans la base.
+- A comme B peuvent mettre à jour les deux exemplaires du secret.
 
 # Todo
-### Secret pour un avatar : à ajuster
+### Secret : à ajuster
 - mots dièse, flags, path, commentaires
-- *suppression* de l'exemplaire d'un avatar
-
-Comment A déclare détruire un secret sans que ceci affecte B ? De même pour un groupe ? Mettre `nc` à -1 dans `avsecret` ? Remettre un statut / mot clé / flags / path dans `avsecret` ? flags : *à lire*, *lu*, *favori* ... ? annotation personnelle ?
-
-### Synchro des cartes de visite :
-- la synchro peut être ouverte dès que le contexte de session est prêt.
-- au pire il va remonter des CV qu'on n'a pas encore chargées.
-- opération de lecture :
-    - sur backup : si dhds trop vieille
-    - sur vivant :
-    - remonte des CV qui *peuvent* être moins récentes que celles connues (remontées par synchro). Simplement les ignorer.
-
-### Sessions
-- compte c
-- avatars de compte { ac }
-  - contacts avatars { a }
-  - contacts groupes { g }
-
-**Remontées :**
-- compte -> c
-- avnotif : -> a (les N4 remontent toujours avec leur secret)
-- grmembre -> g
-- avinvit -> a
-- avcontact -> a
-- avgrcv -> ac a g
 
 ### Serveurs vivant et de backup
 Le serveur de backup est l'image de la base la veille au soir.
@@ -690,27 +623,4 @@ Le serveur de backup est l'image de la base la veille au soir.
 En début de session un compte *peut* avoir des jours / semaines / mois à rattraper, voire tout si la session est en mode incognito : une grande masse de rows peuvent être lus depuis le backup sans bloquer le serveur vivant. Si la dhds de la session cliente est postérieure à la dhc du serveur de backup, ça se passe directement sur le serveur vivant.
 
 La vraie connexion / synchronisation se fait sur le serveur vivant pour avoir les tous derniers mais ça devrait être très légers.
-
-### Connexion
-- (1) remonter compte : avatars de compte ac 
-- (2) pour chaque ac :
-  - contacts
-  - invits
-
-Dès que les selects de phase 1 et 2 ne remontent plus rien, on ouvre la synchro mais les  notifs reçues sont mises en attente.
-- (3) membres de tous les contacts groupes
-- (4) secrets (au moins entêtes)
-
-(5) Début du mode normal : on traite toutes celles en attente et celles au fil de l'eau.
-
-Entête de secrets : par groupe ?  
-Secrets complets : par groupe.  
-Cartes de visites des contacts : à *l'ouverture* de l'avatar du compte.  
-Cartes de visite des membres d'un groupe : à *l'ouverture* du groupe.  
-Autant de dhs à gérer dans le client : on peut simplifier en laissant remonter toutes les synchros. Avantage : si un autre compte met à jour sa carte on la voit tout de suite. 
-
-Remontées des volumes / quotas ? Fenêtre spécifique de refresh / affichage
-- les quotas changent peu souvent
-- les volumes c'est permanent
-
 
