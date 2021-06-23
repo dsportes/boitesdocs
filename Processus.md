@@ -226,16 +226,16 @@ Le triplet `id cle pseudo` a été récupéré, soit sur un membre de groupe don
 
 ### Invitation par A de B à lier leurs contacts
 **Client**
-Création d'un row `avinvit`.
+Création d'un row `avinvitct`.
 - *Argument de l'opération*
   - `sid` : de la session.
   - `idb` :
 
 **Opération**
-- stockage du row `avinvit`.
+- stockage du row `avinvitct`.
 
 **Synchronisation**
-- `avinvit` sur idb.
+- `avinvitct` sur idb.
 
 ### Acceptation par A de lier son contact avec B
 **Client**
@@ -309,5 +309,67 @@ Avec maj à l'occasion de création de contact ?
 
 ## GC
 
+# (Re) Synchronisation
+Ne concerne que les modes *synchro* et *incognito*.
 
+#### Authentification d'un compte
+Dès qu'un compte a été authentifié sur le client par récupération du row `compte` auprès du serveur dans l'objet `Compte`, 
+- en mode *synchro* : 
+    - le nom de la base IDB étant désormais connu, la base est ouverte. Le _LocalStorage_ peut être mis à jour si la phrase secrète a changé (l'utilisateur ayant saisi la nouvelle).
+    - l'objet `Compte` est sauvegardé sur IDB.
+    - l'intégralité de la base est chargée en mémoire.
+- en mode *incognito*, l'état de la mémoire se résume à l'objet `Compte`.
 
+**Le processus de synchronisation** peut commencer. Il consiste à :
+- amener en mémoire tous les objets relatifs au compte (sauf les secrets longs pour les groupes pour lesquels c'est facultatif),
+- maintenir dans le serveur un objet `Session` représentant la spécification des rows qu'il faut synchroniser.
+- recevoir au fil de l'eau par WebSocket dans le poste client les rows (créés / modifiés / supprimés) relatifs au compte,
+    - transformer ces rows en objets mémoire,
+    - en mode *synchro* sauvegarder ces objets sur IDB,
+    - mettre à jour l'état de la mémoire.
+
+**En cas de rupture du WebSocket de synchronisation**, il faut re-synchroniser la session cliente à partir de son état mémoire courant, c'est à dire enclencher à nouveau le processus long de synchronisation en considérant que l'objet `Compte` est en mémoire. Il n'est peut-être pas à jour mais le processus de synchronisation prévoit ce cas.
+
+#### Création d'un compte
+La création d'un compte est un processus court qui aboutit in fine à la récupération d'un objet Compte qui est sauvegardé sur IDB en mode *synchro*. On se trouve donc dans le même état qu'après authentification d'un compte existant vis à vis de la synchronisation.
+
+#### Tables à synchroniser sur le client (IDB)
+
+`compte` (idc) : authentification et données d'un compte  
+
+**Fil AV** : structure des avatars
+- `avidc1` (ida) : identifications et clés c1 des contacts d'un avatar  
+- `avcontact` (ida, nc) : données d'un contact d'un avatar    
+- `avinvitct` () (idb) : invitation adressée à B à lier un contact avec A  
+- `avinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G  
+- `parrain` (dpbh) ida : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
+- `rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu  
+
+**Fil GR** : structure des groupes
+- `grlmg` (idg) : liste des id + nc + c1 des membres du groupe  
+- `grmembre` (idg, nm) : données d'un membre du groupe  
+
+**Fil CV** : cartes de visite
+- `avgrcv` (id) : carte de visite d'un avatar ou groupe  
+
+**Fil AS** : aperçu des secrets
+- `avsecret` (ida, idcs) : aperçu d'un secret pour un avatar (ou référence de son groupe)  
+
+**Fil TS** : texte des secrets
+- `secret` (ids) : données d'un secret
+
+Les rows / objets des tables des fils **AV** et **AS** ont pour version un numéro pris dans une séquence spécifique de l'avatar alors que pour les autres c'est la séquence _universelle_.
+
+#### Fils de synchronisation
+La synchronisation est un processus long, en plusieurs *fils*, dont on doit suivre (et peut suivre en session cliente) l'état d'avancement. Fil par fil l'état de synchronisation passe de :
+- à faire : un numéro de version de départ indique le plus haut numéro de version déjà présent en mémoire.
+- en cours :  la requête d'obtention incrémentale des rows a été lancée mais son résultat pas encore traité.
+- terminée : le numéro de version indique la version courante au moment de la sélection.
+- intégrée : les mises à jours au fil de l'eau par WebSocket ont été intégrées.
+
+Le fil **AV** par exemple correspond à la demande de tous les rows des tables du fil filtrée sur l'identification de l'avatar en une seule transaction qui retourne en plus des rows le numéro de version maximal pour cet avatar.
+
+Dès le début du processus de synchronisation, le serveur va connaître la liste des compte / avatars / groupes intéressant la session cliente : celle-ci peut en conséquence commencer à recevoir par WebSocket des mises à jour concernant des fils dont la synchronisation n'est pas encore terminée. Ces rows sont mis en queue pour le fil en question et ne seront effectivement traités qu'au moment où la requête de synchronisation aura été terminée.
+
+- chaque avatar a 4 fils : AV CV AS TS
+- chaque groupe a 

@@ -80,12 +80,12 @@ _**Tables aussi persistantes sur le client (IDB)**_
 `avgrcv` (id) : carte de visite d'un avatar ou groupe  
 `avidc1` (ida) : identifications et clés c1 des contacts d'un avatar  
 `avcontact` (ida, nc) : données d'un contact d'un avatar    
-`avinvit` () (idb) : invitation adressée à B à lier un contact avec A  
+`avinvitct` () (idb) : invitation adressée à B à lier un contact avec A  
+`grinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G  
 `parrain` (dpbh) ida : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
 `rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu  
 `grlmg` (idg) : liste des id + nc + c1 des membres du groupe  
 `grmembre` (idg, nm) : données d'un membre du groupe  
-`grinvit` () (idm) : invitation à M à devenir membre d'un groupe  
 `secret` (ids) : données d'un secret
 `avsecret` (ida, idcs) : aperçu d'un secret pour un avatar (ou référence de son groupe)  
 
@@ -336,13 +336,13 @@ TODO ??? : couper datac1 en 2, une partie immuable et une partie évolutive.
 #### Invitation par A de B à lier leurs contacts
 C'est requis pour qu'ils puissent partager des secrets et se donner des quotas.
 
-    CREATE TABLE "avinvit" (
+    CREATE TABLE "avinvitct" (
     "idb"   INTEGER,
     "dlv"	INTEGER,
     "datapub"  BLOB
     ) WITHOUT ROWID;
-    CREATE INDEX "dlv_avinvit" ON "avinvit" ( "dlv" );
-    CREATE INDEX "idb_avinvit" ON "avinvit" ( "idb" );
+    CREATE INDEX "dlv_avinvitct" ON "avinvitct" ( "dlv" );
+    CREATE INDEX "idb_avinvitct" ON "avinvitct" ( "idb" );
 
 - `idb` : id de B.
 - `dlv` :
@@ -355,7 +355,23 @@ C'est requis pour qu'ils puissent partager des secrets et se donner des quotas.
 
 B peut créer un contact chez lui, ou récupérer celui existant chez lui pour A s'il l'avait déjà en contact libre, et inscrire les données de A comme contact *lié* chez lui et réciproquement inscrire sa propre clé `c1` en clé `c2` de A.
 
-### Avatar : parrainage par P de la création d'un compte F (pour un *inconnu* n'ayant pas de compte)
+#### Invitation par A de M à un groupe G
+L'invitant peut retrouver en session la listes invitations en cours qu'il a faites : un membre de G avec ida comme invitant et un statut en attente.
+
+    CREATE TABLE "avinvitgr" (
+    "idm"   INTEGER,
+    "dlv"	INTEGER,
+    "datapub"  BLOB);
+    CREATE INDEX "dlv_grinvitgr" ON "grinvitgr" ( "dlv" );
+    CREATE INDEX "idm_grinvitgr" ON "grinvitgr" ( "idm" );
+
+- `idm` : id du membre invité.
+- `dlv` :
+- `datapub` : crypté par la clé publique du membre invité.
+	- `idg cle code` : du groupe.
+	- `nm` : numéro de membre de l'invité.
+
+### Parrainage par P de la création d'un compte F (pour un *inconnu* n'ayant pas de compte)
 
 Comme il va y avoir un don de quotas du *parrain* vers son *filleul*, ces deux-là vont avoir un contact *lié* (si F accepte). Toutefois,
 - P peut indiquer que son contact est restreint à une simple note (sans partage de secrets).
@@ -515,23 +531,6 @@ Le statut comporte trois chiffres `xyz` :
 		- *archivé* : le secret ne peut plus changer (jamais).
 - un nouveau membre peut récupérer la liste de tous les secrets actuels du groupe, le dernier état de tous les secrets non supprimés partagés avec le groupe.
 - un animateur peut lancer quand il veut un nettoyage pour détecter les membres qui auraient disparus *et* ne seraient plus auteurs d'aucuns secrets.
-
-#### Invitation par I de M à un groupe G
-A revoir : l'invitant devrait pouvoir conserver la liste de ses invitations en cours qu'il a faites. Même chose pour la liste des invitations à créer un lien.  
-En toute rigueur en session ça se retrouve (un membre avec ida comme invitant et un statut en attente).
-
-    CREATE TABLE "grinvit" (
-    "idm"   INTEGER,
-    "dlv"	INTEGER,
-    "datapub"  BLOB);
-    CREATE INDEX "dlv_grinvit" ON "grinvit" ( "dlv" );
-    CREATE INDEX "idm_grinvit" ON "grinvit" ( "idm" );
-
-- `idm` : id du membre invité.
-- `dlv` :
-- `datapub` : crypté par la clé publique du membre invité.
-	- `idg cle code` : du groupe.
-	- `nm` : numéro de membre de l'invité.
 
 ### Secrets
 - `id` : entier depuis 6 bytes aléatoires. Le reste de la division par 3 indique si c'est un secret personnel, de couple ou de groupe. 
