@@ -56,36 +56,36 @@ Les comptes sont censés avoir au maximum N semaines entre 2 connexions faute de
 ### Version des rows
 Les rows des tables devant être présents sur les clients ont une version, de manière à pouvoir être chargés sur les postes clients de manière incrémentale : la version est donc croissante avec le temps et figure dans tous les rows de ces tables.  
 - utiliser une date-heure présente l'inconvénient de laisser une meta-donnée intelligible en base ;
-- utiliser un compteur universel a l'inconvénient de facilement deviner des liaisons entre objets : par exemple tous les secrets paratagés entre N avatars d'un même groupe vont avoir la même version (ou très proches selon l'option). Crypter l'appartenance d'un avatar à un groupe alors qu'on peut la lire de facto dans les versions est un problème.
+- utiliser un compteur universel a l'inconvénient de facilement deviner des liaisons entre objets : par exemple l'invitation à établir un contact entre A et B n'apparaît pas dans les rows eux-mêmes mais serait lisible si les rows avaient la même version. Crypter l'appartenance d'un avatar à un groupe alors qu'on peut la lire de facto dans les versions est un problème.
 - utiliser un compteur par objet rend complexe la génération de SQL avec des filtres qui associent chaque objet à sa dernière version connue.
 
-Or il apparaît que les transactions portant sur plusieurs objets avatars / groupes / secrets ne sont pas si fréquentes, d'où l'option suivante :
-- _chaque avatar a son compteur de version spécifique_, tous les rows des tables identifiées par un avatar partagent ce même espace de comptage. De ce fait les relations à l'occasion de créations de liens privilégiés entre avatars par exemple, ou à lors du paratge d'un secret, entre avatars ne laissent pas de traces interprétables en bases de données.
-- _tous les autres objets peuvent partager un même compteur_ : ils n'ont pas de transactions de mises à jour entre eux (pas entre groupes, ni entre groupe et secrets). Les cartes de visite et quelques autres objets (invitations ...) n'ont aussi des transactions que portant sur eux-mêmes et peuvent donc utiliser le compteur universel.
+Tous les objets synchronisables (sauf les comptes) sont identifiés, au moins en majeur, par une id d'avatar ou de groupe. Par exemple l'obtention des contacts d'un avatar se fait par une sélection d'abord sur l'id de l'avatar, puis sur sa version pour ne récupérer incrémentalement que ceux changés / créés. D'où l'option de gérer une séquence de versions, pas forcément par id d'avatar, mais par hash de cet id.  
+Toutefois la synchronisation des cartes de visite est différente puisqu'elle s'effectue non pas avatar par avatar (ou groupe par groupe) mais pour une liste (longue) d'avatars : le filtre sur la version est impraticable avec des avatars ayant une version prise dans des séquences différentes. D'où l'existence d'une _séquence universelle_ au moins pour les cartes de visites.
 
 ## Tables
 
-`versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde)  
-`etat` (singleton) : état courant permanent du serveur  
-`avgrvq` (id) : volumes et quotas d'un avatar ou groupe  
-`sga` (ida) : signature d'un avatar  
-`sgg` (idg) : signature d'un groupe  
-`sgc` (idc) : signature d'un compte
-`avrsa` (ida) : clé publique d'un avatar  
+- `versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde)  
+- `etat` (singleton) : état courant permanent du serveur  
+- `avgrvq` (id) : volumes et quotas d'un avatar ou groupe  
+- `avrsa` (ida) : clé publique d'un avatar  
 
 _**Tables aussi persistantes sur le client (IDB)**_
 
-`compte` (idc) : authentification et données d'un compte  
-`avgrcv` (id) : carte de visite d'un avatar ou groupe  
-`avidcc` (ida) : identifications et clés c1 des contacts d'un avatar  
-`avcontact` (ida, nc) : données d'un contact d'un avatar    
-`avinvitct` () (idb) : invitation adressée à B à lier un contact avec A  
-`grinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G  
-`parrain` (dpbh) ida : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
-`rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu  
-`grlmg` (idg) : liste des id + nc des membres du groupe  
-`grmembre` (idg, nm) : données d'un membre du groupe  
-`secret` (id, ns) : données d'un secret d'un avatar ou groupe
+- `cvsg` (id) : carte de visite et signature d'un compte / avatar / groupe 
+
+- `compte` (idc) : authentification et données d'un compte  
+ 
+- `avidcc` (ida) : identifications et clés c1 des contacts d'un avatar  
+- `avcontact` (ida, nc) : données d'un contact d'un avatar    
+- `avinvitct` () (idb) : invitation adressée à B à lier un contact avec A  
+- `avinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G  
+- `parrain` (dpbh) ida : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
+- `rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu  
+
+- `grlmg` (idg) : liste des id + nc des membres du groupe  
+- `grmembre` (idg, nm) : données d'un membre du groupe  
+
+- `secret` (id, ns) : données d'un secret d'un avatar ou groupe
 
 ### Singleton d'état global du serveur
 Ce singleton est un JSON où le serveur peut stocker des données persistantes à propos de son état global : par exemple les date-heures d'exécution des derniers traitements GC, la dhc du dernier backup de la base...
@@ -94,8 +94,10 @@ Ce singleton est un JSON où le serveur peut stocker des données persistantes �
 
 ### Table `versions` - CP : `id`
 
-Au lieu d'un compteur par avatar / groupe on a N compteurs (par exemple 256), un compteur pour plusieurs avatars / groupe (le reste d'une division quelconque ou le 4ième bytes).  
-L'avantage est qu'on a une table à un seul row compact avec en data un array d'entiers sur 4 bytes.
+Au lieu d'un compteur par avatar / groupe / compte on a N compteurs (par exemple 99), un compteur pour plusieurs avatars / groupe (le reste d'une division de l'id + 1).  
+L'avantage est qu'on a une table à un seul row compact avec en data un array d'entiers.
+
+Le compteur 0 est par convention le compteur de la _séquence universelle_.
 
 >Le nombre de collisions n'est pas vraiment un problème : détecter des proximités entre avatars / groupes dans ce cas devient un exercice très incertain (fiabilité de 1 sur 256).
 
@@ -103,7 +105,7 @@ L'id 0 correspondant à l'état courant et l'id 1 à la dernière sauvegarde.
 
 	CREATE TABLE "versions" (
   "id"  INTEGER,
-  "va"  BLOB
+  "v"  BLOB
   PRIMARY KEY("id")
   ) WITHOUT ROWID;
 
@@ -135,29 +137,45 @@ Les transferts de quotas entre avatars / groupes / banque se font sous la forme 
 **Opération mensuelle**  
 Les volumes mensuels sont mis à 0 le premier de chaque mois à minuit. Le cas échéant l'occasion de sortir des statistiques sur un fichier `xls`. 
 
-### Comptes, avatars, groupes : signatures 
+### Comptes, avatars, groupes : cartes de visites et signatures 
 A chaque connexion d'un compte, si ça fait plus de 20 jours qu'il n'a pas signé, le compte signe pour lui-même, ses avatars et les groupes que ses avatars ont en *contact* :
-- la date de signature du compte est aléatoirement celle d'un jour dans les 10 à 20 derniers jours,
-- la signature de ses avatars sont tirées aléatoirement dans les 10 derniers jours.
-- la signature de ses groupes sont tirées aléatoirement dans les derniers 10 jours à condition que la dernière signature sur la liste ait plus de 20 jours.
+- la date de signature du compte est aléatoirement celle d'un jour dans les 30 derniers jours,
+- la signature de ses avatars sont tirées aléatoirement dans les 60 à 30 derniers jours.
+- la signature de ses groupes sont tirées aléatoirement dans les derniers 60 à 30 jours à condition que la dernière signature sur le groupe ait plus de 60 jours.
 
-Le GC met à jour sur les tables `sga` le flag alerte/disparu. Pour les autres il n'y a que le niveau *disparu* :
-- *alerte* : le compte / avatar est resté plusieurs mois sans connexion.
-- *disparu* : le compte / avatar / boîte doit être considéré comme disparu.
+Le traitement quotidien met à jour le flag alerte/disparu.
+- *alerte* : le compte / avatar / groupe est resté plusieurs mois sans connexion.
+- *disparu* : le compte / avatar / groupe doit être considéré comme disparu (c'est définitif).
 
-**Tables `sga sgc sgg sgs` : CP `id`:**
+**Table `cvsg` : CP `id`**
 
-    CREATE TABLE "sgx" (
-    "id"  INTEGER,
+    CREATE TABLE "cvsg" (
+    "id"	INTEGER,
+    "v"	INTEGER,
     "dds"  INTEGER,
     "ad"  INTEGER,
+    "cvag"	BLOB,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
-    CREATE INDEX "ad_dds_sgx" ON "sgx" ( "ad", "dds" )
-
-- `id` : du compte ou de l'avatar ...
+    CREATE INDEX "v_cvsg" ON "cvsg" ( "v" );
+    CREATE INDEX "dds_ad_id_cvsg" ON "cvsg" ( "dds", "ad", "id" );
+	
+- `id` : id de l'avatar ou du groupe.
+- `v` : séquence universelle.
 - `dds` : date (jour) de dernière signature.
-- `ad` : 0:OK, 1:alerte, 2:disparu
+- `ad` : 0:OK, 1:alerte, 2:disparu.
+- `cvag` : carte de visite cryptée par la clé de l'avatar ou du groupe. 
+  - `photo` : photo ou icône.
+  - `info` : court texte informatif.
+
+**Remarques**
+- un row est systématiquement créé à la création d'un compte / avatar / groupe : v est 0.
+- à la signature, dds est changée mais pas v.
+- à la modification / création de la carte de visite, v est changée.
+- mise à jour de ad : par le traitement journalier. Si changement (OK -> alerte, alerte -> disparu, alerte -> OK) mis à jour de v.
+- l'état disparu est immuable, on ne _renaît_ jamais, le row est définitivement figé et sera simplement détruit un jour.
+- un avatar d'un compte régulièrement accédé sans carte de visite a une version à 0.
+- si un avatar n'est jamais monté en alerte, v est la version de sa carte de visite.
 
 ###### GC des comptes, avatars, groupes
 La détection par `dds` trop ancienne d'un `compte` 
@@ -173,6 +191,8 @@ La détection par `dds` trop ancienne d'un groupe,
 - transfert de ses quotas dans son row `avgrvq` sur la banque et détruit son row `avgrvq`.
 
 Les *disparus* depuis plus d'un an sont détruit par le GC.
+
+>A résoudre : faut-il répercuter les statuts ad sur les cartes de visite afin que les sessions les récupèrent ? Celles ainsi mises à jour ont une même version (un seul SQL). Traiter le problème de l'effacement de l'alerte, dans sga / sgg et dans leur carte de visite. Fusionner signatures et cartes de visite ?
 
 ### Comptes : authentification et données d'un compte
 Phrase secrète : un début de 16 caractères au moins et une fin de 16 caractères au moins.  
@@ -193,6 +213,7 @@ Phrase secrète : un début de 16 caractères au moins et une fin de 16 caractè
 	) WITHOUT ROWID;
 	CREATE UNIQUE INDEX "dpbh_compte" ON "compte" ( "dpbh" )
 	
+- `id` : id du compte.
 - `v` : 
 - `dpbh` : pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbsh` : hash du SHA du PBKFD2 de la phrase complète pour quasi-authentifier une connexion.
@@ -212,25 +233,6 @@ Phrase secrète : un début de 16 caractères au moins et une fin de 16 caractè
 - il est synchronisé lorsqu'il y a deux sessions ouvertes en parallèle sur le même compte depuis 2 browsers.
 - chaque mise à jour vérifie que `v` actuellement en base est bien celle à partir de laquelle l'édition a été faite.
 
-### Avatars / groupes : carte de visite
-Cette table donne la carte de visite de chaque avatar ou groupe, cryptée par leur clé.
-
-**Table `avgrcv` : CP `id`**
-
-    CREATE TABLE "avgrcv" (
-    "id"	INTEGER,
-    "v"	INTEGER,
-    "cvag"	BLOB,
-    PRIMARY KEY("id")
-    ) WITHOUT ROWID;
-    CREATE INDEX "dhc_avcv" ON "avcv" ( "dhc" )
-	
-- `id` : id de l'avatar ou du groupe.
-- `v` : 
-- `cvag` : carte de visite cryptée par la clé de l'avatar ou du groupe. 
-  - `photo` : photo ou icône.
-  - `info` : court texte informatif.
-
 ### Avatars : clé publique RSA
 Cette table donne la clé RSA (publique) obtenue à la création de l'avatar : elle permet d'inviter un avatar à être contact lié ou à devenir membre d'un groupe.
 
@@ -249,7 +251,7 @@ Cette table donne la clé RSA (publique) obtenue à la création de l'avatar : e
 Les contacts ont un numéro de contact `nc` attribué en séquence à la création qui les identifie relativement à l'avatar A.  
 Un avatar A peut avoir pour contact :
 - **soit un avatar B**, avec deux états successifs possibles :
-	- **libre** : A a B pour contact `15` et B peut avoir ou non A pour contact `57`, ces situations sont autonomes l'une de l'autre et ni A ni B ne savent rien du contact éventuel de l'autre. A peut décider de perdre B comme contact et B peut décider de perdre A comme contact, puis éventuellement de reprendre B pour contact sous un nouveau numéro `18`.
+	- **libre** (statut 0) : A a B pour contact `15` et B peut avoir ou non A pour contact `57`, ces situations sont autonomes l'une de l'autre et ni A ni B ne savent rien du contact éventuel de l'autre. A peut décider de perdre B comme contact et B peut décider de perdre A comme contact, puis éventuellement de reprendre B pour contact sous un nouveau numéro `18`.
 	- **lié** : A a B pour contact `15`, B a A pour contact `57` : ces numéros de contacts mutuels sont connus et immuables de part et d'autre. A peut restreindre la nature de ses échanges avec B mais ne peut plus les rompre tant que B n'a pas disparu.
 - **soit un groupe G** : si A est membre du groupe G sous un numéro de contact 25, il le restera toujours, même résilié.
 
@@ -293,7 +295,7 @@ Cette table donne les couples `id + cc/cg` pour chacun des `nc`. Elle énumère 
 - `st` : statut.
 	- contact libre avec un avatar : 0
 	- contact lié avec un avatar : 2xyz
-		- x : 1: en attente, 2:accepté, 3:refusé, 8:résilié, 9:disparu.
+		- x : 1: en attente, 2:accepté, 3:refusé, 8:résilié, 9:disparu. (à revoir : refusé ? Qui a sollicité le lien ?)
 		- y : 0/1: A accepte les partages de B.
 		- z : 0/1: B accepte les partages de A.
 	- contact de groupe : 1xyz
@@ -329,12 +331,13 @@ C'est requis pour qu'ils puissent partager des secrets et se donner des quotas.
 
 - `idb` : id de B.
 - `dlv` :
-- `datapub` : crypté par la clé publique de B.
+- `ccpub` : clé `cc` de ce contact définie par A cryptée par la clé publique de B.
+- `datac` : données cryptées par la clé cc.
 	- `ida` : id de A.
 	- `cle` : de A.
 	- `pseudo` : de A.
-	- `cc` : clé `cc` de ce contact définie par A.
 	- `nc` : numéro du contact de A (pour que B inscrive le statut ...).
+  - `msg` : message de sollicitation écrit par A.
 
 B peut créer un contact chez lui, ou récupérer celui existant chez lui pour A s'il l'avait déjà en contact libre, et inscrire les données de A comme contact *lié* chez lui.
 
@@ -578,7 +581,8 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     "v"		INTEGER,
     "nsc"	INTEGER,
     "txts"	BLOB,
-    "datas"	BLOB,
+    "mcs"   BLOB,
+    "aps"	BLOB,
     "ncb"  INTEGER,
     "dups"	BLOB,
     PRIMARY KEY("id","ns"));
@@ -591,7 +595,8 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `nsc` : numéro de semaine de création ou 9999 pour un *permanent*.
 - `txts` : texte complet gzippé crypté par la clé du secret. 
 - `aps` : données d'aperçu du secret cryptées par la clé du secret.
-  - `la` [] : liste des ids des auteurs.
+  - `lmc` : liste des mots clés.
+  - `la` [] : liste des auteurs (identifé par leur numéro de membre).
   - `ap` : texte d'aperçu.
   - `st` : 5 bytes donnant :
     - 0:ouvert, 1:restreint, 2:archivé
@@ -611,9 +616,29 @@ Dans le cas d'un secret partagés entre deux avarars A et B (contacts liés), le
 - A peut créer les deux exemplaires du secret en générant deux numéros relatifs à A et B afin que la relation entre A et B n'apparaisse pas dans la base.
 - A comme B peuvent mettre à jour les deux exemplaires du secret.
 
+#### Mots clés
+Un secret peut apparaître avec plusieurs mots clés indiquant :
+- des états : _lus, important, à cacher, à relire, favori ..._
+- des éléments de classement fonctionnel : _énergie bio-diversité réchauffement ..._
+
+Le texte d'un mot clé peut contenir en tête un emoji.
+
+Les mots clés sont numérotés avec une conversion entre leur numéro et leur texte :
+- 1-49 : pour ceux génériques de l'installation dans la configuration.
+- 50-255 : pour ceux spécifiques de chaque compte dans `mc` de son row `cvsg` : la map est cryptée par la clé K du compte.
+- 50-255 : pour ceux spécifiques de chaque groupe dans `mc` de son row `cvsg` : la map est cryptée par la clé G du groupe.
+
+**Pour un secret d'un avatar**
+- mc est simplement la suite des numéros de mots clés attachés par l'avatar au secret.
+
+**Pour un secret de couple**
+- le secret est dédoublé, dans chaque exemplaire mc est simplement la suite des numéros de mots clés attachés par l'avatar au secret.
+
+**Pour un secret de groupe**
+- c'est une map avec une entrée pour le groupe (les auteurs) et une pour chaque membre (identifié par son numéro de membre dans le goupe).
+- chaque membre voit l'union des mots clés fixés pour le groupe avec les siens propres.
+
 # Todo
-### Secret : à ajuster
-- mots dièse, flags, path, commentaires
 
 ### Serveurs vivant et de backup
 Le serveur de backup est l'image de la base la veille au soir.
