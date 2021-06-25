@@ -138,7 +138,7 @@ Les transferts de quotas entre avatars / groupes / banque se font sous la forme 
 Les volumes mensuels sont mis à 0 le premier de chaque mois à minuit. Le cas échéant l'occasion de sortir des statistiques sur un fichier `xls`. 
 
 ### Comptes, avatars, groupes : cartes de visites et signatures 
-A chaque connexion d'un compte, si ça fait plus de 20 jours qu'il n'a pas signé, le compte signe pour lui-même, ses avatars et les groupes que ses avatars ont en *contact* :
+A chaque connexion d'un compte, le compte signe pour lui-même, ses avatars et les groupes que ses avatars ont en *contact* (dont l'accès n'est pas résilié):
 - la date de signature du compte est aléatoirement celle d'un jour dans les 30 derniers jours,
 - la signature de ses avatars sont tirées aléatoirement dans les 60 à 30 derniers jours.
 - la signature de ses groupes sont tirées aléatoirement dans les derniers 60 à 30 jours à condition que la dernière signature sur le groupe ait plus de 60 jours.
