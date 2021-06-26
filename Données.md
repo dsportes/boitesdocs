@@ -68,6 +68,7 @@ Toutefois la synchronisation des cartes de visite est différente puisqu'elle s'
 - `etat` (singleton) : état courant permanent du serveur  
 - `avgrvq` (id) : volumes et quotas d'un avatar ou groupe  
 - `avrsa` (ida) : clé publique d'un avatar  
+- `parrain` (dpbh) : offre de parrainage d'un avatar A pour la création d'un compte inconnu (mais d'avatar connu) 
 
 _**Tables aussi persistantes sur le client (IDB)**_
 
@@ -79,7 +80,7 @@ _**Tables aussi persistantes sur le client (IDB)**_
 - `avcontact` (ida, nc) : données d'un contact d'un avatar    
 - `avinvitct` () (idb) : invitation adressée à B à lier un contact avec A  
 - `avinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G  
-- `parrain` (dpbh) ida : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
+
 - `rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu  
 
 - `grlmg` (idg) : liste des id + nc des membres du groupe  
@@ -300,25 +301,30 @@ Cette table donne les couples `id + cc/cg` pour chacun des `nc`. Elle énumère 
 - `ida` : id de l'avatar A
 - `nc` : numéro de contact.
 - `v` : 
-- `st` : statut `xyzt`
-	- xy 
-    - 10 - contact _libre_ avec un avatar
-    - 11 - demande en attente de contact _lié_
-    - 12 - demande refusée de contact _lié_ avec un avatar, demande refusée    
-    - 20 - contact _lié_ avec un avatar actif
-    - 21 - contact _lié_ avec un avatar, disparu
-    - 30 - membre actif du groupe
-    - 31 - membre résilié du groupe
-	- zt : contact _lié_ avec un avatar
-		- z : A accepte (ou non) les partages de B.
+- `st1` : statut
+  - 1 - contact _libre_ avec un avatar
+  - 2 - demande en attente de contact _lié_
+  - 3 - demande refusée de contact _lié_ avec un avatar
+  - 4 - parrainage en attente
+  - 5 - parrainage refusé 
+  - 6 - contact _lié_ avec un avatar actif
+  - 7 - contact _lié_ avec un avatar, disparu
+  - 8 - membre actif du groupe
+  - 9 - membre résilié du groupe
+- `st2` :  statut `zt`
+  - _contact _lié_ avec un avatar_ : 4 valeurs (00 01 10 11)
+	  - z : A accepte (ou non) les partages de B.
     - t : B accepte (ou non) les partages de A.
-	- zt : contact de groupe
+	- _contact de groupe_ : 6 valeurs (11 12 13 22 23 33)
 		- z : 1:lecteur, 2:auteur, 3:administrateur.
 		- t : plus haut z jamais atteint.
 - `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar A au groupe G ou à l'avatar B.
 - `datac` : information cryptée par la clé `cc` associée au `nc` pour un contact avec un avatar :
-	- `dna` : dernière note écrite par A pour B.
-	- `dnb` : dernière note écrite par B pour A.
+  - `par` : parrainage :
+    - `dlv` : dalimite de validité du parrainage.
+    - `pc` : phrase complète de contact.
+	- `dna` : dernière note écrite par A pour B (ou message de parrainage).
+	- `dnb` : dernière note écrite par B pour A (ou remerciement du filleul).
 - `datak` : information cryptée par la clé K de A.
 	- `id` : de l'avatar B ou du groupe G.
 	- `cle` : suffixe aléatoire (accès à la carte de visite pour un avatar).
@@ -328,7 +334,7 @@ Cette table donne les couples `id + cc/cg` pour chacun des `nc`. Elle énumère 
 
 Un *contact lié* permet d'échanger un court texte entre A et B pour justifier d'un changement de statut ou n'importe quoi d'autre : en particulier quand A n'accepte pas le partage de secrets avec B, c'est le seul moyen de passer une courte information mutuelle qui n'encombre pas leurs volumes respectifs.
 
-Remarques :
+**Remarques :**
 - un contact invité _en attente de réponse_ ou avec une réponse de refus, redevient un simple contact _libre_.
 - le row `avcontact` d'un groupe dont l'accès est résilié pour A reste pour information historique. La carte de visite du groupe n'est plus accessible (et éventuellement n'existe plus).
 - le row `avcontact` d'un avatar disparu reste pour information historique. La carte de visite de l'avatar n'est plus accessible (et d'ailleurs n'existe plus).
@@ -387,17 +393,16 @@ Comme il va y avoir un don de quotas du *parrain* vers son *filleul*, ces deux-l
 - P peut indiquer que son contact est restreint à une simple note (sans partage de secrets).
 - F pourra indiquer que son contact est restreint à une simple note (sans partage de secrets).
 
-Le parrain fixe l'avatar filleul (mais pas son compte), donc dont son pseudo : le contact lié est prétabli dans avidcc avcontact de P. Le filleul établira le sien, s'il accepte.
+Le parrain fixe l'avatar filleul (mais pas son compte), donc son pseudo : le contact lié est préétabli dans `avidcc avcontact` de P. Le filleul établira le sien, s'il accepte.
+
+La parrain retrouve la liste de ses parrainages dans ses `avcontact`.
 
 Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase de reconnaissance.
 
     CREATE TABLE "parrain" (
     "dpbh"  INTEGER,
-    "idp"   INTEGER,
     "dlv"  INTEGER,
-    "st"  TEXT,
     "pbcsh"  BLOB,
-    "datak" BLOB,
     "datax"  BLOB,
     PRIMARY KEY("dpbh")
     ) WITHOUT ROWID;
@@ -405,19 +410,12 @@ Un parrainage est identifié par `dpbh` le hash du PBKFD2 du début de la phrase
     CREATE INDEX "idp_parrain" ON "parrain" ( "idp" )
 
 - `dpbh` : hash du PBKFD2 du début de la phrase secrète de parrainage.
-- `idp` : id du parrain.
 - `dlv` : la date limite de validité permettant de purger les parrainages.
-- `st` : trois chiffres : 
-  - (1) : 0: invitation lancée, 1: acceptée, 8: annulée par le parrain, 9: refusée
-  - (2) : en cas d'acceptation : le parrain accepte (1) ou refuse (0) le partage de secrets avec son filleul.
-  - (3) : en cas d'acceptation : le filleul accepte (1) ou refuse (0) le partage de secrets avec son parrain.
 - `pcbsh` : hash du SHA de X (PBKFD2 de la phrase complète) pour que l'invité puisse être quasi-authentifié. Le filleul doit se rappeler qu'il a une proposition qui l'attend identifiée par une phrase de contact.
-- `datak` : phrase de parrainage cryptée par la clé K du compte (pour que P la retrouve : s'il l'a oubliée, il ne peut pas accéder à `datax`).
 - `datax` : données de l'invitation cryptées par la clé X.
   - `cle pseudo` : de l'avatar P.
   - `cc` : de P.
   - `nc` : de P.
-  - `q1 q2 qm1 qm2` : quotas donnés par le parrain.
   - `idf clef pseudof` : avatar du filleul.
 
 **La parrain créé un contact *lié* pour le filleul**  
@@ -672,28 +670,32 @@ Par principe un avatar est détecté disparu après la détection de la disparit
 #### Purge des données identifiées par l'id de l'avatar
 - transfert de ses quotas depuis son row `avgrvq` sur la banque et détruction de son row `avgrvq`.
 - destruction des rows les tables `avrsa avidcc avcontact avinvitct avinvitgr parrain rencontre secret`.
-- son row dans cvsg est réduit, la carte de visite est effacée, son statut est _disparu_.
+- son row dans `cvsg` est réduit, la carte de visite est effacée, son statut est _disparu_.
 
 Dès cet instant le volume occupé est récupéré.
 
 #### Mise à jour des références chez les autres comptes
 L'avatar _disparu_ D est _référencé_ par des avatars et groupes :
 - `avidcc avcontact` des autres avatars l'ayant en contact.
-- `parrain rencontre` : la date limite de validité résoud la question.
+- `parrain rencontre` : la date limite de validité a déjà résolu la question, les rows ont été détruits.
 - `grlmg grmembre` des groupes l'ayant pour membre.  
 
 Quand une session d'un avatar A synchronise les cartes de visite elle a connaissance par la carte de visite de D que cet avatar a disparu :
-- dans la liste de ses contacts `avidcc` le slot correspondant est mis à 0.
-- le row `avcontact` correspondant a son statut mis à jour. Il pourra être supprimé sur demande du compte pour _nettoyer_ la liste des contacts.
+- le row `avcontact` correspondant a son statut mis à jour. Mais il n'y a pas de raisons pour que les secrets disparaissent aussi.
+- sur demande du compte, le contact peut être _oublié_ :
+  - dans la liste de ses contacts `avidcc` le slot correspondant est mis à 0.
+  - le row `avcontact` est supprimé.
+  - tous les `secrets` de l'avatar portant ce numéro de contact sont détruits (et l'avatar crédité des volumes supprimés).
 - pour chaque groupe accédé par l'avatar :
-  - le slot correspondant dans `grlmg` est mis à 0.
-  - le row `grmembre` a son statut mis à jour. Il pourra être supprimé sur demande du compte (animateur du groupe) pour _nettoyer_ la liste des membres.
+  - le slot correspondant dans `grlmg` est mis à 0 (ce qui évite à l'avanir d'aller rafraîchir sa carte de visite).
+  - le row `grmembre` a son statut mis à jour. 
+  - sur demande d'un compte animateur du groupe, le row pourra être supprimé pour _nettoyer_ la liste des membres.
 
 Dans la session la carte de visite est supprimée, elle ne sera plus synchronisée.
 
 Les références peuvent mettre longtemps a être mises à jour, tous les compte référençant l'avatar D ayant à être ouverte (ou disparaissant elles-mêmes).
 
-## Base vivante et de backup
+## Base vivante et de backup ???
 La base de backup est l'image de la base vivante la veille au soir.
 - elle est accessible en lecture seule.
 - la table versions permet de savoir jusqu'à quelles versions elle a été sauvée.

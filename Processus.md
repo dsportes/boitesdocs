@@ -8,17 +8,19 @@
 **Client**
 - Construction du row `parrain`.
 - Construction du row `avcontact`.
-- Maj du row `avidc1` pour y ajouter le filleul.
+- Maj du row `avidcc` pour y ajouter le filleul.
 - *Argument de l'opération*
   - `sid` : id de la session.
   - `idp` : avatar parrain. (figure dans les 2 av...)
+  - `idf` : avatar filleul.
 
 **Opération**
 - vérification d'unicité sur le début de la phrase de reconnaissance.
 - Stockage / maj des rows.
 
 **Synchronisation** 
-- Rows av... transmis aux sessions dont `idp` est l'un des avatars du compte.
+- Rows `av...` transmis aux sessions dont `idp` est l'un des avatars du compte.
+- inscription de `idf` dans la liste des avatars contacts
 
 ### Modification / annulation d'un parrainage
 (todo)
@@ -34,9 +36,9 @@
 - Maj du row `parrain` : 
   - `st` : (1) passe à 1. (3) passe à 0 ou 1
 - Tirage d'un couple de clés RSA.
-- Maj du row `avcontact` de P : pseudo et réponse
+- Maj du row `avcontact` de P : textes d'invitation et réponse
 - Création du row `compte` : la liste des avatars est réduite à 1.
-- Création des row `avcontact avidc1 avrsa` de F.
+- Création des row `avcontact avidcc avrsa` de F.
 - *Argument de l'opération*
   - `sid dpb pcbs` : id de la session et données d'authentification.
   - `idap` de l'avatar du parrain.
@@ -46,7 +48,7 @@
 
 **Phase 2 : refus**
 - Maj du row `parrain` : `st` : (1) passe à 2.
-- Maj du row `avcontact` de P : réponse
+- Maj du row `avcontact` de P : textes d'invitation et réponse
 - *Argument de l'opération*
   - `sid dpb pcbs` : id de la session et données d'authentification.
   - `idap` de l'avatar du parrain.
@@ -340,11 +342,10 @@ La création d'un compte est un processus court qui aboutit in fine à la récup
 `compte` (idc) : authentification et données d'un compte  
 
 **Fil AV** : structure des avatars
-- `avidc1` (ida) : identifications et clés c1 des contacts d'un avatar  
+- `avidcc` (ida) : identifications et clés c1 des contacts d'un avatar  
 - `avcontact` (ida, nc) : données d'un contact d'un avatar    
 - `avinvitct` () (idb) : invitation adressée à B à lier un contact avec A  
 - `avinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G  
-- `parrain` (dpbh) ida : offre de parrainage d'un avatar A pour la création d'un compte inconnu  
 - `rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu  
 
 **Fil GR** : structure des groupes
@@ -352,13 +353,10 @@ La création d'un compte est un processus court qui aboutit in fine à la récup
 - `grmembre` (idg, nm) : données d'un membre du groupe  
 
 **Fil CV** : cartes de visite
-- `avgrcv` (id) : carte de visite d'un avatar ou groupe  
+- `cvsg` (id) : carte de visite d'un avatar ou groupe  
 
-**Fil AS** : aperçu des secrets
-- `avsecret` (ida, idcs) : aperçu d'un secret pour un avatar (ou référence de son groupe)  
-
-**Fil TS** : texte des secrets
-- `secret` (ids) : données d'un secret
+**Fil TS** : secrets
+- `secret` (ida / idg) : données d'un secret
 
 Les rows / objets des tables des fils **AV** et **AS** ont pour version un numéro pris dans une séquence spécifique de l'avatar alors que pour les autres c'est la séquence _universelle_.
 
