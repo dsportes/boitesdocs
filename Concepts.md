@@ -281,3 +281,5 @@ Quand le titulaire d'un compte ouvre une session de l'application Web d'accès �
 > Il n'est pas indispensable de couper le réseau : la page de l'application est éventuellement rechargée depuis le serveur central si elle diffère de la dernière chargée, puis on déclare lors de l'accueil vouloir poursuivre en mode *avion*. Toutefois une éventuelle surveillance du réseau montrera que l'application a été vérifiée (pas de changement depuis la dernière exécution) ou rechargée
 
 > **Il est ainsi possible de disposer de plusieurs copies synchronisées de ses secrets sur des appareils différents.**
+
+
