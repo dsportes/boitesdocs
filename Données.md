@@ -21,7 +21,7 @@ Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bi
 - `dpbh` : hashBin (53 bits) du PBKFD2 du début de la phrase secrète (32 bytes).
 
 **La phrase secrète d'un compte reste dans le cerveau du titulaire.**
-- sa transformée par PBKFD2 donne la clé X, ne sort jamais de la session cliente et n'est jamais  stockée de manière permanente.
+- sa transformée par PBKFD2 dès la saisie donne une clé AES X qui ne sort jamais de la session cliente et n'est jamais stockée de manière permanente.
 
 **La clé K d'un compte**,
 - n'est stockée en session comme en serveur que sous forme cryptée par X.
@@ -60,6 +60,7 @@ Les rows des tables devant être présents sur les clients ont une version, de m
 - utiliser un compteur par objet rend complexe la génération de SQL avec des filtres qui associent chaque objet à sa dernière version connue.
 
 Tous les objets synchronisables (sauf les comptes) sont identifiés, au moins en majeur, par une id d'avatar ou de groupe. Par exemple l'obtention des contacts d'un avatar se fait par une sélection d'abord sur l'id de l'avatar, puis sur sa version pour ne récupérer incrémentalement que ceux changés / créés. D'où l'option de gérer une séquence de versions, pas forcément par id d'avatar, mais par hash de cet id.  
+
 Toutefois la synchronisation des cartes de visite est différente puisqu'elle s'effectue non pas avatar par avatar (ou groupe par groupe) mais pour une liste (longue) d'avatars : le filtre sur la version est impraticable avec des avatars ayant une version prise dans des séquences différentes. D'où l'existence d'une _séquence universelle_ au moins pour les cartes de visites.
 
 ## Tables
@@ -72,20 +73,15 @@ Toutefois la synchronisation des cartes de visite est différente puisqu'elle s'
 
 _**Tables aussi persistantes sur le client (IDB)**_
 
-- `cvsg` (id) : carte de visite et signature d'un compte / avatar / groupe 
-
-- `compte` (idc) : authentification et données d'un compte  
- 
+- `cvsg` (id) : carte de visite et signature d'un compte / avatar / groupe
+- `compte` (idc) : authentification et données d'un compte
 - `avidcc` (ida) : identifications et clés c1 des contacts d'un avatar  
 - `avcontact` (ida, nc) : données d'un contact d'un avatar    
 - `avinvitct` () (idb) : invitation adressée à B à lier un contact avec A  
-- `avinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G  
-
-- `rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu  
-
+- `avinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G
+- `rencontre` (dpbh) ida : communication par A de son identifications complète à un compte inconnu
 - `grlmg` (idg) : liste des id + nc des membres du groupe  
-- `grmembre` (idg, nm) : données d'un membre du groupe  
-
+- `grmembre` (idg, nm) : données d'un membre du groupe
 - `secret` (id, ns) : données d'un secret d'un avatar ou groupe
 
 ### Singleton d'état global du serveur
@@ -100,7 +96,7 @@ L'avantage est qu'on a une table à un seul row compact avec en data un array d'
 
 Le compteur 0 est par convention le compteur de la _séquence universelle_.
 
->Le nombre de collisions n'est pas vraiment un problème : détecter des proximités entre avatars / groupes dans ce cas devient un exercice très incertain (fiabilité de 1 sur 256).
+>Le nombre de collisions n'est pas vraiment un problème : détecter des proximités entre avatars / groupes dans ce cas devient un exercice très incertain (fiabilité de 1 sur 99).
 
 L'id 0 correspondant à l'état courant et l'id 1 à la dernière sauvegarde.
 
