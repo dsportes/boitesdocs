@@ -33,17 +33,17 @@ Quand le titulaire d'un compte ouvre une session de l'application Web d'accès �
 
 > Chaque compte choisit sur chaque appareil ce qu'il souhaite synchroniser : sur un mobile ce peut être moins de secrets que sur un poste fixe.
 
-### Modes *synchronisé*, *incognito*, *avion*
+## Modes *synchronisé*, *incognito*, *avion*
 
-#### Mode synchronisé 
+### Mode synchronisé 
 **C'est le mode normal, les données sont synchronisées entre le stockage central et local** :
 - le fonctionnement est accéléré,
 - ça nécessite à la fois que le serveur soit accessible par le réseau et que le stockage local ait été autorisé par l'utilisateur.
 
-#### Mode incognito
+### Mode incognito
 **Il n'y a pas de stockage local, toutes les données viennent du serveur** ce qui nécessite un accès au réseau. Le fonctionnement est plus lent à l'initialisation. Aucune trace n'est laissée sur l'appareil (utile au cyber-café ou sur le mobile d'un.e ami.e).
 
-#### Mode avion
+### Mode avion
 **Le réseau n'est pas utilisé : seul le stockage local est mis à contribution** :
 - c'est parfois utile quand on craint que l'environnement réseau soit *surveillé / peu sûr* ou techniquement instable, ou qu'on souhaite qu'aucun accès réseau ne puisse être tracé.
 - si une session de l'application locale s'est déjà exécutée une fois dans le navigateur pour un compte, celui-ci retrouve, ses données telles que synchronisées lors de la dernière session exécutée en mode *synchronisé* sur ce poste pour ce compte.  
@@ -123,7 +123,7 @@ Pour se créer un compte le titulaire doit déclarer :
   - parrain et filleul ont convenu de cette phrase et du nom du premier avatar du compte filleul.
   - le parrain a accepté de prendre sur ses propres quotas d'espace pour ses secrets pour en donner au compte filleul.
   - le parrain a enregistré la phrase de parrainage avec le nom d'avatar du filleul et les quotas donnés.
-  - quand le filleul accepte le parrainage son compte est créé ainsi que son premier avatar qui a un premier contact *fort*, son parrain (réciproquement le filleul est un contact four lui).
+  - quand le filleul accepte le parrainage, son compte est créé ainsi que son premier avatar qui a un premier contact *fort*, son parrain (réciproquement le filleul est un contact four lui).
 
 **Si au lieu d'une phrase de parrainage**, le titulaire fournit une clé longue définie par l'administrateur de l'hébergement, le compte et son premier avatar sont créés sans parrainage et avec des quotas définis par le titulaire lui-même.
 
@@ -214,6 +214,14 @@ Un groupe est créé par un avatar avec un **nom immuable** censé être parlant
 L'avatar créateur,
 - a le pouvoir d'animation du groupe, 
 - lui transfert un minimum de quotas de stockage de secrets prélevés sur ses propres quotas.
+
+## Carte de visite d'un groupe
+
+La **carte de visite** d'un avatar d'un groupe est modifiable par un animateur du groupe et comporte :
+- une photo (logo, image ...) de petite dimension,
+- un court texte décrivant l'objet du groupe.
+
+Elle est mémorisée cryptée par la clé du groupe et est visible de tous les avatars membres actifs du groupe.
 
 ## Invitation d'un avatar à un groupe
 Un animateur A peut *inviter* un autre avatar I dont il a l'identification complète, avec un pouvoir proposé de *lecteur*, *auteur* ou *animateur* :
@@ -451,6 +459,8 @@ et mise à jour de cette invitation (pouvoir proposé *lecteur, auteur, animateu
 Changement de son pouvoir, résiliation, auto-résiliation, suppression quand il n'est pas actif (et ne l'a jamais été).
 
 ### Mise à jour des mots clé du groupe
+
+### Mise à jour de la carte de visite du groupe
 
 ### Changement de l'intitulé du groupe visible du compte
 

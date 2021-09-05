@@ -1,0 +1,482 @@
+<style>
+#content, body {
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%; color: black;
+    font-family: "Ubuntu"; font-size: 1rem; line-height: 1.3;
+    word-wrap: break-word;
+    padding: 1rem; max-width:800px; margin:0 auto;
+    background: white;
+}
+h1,h2,h3,h4,h5,h6 { font-family:"Calibri"; line-height: 1.2; color:#37474F;padding-top:0.2rem;padding-bottom:0.2rem;}
+h1 { font-size:2rem; font-weight:700; margin:2rem -0.5rem 1rem -0.5rem; padding-left:0.5rem; padding-right:0.5rem; border-bottom: 3px solid #37474F; text-align: center;}
+h2 { font-size:1.75rem; font-weight:700; margin:1.75rem -0.5rem 0.75rem -0.5rem; padding-left:0.5rem; padding-right:0.5rem; border-bottom: 1px solid #37474F; }
+h3 { font-size:1.5rem; font-weight:700; margin:1.5rem -0.5rem 0.5rem -0.5rem; padding-left:0.5rem; padding-right:0.5rem; border-bottom: 1px solid #78909C; }
+h4 { font-size:1.4rem; font-weight:700; margin:1.4rem 0 0.5rem 0; padding-left:0; padding-right:0;}
+h5 { font-size:1.3rem; font-weight:400; margin:1.3rem 0 0.5rem 0; padding-left:0; padding-right:0;}
+h6 { font-size:1.2rem; font-weight:400; margin:1.2rem 0 0.5rem 0; padding-left:0; padding-right:0;}
+blockquote, p, strong, table, th, td, ul, ol {
+    font-family: "Ubuntu"; font-size: 1rem; line-height: 1.3; text-justify:inter-word;
+}
+code, pre { font-family:'Ubuntu Mono'; }
+em { font-style: italic; }
+strong { font-weight:bold; }
+blockquote { color:#690c03; margin:1rem 0; padding: 0.2rem 0.5rem; border-left:0.4rem solid #690C03; font-style:italic;}
+code { color:#06065d; padding:0 0.2rem; }
+table, th, td { border: 1px solid #044c70; border-collapse: collapse; padding:0.5em; }
+p { margin:0.3em 0; }
+ul, ol { padding:0 0 0 2rem; margin-top:0.2rem; margin-bottom:0; }
+ol ol, ul ol { list-style-type: lower-roman; }
+ul ul ol, ul ol ol, ol ul ol, ol ol ol { list-style-type: lower-alpha; }
+hr { height:0.2rem; padding:0; margin:1.2rem 0; background-color:#78909C; border: 0 none; }
+li>p { margin-top:0.5rem; }
+h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
+    </style>
+<h1>L'application Boîtes à secrets</h1>
+<p>Toute organisation <code>monorg</code> qui le souhaite peut disposer d'un hébergement de l'application Web <em>Boîtes à secrets</em> en s'adressant, soit à un hébergeur de confiance, soit en s'hébergeant elle-même. Ses membres utilisent un navigateur pour accéder à leur application par une URL comme <code>https://monhebergeur.net/monorg</code>.</p>
+<ul>
+<li>les organisations sont autonomes les unes des autres, leurs données sont enregistrées dans des bases de données différentes.</li>
+<li>Chaque membre d'une organisation souhaitant accéder aux secrets et y partager les siens doit disposer d'un compte dont l'ouverture requiert le parrainage d'un compte déjà existant.</li>
+<li>L'application est structurée pour des organisations petites et moyennes : de quelques dizaines de comptes à quelques milliers, mais certainement pas des millions.</li>
+</ul>
+<p>On ne considère par la suite qu'une seule organisation.</p>
+<blockquote>
+<p>L'application <strong>Boîtes à secrets</strong> propose aux comptes un stockage partagé de secrets en contrôlant très précisément qui peut accéder à quoi.
+L'application permet des échanges <strong>privés</strong> d'information, réservées à des personnes <em>invitées</em> : les secrets n'y ont jamais un caractère public.</p>
+</blockquote>
+<blockquote>
+<p><strong>Aucun texte lisible humainement n'est disponible <em>en clair</em></strong>, ni dans les stockages locaux des navigateurs des terminaux, ni dans la base de données sur le serveur : tout y est crypté par des clés issues d'une <strong>phrase secrète</strong> définie par chaque compte et mémorisée nulle part ailleurs que dans la tête du titulaire du compte.</p>
+</blockquote>
+<p>Le vol des appareils des titulaires des comptes (et de leurs données locales) ou de la base centrale centrale est complètement inexploitable, les <em>pirates</em> ne peuvent en obtenir que des informations indéchiffrables.</p>
+<blockquote>
+<p><em>Revers de cette sécurité</em> : si le titulaire d'un compte <em>oublie</em> sa <strong>phrase secrète</strong> qui crypte indirectement toutes ses clés d'accès, il est ramenée à l'impuissance du pirate.</p>
+</blockquote>
+<h1>Serveur central et sessions de l'application Web</h1>
+<p><strong>Un utilisateur invoque l'application Web depuis un navigateur par une URL</strong> ce qui lui affiche une page d'interface graphique qui connaît l'URL d'accès au serveur central.</p>
+<p><strong>Le serveur central</strong> héberge le stockage de référence des secrets et des informations sur les comptes.</p>
+<ul>
+<li>seule <em>l'application serveur</em> met à jour ces informations.</li>
+<li>elle n'accepte des requêtes <strong>qu'en provenance</strong> du domaine de l'installation, c'est à dire émise par l'application Web <em>officielle</em>. Une application Web <em>officieuse / pirate</em> ne peut pas accéder aux données centrales.</li>
+</ul>
+<p><strong>Stockage local</strong><br>
+Quand le titulaire d'un compte ouvre une session de l'application Web d'accès à ses secrets depuis un navigateur sur un appareil quelconque et s'identifie, celle-ci accède au stockage local du navigateur <em>dédié au compte</em> :</p>
+<ul>
+<li>la première fois ce stockage est chargé des secrets détenus sur le serveur central (seulement ceux concernant le compte) : c'est une <em>synchronisation</em> totale.</li>
+<li>les fois suivantes, beaucoup de secrets étant déjà chargés, le stockage local est <em>synchronisé</em> plus rapidement avec l'état connu en central.</li>
+</ul>
+<blockquote>
+<p>Remarque : si la session a été ouverte en <em>navigation privée</em>, le stockage local du compte est effacé automatiquement par le navigateur à la fin de la session.</p>
+</blockquote>
+<blockquote>
+<p>Chaque compte choisit sur chaque appareil ce qu'il souhaite synchroniser : sur un mobile ce peut être moins de secrets que sur un poste fixe.</p>
+</blockquote>
+<h2>Modes <em>synchronisé</em>, <em>incognito</em>, <em>avion</em></h2>
+<h3>Mode synchronisé</h3>
+<p><strong>C'est le mode normal, les données sont synchronisées entre le stockage central et local</strong> :</p>
+<ul>
+<li>le fonctionnement est accéléré,</li>
+<li>ça nécessite à la fois que le serveur soit accessible par le réseau et que le stockage local ait été autorisé par l'utilisateur.</li>
+</ul>
+<h3>Mode incognito</h3>
+<p><strong>Il n'y a pas de stockage local, toutes les données viennent du serveur</strong> ce qui nécessite un accès au réseau. Le fonctionnement est plus lent à l'initialisation. Aucune trace n'est laissée sur l'appareil (utile au cyber-café ou sur le mobile d'un.e ami.e).</p>
+<h3>Mode avion</h3>
+<p><strong>Le réseau n'est pas utilisé : seul le stockage local est mis à contribution</strong> :</p>
+<ul>
+<li>c'est parfois utile quand on craint que l'environnement réseau soit <em>surveillé / peu sûr</em> ou techniquement instable, ou qu'on souhaite qu'aucun accès réseau ne puisse être tracé.</li>
+<li>si une session de l'application locale s'est déjà exécutée une fois dans le navigateur pour un compte, celui-ci retrouve, ses données telles que synchronisées lors de la dernière session exécutée en mode <em>synchronisé</em> sur ce poste pour ce compte.</li>
+<li>les informations sont plus ou moins <em>en retard</em> par rapport à l'état de référence détenu en central, mais peuvent être très utiles.</li>
+<li>les mises à jour ne sont pas possibles : <strong>toutefois de nouveaux secrets ou des mises à jour de secrets peuvent être préparées pour être synchronisées lors de la prochaine session en mode <em>synchronisé</em></strong>.</li>
+</ul>
+<blockquote>
+<p>Il n'est pas indispensable de couper le réseau : la page de l'application est éventuellement rechargée depuis le serveur central si elle diffère de la dernière chargée, puis on déclare lors de l'accueil vouloir poursuivre en mode <em>avion</em>. Toutefois une éventuelle surveillance du réseau montrera que l'application a été vérifiée (pas de changement depuis la dernière exécution) ou rechargée</p>
+</blockquote>
+<blockquote>
+<p><strong>Il est ainsi possible de disposer de plusieurs copies synchronisées de ses secrets sur des appareils différents.</strong></p>
+</blockquote>
+<h1>Secrets, comptes et avatars, groupes, contacts</h1>
+<h2>Secrets</h2>
+<p>Un <strong>secret</strong> est un <em>texte</em> court (moins de 4000 signes) et peut avoir <em>une pièce jointe</em> de taille raisonnable.</p>
+<ul>
+<li>Le texte est lisible avec quelques éléments de décoration (<em>gras, italique, listes ...</em>) selon la syntaxe MD.</li>
+<li>Le début du texte, les 140 premiers caractères ou la première ligne si elle est plus courte, est <em>l'aperçu</em> du secret. Un certain nombre de <em>petits</em> secrets n'ont de fait qu'un aperçu et pas de texte à proprement parlé.</li>
+</ul>
+<p><strong>Un secret est modifiable</strong>, son texte comme sa pièce jointe, du moins jusqu'à ce que ce secret soit basculé en état <em>archivé</em> auquel cas il devient immuable.</p>
+<p><strong>Par défaut un secret est temporaire</strong>, il s'efface automatiquement au bout de quelques semaines, mais il peut être rendu <strong>permanent</strong>, ou créé directement permanent, et n'est alors effacé que sur demande explicite.</p>
+<h2>Comptes et leurs avatars</h2>
+<p>Un compte a un ou plusieurs <strong>avatars</strong> qui sont comme autant de personnalités différentes. Une même personne peut avoir des compartiments de vie différents, contribuer à des réflexions ou des actions différentes. Ce cloisonnement est possible en se définissant plusieurs avatars :</p>
+<ul>
+<li>le titulaire d'un compte est le seul à pouvoir connaître la liste de ses propres avatars.</li>
+<li>un compte ne connaît des autres comptes que leurs avatars. Il est impossible, même à l'administrateur d'hébergement de l'application, de déterminer au regard de deux avatars s'ils correspondent au même compte ou non.</li>
+</ul>
+<blockquote>
+<p>Un avatar dispose de secrets <strong>personnels</strong> qui ne sont accessibles que par lui et ne seront jamais partagés avec d'autres.</p>
+</blockquote>
+<h2>Groupes d'avatars partageant des secrets</h2>
+<p>Un avatar peut créer un <strong>groupe</strong> réunissant plusieurs avatars qu'il a invités et qui ont accepté cette invitation.</p>
+<blockquote>
+<p>Un groupe dispose de secrets <strong>de groupe</strong> qui ne sont accessibles qu'aux membres du groupe.</p>
+</blockquote>
+<p>Les avatars membres d'un groupe partagent les secrets du groupe :</p>
+<ul>
+<li>dès qu'ils sont membres ils peuvent accéder à tous les secrets du groupe, même ceux écrits avant leur arrivée dans le groupe.</li>
+<li>dès qu'ils sont résiliés du groupe ils ne peuvent plus accéder aux secrets du groupe.</li>
+</ul>
+<p><strong>Chaque membre du groupe</strong> a un niveau de pouvoir :</p>
+<ul>
+<li><strong>lecteur</strong> : il ne peut que lire les secrets du groupe.</li>
+<li><strong>auteur</strong> : il peut lire, créer, modifier les secrets du groupe.</li>
+<li><strong>animateur</strong> : il peut de plus inviter des avatars à rejoindre le groupe et les résilier (sauf ceux eux-mêmes animateurs). Le créateur d'un groupe en est le premier animateur.</li>
+</ul>
+<h2>Contacts personnels d'un avatar</h2>
+<h3>Contact <em>simple</em></h3>
+<p>Un avatar <code>A</code> peut inscrire un avatar <code>C</code> dans sa liste de contacts dès lors qu'il en a son identification complète : c'est le cas dès lors que A et C sont ou ont été membres d'un même groupe.</p>
+<blockquote>
+<p>A peut avoir C comme <em>simple contact</em>, C peut avoir ou non de son côté A comme <em>simple contact</em>, chacun ignore la connaissance que l'autre a de lui.</p>
+</blockquote>
+<h3>Contact <em>fort</em></h3>
+<p>A et C peuvent décider explicitement, de devenir contacts <em>forts</em>, chacun sachant qu'il est un contact de l'autre.</p>
+<p>A et C peuvent alors partager <strong>des secrets de couple</strong> : un secret de couple est <em>dédoublé</em> sur chacun des contacts et toute mise à jour répercutée sur les deux exemplaires. L'un comme l'autre peuvent détruire leur exemplaire d'un secret partagé avec l'autre sans que ceci n'affecte l'accès de l'autre à son propre exemplaire.</p>
+<p>L'un des deux peut décider, tout en restant contact <em>fort</em>, de ne plus accepter le partage de secrets avec l'autre : ceci ne vaut que pour les secrets futurs, ceux partagés antérieurement restent accessibles à chacun.</p>
+<p>A et C partagent une petite <em>ardoise textuelle</em> (140 signes) : ceci leur permet un minimum d'échange sans utiliser un secret partagé (en particulier quand l'un des deux a bloqué le partage de secrets).</p>
+<p>Un contact <em>fort</em> reste établi jusqu'à disparition effective de A ou C : si C disparaît par exemple, les exemplaires pour A de ses secrets partagés avec C restent accessibles à A.</p>
+<h3>Contact rencontré hors de l'application</h3>
+<p>Si A et C n'ont jamais été membres d'un même groupe, ils ne connaissent pas l'identification complète de l'autre et ne peuvent pas s'enregistrer comme contact.</p>
+<p>Mais ils peuvent se connaître par ailleurs et pourront établir un contact <em>fort</em> en s'échangeant leurs identifications en utilisant une phrase de contact connue d'eux seuls.</p>
+<h1>Compte et avatars</h1>
+<h2>Création d'un compte</h2>
+<p>Pour se créer un compte le titulaire doit déclarer :</p>
+<ul>
+<li>sa <strong>phrase secrète</strong> d'accès et ne devra jamais oublier car elle n'est mémorisée nulle part en clair dans l'application.
+<ul>
+<li>elle sert à authentifier le titulaire à sa connexion à l'application.</li>
+<li><strong>elle a deux lignes</strong>, une première d'au moins 16 signes et une seconde d'au moins 16 signes. L'application n'accepte pas d'avoir 2 comptes ayant des phrases secrètes ayant une même première ligne.</li>
+<li>elle pourra être changée à condition de pouvoir fournir celle en cours.</li>
+<li>l'oubli de cette phrase est irrémédiable : indirectement elle crypte toutes les informations et secrets accessibles au compte.</li>
+<li>l'administrateur d'hébergement lui-même n'a aucun moyen technique de la retrouver.</li>
+</ul>
+</li>
+<li>le <strong>nom, immuable, de son premier avatar</strong> (un pseudo).</li>
+<li>la <strong>phrase de parrainage</strong> conjointement fixée avec un autre compte rencontré (hors de l'application) et ayant accepté de le <em>parrainer</em> :
+<ul>
+<li>parrain et filleul ont convenu de cette phrase et du nom du premier avatar du compte filleul.</li>
+<li>le parrain a accepté de prendre sur ses propres quotas d'espace pour ses secrets pour en donner au compte filleul.</li>
+<li>le parrain a enregistré la phrase de parrainage avec le nom d'avatar du filleul et les quotas donnés.</li>
+<li>quand le filleul accepte le parrainage, son compte est créé ainsi que son premier avatar qui a un premier contact <em>fort</em>, son parrain (réciproquement le filleul est un contact four lui).</li>
+</ul>
+</li>
+</ul>
+<p><strong>Si au lieu d'une phrase de parrainage</strong>, le titulaire fournit une clé longue définie par l'administrateur de l'hébergement, le compte et son premier avatar sont créés sans parrainage et avec des quotas définis par le titulaire lui-même.</p>
+<blockquote>
+<p>Ceci permet d'amorcer l'application avec un, ou quelques, comptes <em>primitifs</em> sachant que le tout premier compte ne peut pas être parrainé par un autre compte ... vu qu'il est le premier.</p>
+</blockquote>
+<blockquote>
+<p>L'administrateur de l'hébergement peut supprimer ou changer cette clé par sécurité après création de ce ou ces comptes <em>primitifs</em>.</p>
+</blockquote>
+<p><strong>Un compte,</strong></p>
+<ul>
+<li>est identifié par un code immuable aléatoire de 15 chiffres qui n'a pas d'intérêt pratique.</li>
+<li>reçoit une clé principale de cryptage immuable aléatoirement générée : celle-ci est mémorisée cryptée par une clé dérivée de la phrase secrète du compte et est donc impossible à craquer.</li>
+</ul>
+<p><strong>Un avatar,</strong></p>
+<ul>
+<li>est identifié par un code immuable aléatoire de 15 chiffres qui n'a pas d'intérêt pratique.</li>
+<li>a un <strong>nom immuable</strong>, défini par le titulaire du compte : les homonymies sont permises dans l'application. Ce nom ne pourra pas être changé.</li>
+<li>reçoit des clés cryptographique générées aléatoirement et immuables :
+<ul>
+<li>un code aléatoire permettant de générer la clé cryptant sa <strong>carte de visite</strong>.</li>
+<li>un couple de clés (publique / privée) d'usage interne.</li>
+</ul>
+</li>
+</ul>
+<h2>Carte de visite d'un avatar</h2>
+<p>La <strong>carte de visite</strong> d'un avatar d'un compte est modifiable par le titulaire du compte et comporte :</p>
+<ul>
+<li>une photo de petite dimension,</li>
+<li>un court texte apportant une éventuelle précision au pseudo.</li>
+</ul>
+<p>Elle est mémorisée cryptée par la clé de l'avatar et est visible :</p>
+<ul>
+<li>de tout avatar X membre d'un même groupe G que A,</li>
+<li>de tout avatar C ayant inscrit A dans ses contacts (simple ou fort).</li>
+</ul>
+<blockquote>
+<p><em>Il est possible de rencontrer deux avatars ayant même pseudo</em>, les homonymes étant autorisés : le code permet de les distinguer (seul cas où le code sert à quelque chose) mais surtout la carte de visite, quand les avatars en ont déclaré une, peut permettre de les distinguer.</p>
+</blockquote>
+<h2>Mots clés d'un compte</h2>
+<p>Un mot clé d'un compte a un index, un texte très court et un émoji facultatif. C'est le titulaire d'un compte qui définit ses propres mots clés.</p>
+<p>Les secrets des avatars personnels du compte ou des secrets partagés par le compte (de couple avec un contact ou de groupe) peuvent se voir attacher des mots clés par le compte afin de les classer / indexer.</p>
+<h2>Création d'un avatar</h2>
+<p>Un compte peut se créer un nouvel avatar supplémentaire :</p>
+<ul>
+<li>en donnant son pseudo,</li>
+<li>en fixant les quotas qu'il lui attribue et prélevé sur un autre de ses avatars.</li>
+</ul>
+<p>Un compte peut aussi détruire un de ses avatars (pas le dernier existant).</p>
+<h2>Auto résiliation d'un compte</h2>
+<p>Un compte peut s'auto-détruire.</p>
+<p>Ses données sont effacées <em>mais pas tous ses secrets</em> :</p>
+<ul>
+<li>pour un secret <em>de couple</em> : son exemplaire est bien détruit, mais pas l'exemplaire détenu par l'autre.</li>
+<li>pour un secret de groupe, le secret <em>appartient</em> au groupe et reste normalement accessible aux autres membres.</li>
+</ul>
+<h2>Disparition d'un compte</h2>
+<p><strong>Un compte qui ne s'est pas connecté pendant un certain temps (18 mois) est déclaré <em>disparu</em></strong> et est détruit (ainsi que tous ses avatars).</p>
+<p>Comme rien ne raccorde un compte au monde réel, ni adresse e-mail, ni numéro de téléphone ... il n'est pas possible d'informer quiconque de la disparition prochaine d'un compte.</p>
+<blockquote>
+<p>6 mois avant d'être détruits, les avatars du compte vont apparaître <strong>en alerte</strong> pour les autres avatars avec qui ils sont en contact : certains de ceux-ci peuvent avoir dans la vraie vie un moyen d'alerter leur titulaire afin qu'il se connecte une fois ce qui le fera sortir de cet état.</p>
+</blockquote>
+<h2>Création d'un contact <em>simple</em> d'un avatar</h2>
+<p>Un avatar <code>A</code> peut inscrire un avatar <code>C</code> dans sa liste de contacts <em>simple</em> dès lors que A et C sont membres d'un même groupe G.</p>
+<p>Ainsi A conserve l'identification complète de C (son code, son pseudo et la clé de cryptage de sa carte de visite) même si A ou C sont résiliés du groupe G où ils se sont rencontrés. A pourra ainsi inviter à un groupe ou établir un contact <em>fort</em> avec lui.</p>
+<p>A peut associer un commentaire à un contact C (mais que C ne verra pas).</p>
+<h2>Création d'un contact <em>fort</em> entre A et C</h2>
+<p>Pour qu'un contact devienne <em>fort</em> il faut que A et C en soient d'accord : le contact devient réciproque et indissoluble (jusqu'à disparation d'un des deux avatars).</p>
+<p>Si C est déjà contact simple de A, A invite C à devenir contact <em>fort</em> et dès que C l'accepte le lien est établi.</p>
+<p>Si C et A se sont rencontrés hors de l'application et souhaitent établir un contact fort :</p>
+<ul>
+<li>ils décident d'une phrase de contact connue d'eux seuls, par exemple <code>la framboise est précoce</code>.</li>
+<li>chacun va citer cette phrase dans l'application :
+<ul>
+<li>le premier à citer la phrase y enregistre automatiquement son identification,</li>
+<li>le second à citer la phrase provoque la création du contact fort entre eux (et efface la phrase).</li>
+</ul>
+</li>
+</ul>
+<p>La phrase a une durée de vie courte, elle s'efface automatiquement par sécurité si le second avatar tarde à citer la phrase.</p>
+<p>A peut associer un commentaire à un contact <em>fort</em> C (mais que C ne verra pas) et réciproquement.</p>
+<p>A et C partagent une petite ardoise (moins de 140 signes) ce qui leur permet un minimum d'échange sans partager un secret.</p>
+<h1>Groupe</h1>
+<p>Un groupe est créé par un avatar avec un <strong>nom immuable</strong> censé être parlant dans l'organisation, du moins pour ses membres.</p>
+<ul>
+<li>un <strong>code</strong> interne sur 15 chiffres lui est attribué (inutile dans la vie courante),</li>
+<li>une <strong>clé de cryptage</strong> aléatoire et immuable lui est aussi attribuée à sa création : elle ne sera transmise qu'aux membres du groupe et sert à crypter les données du groupe dont l'accès à ses secrets.</li>
+</ul>
+<p>L'avatar créateur,</p>
+<ul>
+<li>a le pouvoir d'animation du groupe,</li>
+<li>lui transfert un minimum de quotas de stockage de secrets prélevés sur ses propres quotas.</li>
+</ul>
+<h2>Carte de visite d'un groupe</h2>
+<p>La <strong>carte de visite</strong> d'un avatar d'un groupe est modifiable par un animateur du groupe et comporte :</p>
+<ul>
+<li>une photo (logo, image ...) de petite dimension,</li>
+<li>un court texte décrivant l'objet du groupe.</li>
+</ul>
+<p>Elle est mémorisée cryptée par la clé du groupe et est visible de tous les avatars membres actifs du groupe.</p>
+<h2>Invitation d'un avatar à un groupe</h2>
+<p>Un animateur A peut <em>inviter</em> un autre avatar I dont il a l'identification complète, avec un pouvoir proposé de <em>lecteur</em>, <em>auteur</em> ou <em>animateur</em> :</p>
+<ul>
+<li>soit A et I sont membres d'un même groupe G,</li>
+<li>soit I est un des contacts de A, simple ou fort.</li>
+</ul>
+<p>I a désormais le statut <em>invité</em> dans la liste des membres du groupe jusqu'à ce qu'il,</p>
+<ul>
+<li>accepte l'invitation : il passe en statut <em>actif</em>,</li>
+<li>ou refuse l'invitation : il passe en statut <em>refus</em>.</li>
+</ul>
+<p>Chaque membre du groupe peut attribuer au groupe un intitulé qui lui est propre si le nom du groupe ne lui parle pas assez.</p>
+<h2>Membre pressenti</h2>
+<p>N'importe quel membre <em>auteur</em> ou <em>animateur</em> peut inscrire un avatar P dont il a l'identifiant complet comme membre <em>pressenti</em> :</p>
+<ul>
+<li>sa carte de visite sera lisible dans le groupe,</li>
+<li>une discussion dans le groupe peut alors s'opérer sur l'opportunité d'inviter ou non P dans le groupe,</li>
+<li>l'invitation effective reste à discrétion d'un <em>animateur</em>.</li>
+</ul>
+<h2>Pouvoir des animateurs</h2>
+<p>Un animateur peut agir sur les statuts des autres membres :</p>
+<ul>
+<li>supprimer un membre ayant un statut <em>invité</em> et n'ayant pas encore accepté,</li>
+<li>supprimer un membre ayant un statut <em>refus</em>,</li>
+<li>supprimer un membre ayant un statut <em>pressenti</em>,</li>
+<li>résilier un membre ayant un pouvoir <em>auteur</em> ou <em>lecteur</em>.</li>
+</ul>
+<p>Un animateur peut agir sur les pouvoirs des autres membres non animateurs :</p>
+<ul>
+<li>dégrader le pouvoir d'un membre de <em>auteur</em> à <em>lecteur</em>,</li>
+<li>promouvoir un <em>lecteur</em> en <em>auteur</em> ou <em>animateur</em>,</li>
+<li>promouvoir un <em>auteur</em> à <em>animateur</em>,</li>
+</ul>
+<p>Un animateur peut reprendre des quotas en excédent au groupe.</p>
+<p>Tout membre peut,</p>
+<ul>
+<li>s'auto-résilier,</li>
+<li>dégrader son propre pouvoir,</li>
+<li>apporter des quotas au groupe afin de lui permettre d'avoir plus de secrets.</li>
+</ul>
+<h2>Mots clés d'un groupe</h2>
+<p>Un mot clé d'un groupe a un index, un texte très court et un émoji facultatif.</p>
+<p>Les mots clés peuvent être attachés aux secrets du groupe.</p>
+<p>Les mots clés du groupe sont mis à jour par un animateur.</p>
+<h2>Archivage d'un groupe</h2>
+<p>Un groupe peut <em>être archivé</em> par un de ses animateurs : plus aucun secret ne peut y être ajouté / modifié.</p>
+<p>En revanche le groupe peut continuer à avoir des mouvements de membres et ses secrets peuvent être copiés.</p>
+<p>Un groupe peut être désarchivé par un animateur.</p>
+<h2>Fermeture d'un groupe</h2>
+<p>Un animateur peut <em>fermer</em> un groupe : il ne peut plus y avoir de nouvelles inscriptions.</p>
+<p>Pour rouvrir un groupe il faut que tous les animateurs aient voté vouloir le rouvrir.</p>
+<h2>Dissolution d'un groupe</h2>
+<p>Elle s'opère quand le dernier membre actif du groupe se résilie lui-même : tous les secrets sont détruits.</p>
+<p>Quand le dernier membre actif d'un groupe passe en état <em>disparu</em>, le groupe se dissout (plus personne ne pouvant y accéder).</p>
+<h1>Secret</h1>
+<p>Un secret est créé dans l'un des trois contextes suivants :</p>
+<ul>
+<li><strong>secret personnel</strong> d'un avatar d'un compte. Seul le titulaire du compte le connaît et peut le lire et le mettre à jour.</li>
+<li><strong>secret de couple</strong> de deux avatars A et B contacts forts. Le secret est dédoublé en deux exemplaires, chacun propriété respective de A et de B :
+<ul>
+<li>les mises à jour faites sur un exemplaire sont reportées sur l'autre.</li>
+<li>si A ou B détruit son exemplaire ceci n'affecte pas l'autre exemplaire.</li>
+<li>si B par exemple est considéré comme disparu, les secrets du couple restent lisible par A (les exemplaires de A restent accessibles).</li>
+<li>les mots clés attachés par A à son exemplaire sont indépendants des mots clés attachés par B à son exemplaire.</li>
+</ul>
+</li>
+<li><strong>secret de groupe</strong>. Seuls les membres actifs du groupe y ont accès et peuvent agir dessus.
+<ul>
+<li>le secret a un seul exemplaire partagé, toute mise à jour est visible par tous les membres du groupe.</li>
+<li>le dernier auteur du secret et tout animateur peut attribuer au secret des mots clés du groupe.</li>
+<li>tout membre peut attribuer de plus ses propres mots clés personnels (non visibles des autres membres).</li>
+</ul>
+</li>
+</ul>
+<p><strong>Un secret est modifiable</strong>, son texte comme sa pièce jointe, du moins jusqu'à ce que ce secret soit basculé en état <em>archivé</em> auquel cas il devient immuable. L'état d'un secret indique par qui il peut être modifié :</p>
+<ul>
+<li><em>normal</em> : le secret est modifiable par tous ceux y ayant accès ce qui change selon qu'il s'agit d'un secret personnel, de couple ou de groupe.</li>
+<li><em>restreint</em> : le secret n'est modifiable que par le dernier avatar l'ayant modifié.</li>
+<li><em>archivé</em> : le secret n'est plus modifiable.</li>
+</ul>
+<p>L'état d'un secret de groupe peut être forcé par un animateur du groupe.</p>
+<p>Un secret de groupe garde la liste ordonnée des avatars l'ayant modifié, les plus récents en tête mais sans doublons.</p>
+<p><strong>Un secret peut <em>faire référence</em> un autre secret</strong> de la même <em>famille</em> : un secret personnel à un autre secret personnel du même avatar, un secret de couple à un secret du même couple, un secret de groupe à un autre secret du même groupe. L'affichage peut ainsi être hiérarchique :</p>
+<ul>
+<li>à la racine apparaissent tous les secrets relatifs à aucun.</li>
+<li>en dépliant un secret S1 on voit tous les secrets Si faisant référence à S1 et ainsi de suite.</li>
+</ul>
+<blockquote>
+<p>Une pièce jointe peut être lue dans une session en ligne et sauvegardée cryptée (ou non !) localement par exemple dans <em>Téléchargement</em>. Ultérieurement au cours d'une session hors ligne, la pièce jointe peut être ré-obtenue depuis <em>Téléchargement</em> et affichée.</p>
+</blockquote>
+<h2>Mots clés : indexation / filtrage / annotation personnelle des secrets</h2>
+<p>Il existe une liste de 50 mots clés génériques de l'application définis à son déploiement par l'administrateur de l'hébergement. Par exemple : <em>à relire, important, à cacher, à traiter d'urgence, ...</em></p>
+<p>Chaque mot clé a un texte et un possible émoji.</p>
+<p>Chaque compte a une liste de 100 mots clés qu'il définit lui-même. Par exemple : <em>écologie, économie, documentation, mot de passe, ...</em></p>
+<p>Chaque groupe a aussi une liste de 100 mots clé à sa disposition.</p>
+<p>Chaque secret peut être indexé par ces mots clés à discrétion de chaque compte pour lui-même ce qui n'affecte pas les indexations des autres.</p>
+<ul>
+<li>les libellés des mots clés peuvent changer,</li>
+<li>l'affectation de mots clés aux secrets également, même pour un secret archivé.</li>
+</ul>
+<h1>Maîtrise du volume des secrets : quotas</h1>
+<p>Aucun compte, aucun administrateur ne peut connaître la liste des comptes et de leurs avatars ni n'a de pouvoir pour <em>bloquer</em> un compte ou le dissoudre.</p>
+<p>Sans instauration de quotas par compte, n'importe quel compte pourrait créer autant de secrets qu'il veut et saturer l'espace physique au détriment des autres. C'est pour cela que chaque compte dispose de <em>quotas</em> de volume de secrets.</p>
+<p>Ce contrôle s'effectue à deux niveaux :</p>
+<ul>
+<li>le contrôle du volume de secrets créés par mois.</li>
+<li>le contrôle du volume des secrets permanents.</li>
+</ul>
+<p>On distingue :</p>
+<ul>
+<li>le volume des secrets eux-mêmes : un montant forfaitaire par secret plus la taille <em>gzippée</em> de son texte.</li>
+<li>le volume des pièces jointes, <em>gzippées</em> selon leur type MIME.</li>
+</ul>
+<p>Il y des quotas :</p>
+<ul>
+<li><strong>par avatar</strong>, attribués :
+<ul>
+<li>par le parrain à la création du compte,</li>
+<li>réattribués par un autre compte sur ses quotas personnels,</li>
+<li>réattribués depuis les quotas d'un groupe par un animateur, en particulier lors de son archivage ou sa dissolution.</li>
+</ul>
+</li>
+<li><strong>par groupe</strong>, attribués par les membres du groupe sur leur propres quotas.</li>
+</ul>
+<p>Un quota comporte 4 chiffres :</p>
+<ul>
+<li>le volume maximal autorisé des secrets permanents.</li>
+<li>le volume maximal autorisé des pièces jointes pour les secrets permanents,</li>
+<li>le volume maximal autorisé des secrets <strong>créés</strong> chaque mois.</li>
+<li>le volume maximal autorisé des pièces jointes <strong>créées</strong> chaque mois.</li>
+</ul>
+<h2>Banque centrale des quotas</h2>
+<p>La <em>Banque centrale</em> dispose de quotas définis par l'administrateur de l'hébergement en fonction des ressources techniques dont il dispose.</p>
+<p>Normalement l'attribution de quotas à un avatar ou à un groupe se fait par transfert de quotas déjà attribués à un autre avatar ou groupe.</p>
+<p>Toutefois un compte qui connaîtrait la clé de la <em>Banque centrale</em> peut y prélever des quotas pour les attribuer à un avatar ou un groupe sans prendre sur les siens : ceci décrémente d'autant les quotas disponibles de la <em>banque centrale</em>.</p>
+<p>La disparition d'un compte ou d'un avatar ou d'un groupe rend ses quotas à la <em>Banque centrale</em>.</p>
+<h2>Quotas mensuels de volume de secrets créés</h2>
+<p>Un avatar ne peut pas créer plus de secrets par mois que ses quotas ne l'autorisent.</p>
+<ul>
+<li>le décompte est mis à 0 à chaque début de mois.</li>
+<li>une création de secrets incrémente les volumes créés du mois.</li>
+<li>une mise à jour incrémente ces volumes si la mise à jour est une expansion.</li>
+<li>une alerte orange puis rouge apparaît à l'approche des limites des quotas ou à son dépassement.</li>
+</ul>
+<h2>Quotas de volume de secrets permanents</h2>
+<p>Quand un secret devient permanent, le volume permanent du compte ou du groupe est incrémenté et ne peut pas dépasser les quotas permanents. Les volumes changent,</p>
+<ul>
+<li>par mise à jour du secret (augmentation ou réduction),</li>
+<li>par suppression du secret.</li>
+</ul>
+<p>Un volume permanent peut temporairement excéder le quota autorisé pour un avatar, quand ceci résulte d'une action d'un autre avatar :</p>
+<ul>
+<li>le secret permanent d'un couple A-B est mis à jour en expansion par B (sans dépasser les quotas de B),</li>
+<li>mais ceci lui fait dépasser le volume maximal de A : la mise à jour est acceptée pour ne pas bloquer B. Toutefois A devra ultérieurement supprimer des secrets permanents, ou augmenter ses quotas.</li>
+</ul>
+<h1>Contrôle éthique</h1>
+<p>A partir du moment où un compte respecte ses quotas il est impossible à une quelconque autorité de le détruire. Les textes des secrets lui sont strictement privés et peuvent en conséquence être éthiquement incorrects au regard d'autres personnes ou organisations. Toutefois :</p>
+<ul>
+<li>si un avatar A partage avec B des secrets que B considère comme non acceptables, quelqu'en soit la raison, B peut déclarer ne plus rien partager avec A.</li>
+<li>dans la cadre d'un groupe, un animateur peut résilier un membre du groupe et chacun peut s'auto résilier.</li>
+</ul>
+<p>Bref nul n'est obligé de lire des secrets qu'il ne juge pas acceptables.</p>
+<p>L'application est agnostique vis à vis des contenus des secrets qui peuvent être n'importe quoi, en bien ou en mal ... et selon ce que chacun considère comme bien ou mal: c'est une application qui reste du niveau de la communication / mémorisation personnelle ou privée, comme celle que peut avoir un groupe restreint d'amis discutant librement entre eux.</p>
+<h1>Annexe : liste des opérations</h1>
+<p>Un opération est initiée par un utilisateur et modifie l'état des données.</p>
+<h2>Opérations sans connexion</h2>
+<p>Ces actions peuvent être déclenchées <strong>avant</strong> par un utilisateur avant de s'être authentifié.</p>
+<h3>Création d'un compte</h3>
+<p>Parrainé ou non : en cas de succès l'utilisateur est authentifié après cette opération, les opérations suivantes s'effectuent dans le contexte d'une session identifié par le compte créé.</p>
+<h3>Connexion à un compte</h3>
+<p>Si la phrase secrète fourni authentifie l'utilisateur, les opérations suivantes s'effectueront dans le contexte d'une session identifié par le compte correspondant.</p>
+<p>Le compte et ses avatars ont désormais environ 18 mois sans connexion avant d'être considérés comme <em>disparu</em>.</p>
+<h2>Opérations portant sur le compte de la session</h2>
+<p>... donc après connexion à un compte.</p>
+<h3>Création d'un avatar</h3>
+<h3>Suppression d'un avatar</h3>
+<p>Sauf le dernier du compte.</p>
+<h3>Mise à jour des mots clés du compte</h3>
+<h3>Auto-destruction du compte</h3>
+<h3>Transfert de quotas</h3>
+<p>depuis / vers un avatar ou un groupe, ou la banque centrale.</p>
+<h3>Parrainage d'un nouveau compte</h3>
+<p>Déclaration d'une phrase de parrainage avec un nom d'avatar pour le filleul et attribution de quotas. Un parrainage peut être :</p>
+<ul>
+<li>mis à jour avant son acceptation,</li>
+<li>supprimé par le parrain avant son acceptation.</li>
+</ul>
+<h2>Opérations portant sur un avatar</h2>
+<h3>Création / mise à jour de sa carte de visite</h3>
+<h3>Création d'un secret personnel</h3>
+<h3>Création d'un groupe</h3>
+<h3>Acceptation ou refus d'une invitation à un groupe</h3>
+<h3>Création / mise à jour / suppression d'un contact simple</h3>
+<p>La mise à jour concerne le commentaires du compte à propos du contact.</p>
+<h3>Proposition à un contact simple de devenir <em>fort</em></h3>
+<h3>Acceptation / refus d'une proposition d'établissement d'un contact fort</h3>
+<h3>Mise à jour de l'ardoise partagée avec un contact fort</h3>
+<h3>Blocage / déblocage du partage de secrets avec un contact fort</h3>
+<h3>Déclaration d'une phrase de contact</h3>
+<p>Si la phrase n'avait pas encore été déclarée, l'avatar dépose son identification et précise s'il accepte ou non le partage de secrets lors de l'établissement du contact fort.</p>
+<p>Si la phrase avait été déclarée par l'autre avatar, le contact fort est établi (ou refusé) avec ou sans partage de secrets.</p>
+<h3>Création d'un secret de couple avec un contact fort</h3>
+<h2>Opération portant sur un groupe</h2>
+<h3>Invitation d'un avatar à devenir membre</h3>
+<p>et mise à jour de cette invitation (pouvoir proposé <em>lecteur, auteur, animateur</em>), voire suppression.</p>
+<h3>Enregistrement d'un avatar en tant que membre pressenti</h3>
+<h3>Mise à jour d'un membre</h3>
+<p>Changement de son pouvoir, résiliation, auto-résiliation, suppression quand il n'est pas actif (et ne l'a jamais été).</p>
+<h3>Mise à jour des mots clé du groupe</h3>
+<h3>Mise à jour de la carte de visite du groupe</h3>
+<h3>Changement de l'intitulé du groupe visible du compte</h3>
+<h3>Création d'un secret de groupe</h3>
+<h2>Opérations portant sur un secret</h2>
+<h3>Mise à jour du texte / pièce jointe</h3>
+<h3>Changement de son autorisation de modification (libre, restreinte, archivé)</h3>
+<h3>Suppression d'un secret</h3>
+<h3>Passage d'un secret temporaire à permanent</h3>
+<h3>Modification des mots clés attachés au secret</h3>
+<p>Pour un secret de groupe avec la distinction des mots clés du groupe et des mots clés personnels.</p>
