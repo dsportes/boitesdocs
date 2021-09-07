@@ -417,18 +417,20 @@ En accédant à cette rencontre B peut ainsi inscrire A comme contact *libre* : 
 Une rencontre est identifiée par le hash du PBKFD2 de la phrase de rencontre.
 
     CREATE TABLE "rencontre" (
-    "prh"  INTEGER,
-    "ida"   INTEGER,
-    "dlv"   INTEGER,
+    "prh" INTEGER,
+    "ida" INTEGER,
+    "v"   INTEGER,
+    "dlv" INTEGER,
     "datak" BLOB,
     "datax" BLOB,
-    PRIMARY KEY("dpbh")
+    PRIMARY KEY("prh")
     ) WITHOUT ROWID;
     CREATE INDEX "dlv_rencontre" ON "rencontre" ( "dlv" )
     CREATE INDEX "ida_rencontre" ON "renconstre" ( "ida" )
 
 - `prh` : hash du PBKFD2 de la phrase de rencontre.
 - `ida` : id de l'avatar A ayant initié la rencontre.
+- `v` :
 - `dlv` : la date limite de validité permettant de purger les rencontres.
 - `datak` : phrase de rencontre cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.
 - `datax` : données de l'invitation cryptées par le PBKFD2 de la phrase de rencontre.
@@ -439,12 +441,14 @@ L'invitant peut retrouver en session la liste des invitations en cours qu'il a f
 
     CREATE TABLE "avinvitgr" (
     "idm"   INTEGER,
+    "v"   INTEGER,
     "dlv"	INTEGER,
     "datapub"  BLOB);
     CREATE INDEX "dlv_grinvitgr" ON "grinvitgr" ( "dlv" );
     CREATE INDEX "idm_grinvitgr" ON "grinvitgr" ( "idm" );
 
 - `idm` : id du membre invité.
+- `v` :
 - `dlv` :
 - `datapub` : crypté par la clé publique du membre invité. Données permettant à l'invité de se localiser dans la liste des membres du groupe.
 	- `idg code` : du groupe.

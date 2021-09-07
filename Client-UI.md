@@ -1,15 +1,58 @@
 # Boîtes à secrets - Client
 
+## Données en IDB et en mémoire
+En IDB on trouve la réplication telle quelle de sélection des tables de en base :
+- compte : le row du compte. Ceci donne le liste des ids des avatars du compte.
+- les rows dont la clé ida fait partie de la liste des avatars du compte et pour chaque ida les sélections suivantes :
+  - avidcc : le row donnant la liste des contacts de ida (avatars et groupes).
+  - avcontact : tous les rows des contacts de ida.
+  - avinvitct : tous les rows des invitations reçues à être contact fort et encore en attente.
+  - avinvitgr : tous les rows des invitations reçues à être membre d'un groupe et encore en attente.
+  - rencontre : tous les rows des rencontres émises par ida.
+  - secret : tous les rows des secrets des ida.
+- les rows dont la clé idg fait partie de la liste des contacts (groupes seulement) et pour chaque groupe idg :
+  - grlmg : le row donnant la liste des membres du groupe (id et numéro de contact).
+  - grmembre : tous les rows des membres de la liste des membres.
+  - secret : tous les rows des secrets du groupe idg.
+- cvsg : les rows dont la clé id est, soit un avatar / groupe contact, soit un des membres des groupes.
+
+En IDB les contenus sont l'image en base, donc cryptés.
+
+En mémoire les rows sont décryptés / compilés.
+
+### La table maxsync
+Cette map mémorise pour chaque { avatar / groupe, table } la plus haute version du ou des rows changés en mémoire. Elle est donc initiliasée en début de session, soit vide (mode avion), soit depuis le contenu de IDB chargé en mémoire.
+
+Lorsque la mémoire locale est resynchronisée, par exemple pour la table avcontact de l'avatar ida, le résultat retourne les rows sélectés de version postérieure à celle de dernière synchronisation pour cette table et cet avatar.  
+On en déduit le numéro de version max de cet id / table.
+
+Cette map comporte,
+- une entrée pour le compte ("0"), 
+- une pour chaque avatars de la liste des avatars du compte,
+- une par groupe de la liste des groupes accédés par un des avatars du compte, 
+- plus une de clé 1 pour les cartes de visite. 
+
+La valeur est une table de  N éléments : pour un avatar par exemple représentant les 6 compteurs max correspondant aux dernières synchronisation des tables avidcc avcontact avinvitgct avinvitegr rencontre secret.
+
+Par exemple :
+
+    {
+    av1 : [434, 436, 512, 434, 418, 718],
+    av2 : ...
+    }
+
+Ainsi cette map va permettre de savoir que s'il faut resynchroniser la table avcontact (la seconde) de av1 il faut redemander tous les rows de versions postérieures à 436 : on en obtiendra le numéro par exemple 732 de la plus haute version de mise à jour d'un avcontact de av1.
+
 ## Classes en mémoire
 ### global - non persistant
 Champs:
 - `pcb` : PBKFD2 de la phrase complète **saisie** en session - clé X
 - `dpbh` : Hash du PBKFD2 du début de la phrase **saisie** en session.
 
-En mode *avion* dans le localStorage une clé `dpbh` donne le numéro de compte (nom de la base IDB).
+En mode *avion* dans le `localStorage` une clé `dpbh` donne le numéro de compte (nom de la base IDB).
 
 ### `clekx` - singleton
-C'est la clé K crypté par la phrase secrète du compte.  
+C'est la clé K cryptée par la clé X.  
 En cas de changement de clé, soit émise sur cet appareil, soit reçu du serveur, ce singleton est réécrit.
 
 ### `etat` - singleton
