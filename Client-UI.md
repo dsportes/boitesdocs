@@ -118,21 +118,22 @@ Les cartes de visite modifiées sont notifiées par Web Socket. Mais une notific
 - cette opération enregistre l'id nouvelle à surveiller par le serveur pour la session afin que les mises à jour ultérieures soient notifiées par Web Socket.
 
 ## Classes en mémoire
-### Global - non persistant
+### Classe `Global` - singleton non persistant
 Champs:
 - `pcb` : PBKFD2 de la phrase complète **saisie** en session - clé X
-- `dpbh` : Hash du PBKFD2 du début de la phrase **saisie** en session.
+- `pcbh` : Hash de pcb.
+- `idc` : id du compte (après connexion).
+- `clek` : clé K du compte, décryptée par la clé X (après connexion).
 
-En mode *avion* dans le `localStorage` les clés `monorg-hhh` donne chacune le numéro de compte `ccc` associé à la phrase de connexion dont le hash est `hhh` : `monorg-ccc` est le nom de la base IDB qui contient les données de la session de ce compte pour l'organisation `monorg` dans ce browser.
+**En mode *avion*** dans le `localStorage` les clés `monorg-hhh` donne chacune le numéro de compte `ccc` associé à la phrase de connexion dont le hash est `hhh` : `monorg-ccc` est le nom de la base IDB qui contient les données de la session de ce compte pour l'organisation `monorg` dans ce browser.
 
-**En mode synchronisé**, il se peut que la phrase secrète actuelle enregistrée dans le serveur (dont le hash est `hhh`) ait changé depuis la dernière session synchronisée exécutée pour ce compte :
-- si la clé `monorg-hhh` n'existe pas (cas 1): elle est créée avec pour valeur `monorg-ccc` (le nom de la base pour le compte `ccc`).
+**En mode *synchronisé***, il se peut que la phrase secrète actuelle enregistrée dans le serveur (dont le hash est `hhh`) ait changé depuis la dernière session synchronisée exécutée pour ce compte :
+- si la clé `monorg-hhh` n'existe pas : elle est créée avec pour valeur `monorg-ccc` (le nom de la base pour le compte `ccc`).
 - si la base `monorg-ccc` n'existe pas elle est créée.
-- idéalement dans le cas 1 il faudrait supprimer la clé `monorg-aaa` quand `aaa` est le hash de l'ancienne phrase secrète : par simplification la clé monorg-aaa restera mais sera inutilisable (aaa est donnée par l'ancienne phrase et la base est utilisable avec une phrase ultérieure).
+- l'ancienne clé, désormais obsolète, pointe bien vers le même compte mais ne permet plus d'accéder à ce compte, dont la clé K a été ré-encryptée par la nouvelle phrase.
 
-### `clekx` - singleton
-C'est la clé K cryptée par la clé X.  
-En cas de changement de clé, soit émise sur cet appareil, soit reçu du serveur, ce singleton est réécrit.
+### Classe Compte - singleton
+Image décryptée du row de la table Compte du compte de la session.
 
 ### `etat` - singleton
 Ce singleton est persistant crypté par la clé K et donne l'état de synchronisation initiale. 
