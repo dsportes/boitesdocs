@@ -117,7 +117,7 @@ Les cartes de visite modifiées sont notifiées par Web Socket. Mais une notific
 - une opération permet de la récupérer,
 - cette opération enregistre l'id nouvelle à surveiller par le serveur pour la session afin que les mises à jour ultérieures soient notifiées par Web Socket.
 
-## Classes en mémoire
+## Classes
 ### Classe `Global` - singleton non persistant
 Champs:
 - `pcb` : PBKFD2 de la phrase complète **saisie** en session - clé X
@@ -132,8 +132,24 @@ Champs:
 - si la base `monorg-ccc` n'existe pas elle est créée.
 - l'ancienne clé, désormais obsolète, pointe bien vers le même compte mais ne permet plus d'accéder à ce compte, dont la clé K a été ré-encryptée par la nouvelle phrase.
 
-### Classe Compte - singleton
+### Classe `Compte` - singleton
 Image décryptée du row de la table Compte du compte de la session.
+
+### Classe Avatar
+Instances stockées dans la map avatars :
+- clé : id de l'avatar
+- valeur : objet Avatar.
+
+Propriétés - Chacune est un row (singleton) ou une map contenant les rows de la table de même nom dont l'id majeure est celle de l'avatar.
+- avidcc : singleton de la classe Avidcc.
+- cvsg : singleton de la classe Cvsg, carte de visite de l'avatar. 
+- avcontact : map d'instances de la classe Avcontact. La clé est l'index nc du contact.
+- `avinvitct` : map des invitations reçues par l'avatar à être contact fort et encore en attente. La clé est l'id de l'invitant (data.ida).
+- `avinvitgr` : map des invitations reçues par l'avatar à être membre d'un groupe et encore en attente. La clé est l'id du groupe (datapub.idg).
+- `rencontre` : map des rencontres initiées par l'avatar et encore en attente. La clé est prh (hash de la phrase de rencontre).
+  - 5 - `secret` : secrets de `ida`.
+
+
 
 ### `etat` - singleton
 Ce singleton est persistant crypté par la clé K et donne l'état de synchronisation initiale. 
