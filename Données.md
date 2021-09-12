@@ -54,6 +54,7 @@ La clé de cryptage du groupe (ses données ...) et de sa carte de visite est le
    - alerte : des mois sans signe de vie, sera considéré comme disparu dans les 2 mois qui suivent.
    - disparu
 - `dlv` : date limite de validité, en nombre de jours depuis le 1/1/2021.
+- `st` : contact, membre, groupe, secret : quand st est négatif c'est le numéro de semaine de sa suppression. Les rows ne sont pas supprimés physiquement pendant un certain temps afin de permettre aux mises à jour incrémentale des sessions de détecter les suppressions. Toutefois une session pour un compte étant ouverte au moins tous les 18 mois, les st négatifs de plus de 18 mois peuvent être physiquement supprimés.
 
 Les comptes sont censés avoir au maximum N semaines entre 2 connexions faute de quoi ils sont considérés comme disparus.
 
@@ -72,20 +73,18 @@ Toutefois la synchronisation des cartes de visite est différente puisqu'elle s'
 - `versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde)  
 - `etat` (singleton) : état courant permanent du serveur  
 - `avgrvq` (id) : volumes et quotas d'un avatar ou groupe  
-- `avrsa` (ida) : clé publique d'un avatar  
-- `parrain` (dpbh) : offre de parrainage d'un avatar A pour la création d'un compte inconnu (mais d'avatar connu) 
+- `avrsa` (id) : clé publique d'un avatar
 
 _**Tables aussi persistantes sur le client (IDB)**_
 
 - `cvsg` (id) : carte de visite et signature d'un compte / avatar / groupe
-- `compte` (idc) : authentification et données d'un compte
-- `avidcc` (ida) : identifications et clés c1 des contacts d'un avatar  
-- `avcontact` (ida, nc) : données d'un contact d'un avatar    
-- `avinvitct` () (idb) : invitation adressée à B à lier un contact fort avec A  
-- `avinvitgr` () (idm) : invitation à M à devenir membre d'un groupe G
-- `rencontre` (dpbh) ida : communication par A de son identification complète à un compte inconnu
-- `grlmg` (idg) : liste des id + nc des membres du groupe  
-- `grmembre` (idg, nm) : données d'un membre du groupe
+- `compte` (id) : authentification et données d'un compte 
+- `contact` (id, nc) : données d'un contact d'un avatar    
+- `invitct` (id) : invitation reçue à lier un contact fort avec un autre avatar  
+- `invitgr` (id) : invitation reçue à devenir membre d'un groupe
+- `rencontre` (prh) id : communication par A de son identification complète à un avatar non identifié dans l'application pour A
+- `parrain` (pph) id : parrainage par un avatar A de la création d'un nouveau compte
+- `membre` (id, nm) : données d'un membre du groupe
 - `secret` (id, ns) : données d'un secret d'un avatar ou groupe
 
 ## Table `etat` - singleton d'état global du serveur
@@ -180,25 +179,7 @@ Table
 - un avatar d'un compte régulièrement accédé sans carte de visite a une version à 0.
 - si un avatar n'est jamais monté en alerte, v est la version de sa carte de visite.
 
-### GC des comptes et groupes
-La détection par `dds` trop ancienne d'un **compte** 
-- détruit le row dans `compte` et dans `cvsg`. 
-- un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures.
-- le compte n'étant plus accessible, ses avatars ne seront plus signés et les groupes auxquels il accédait non plus.
-
-La détection par `dds` trop ancienne d'un **groupe**,
-- détruit ses row dans toutes les tables `grlmg grmembre secret cvsg`.
-- transfert ses quotas de son row `avgrvq` sur la banque centrale et détruit son row `avgrvq`.
-- par construction un groupe ne tombe en désuétude que lorsque *tous* les avatars membres actifs ont disparu. Il suffit donc de purger ses données que plus personne ne référence. 
-- par construction s'il avait existé encore un avatar dont l'accès au groupe n'est pas résilié, le groupe aurait été signé lors de la connexion du compte.
-- **remarque** : la résiliation d'un accès pour un avatar provoque,
-  - la mise à 0 de son slot dans `avidcc`.
-  - la suppression physique de son row dans `avcontact`.
-  - le contact résilié reste référencé en tant que résilié dans `grmembre` (mais son slot dans `grlmg` est 0).
-
-Les *disparus* depuis plus d'un an sont détruits par le GC.
-
-## Table : `compte` CP `idc`. Authentification et données d'un compte
+## Table : `compte` CP `id`. Authentification et données d'un compte
 _Phrase secrète_ : une ligne 1 de 16 caractères au moins et une ligne 2 de 16 caractères au moins.  
 `pcb` : PBKFD2 de la phrase complète (clé X) - 32 bytes.  
 `dpbh` : hashBin (53 bits) du PBKFD2 du début de la phrase secrète (32 bytes).
@@ -248,42 +229,17 @@ Table :
 - `id` : id de l'avatar.
 - `clepub` : clé publique. 
 
-### Avatars : liste et détails des contacts d'un avatar A
-Les contacts ont un numéro de contact `nc` attribué en séquence à la création qui les identifie relativement à l'avatar A.  
+### Table `contact` : CP `id nc`. Contact d'un avatar A
+Les contacts ont un numéro de contact `nc` attribué au hasard à la création qui les identifie relativement à l'avatar A.  
 Un avatar A peut avoir pour contact :
 - **soit un avatar B**, avec deux états successifs possibles :
 	- **simple** (statut 0) : A a B pour contact `15` et B peut avoir ou non A pour contact `57`, ces situations sont autonomes l'une de l'autre et ni A ni B ne savent rien du contact éventuel de l'autre. A peut décider de perdre B comme contact et B peut décider de perdre A comme contact, puis éventuellement de reprendre B pour contact sous un nouveau numéro `18`.
 	- **fort** : A a B pour contact `15`, B a A pour contact `57` : ces numéros de contacts mutuels forts sont connus et immuables de part et d'autre. A peut restreindre la nature de ses échanges avec B mais ne peut plus les rompre tant que B n'a pas disparu.
 - **soit un groupe G** : si A est membre du groupe G sous un numéro de contact 25, il le restera jusqu'à sa résiliation (volontaire ou par un animateur).
 
-A chaque numéro de contact `nc` est associée la partie de la clé `rnd` :
-- avatar B, contact simple : rien ou le `rnd` de la dernière demande de contact _fort_ refusée ou en attente.
-- avatar B, contact fort : le `rnd` de la clé de partage entre A et B (15 bytes).
-- groupe G dont A est membre : le `rnd` de la clé du groupe.
+Table :
 
-### Table `avidcc` : CP `ida`. Liste des contacts d'un avatar
-
-Cette table donne les couples `id + cc/cg` pour chacun des `nc`. Elle énumère tous les avatars et groupes en contact (avec leur clé d'accès aux secrets).
-
-    CREATE TABLE "avidcc" (
-    "ida"   INTEGER,
-    "v"		INTEGER,
-    "idcck"  BLOB,
-    PRIMARY KEY("ida")
-    ) WITHOUT ROWID;
-    CREATE INDEX "ida_v_avidcc" ON "avidcc" ( "ida", "v" )
-
-- `ida` : id de l'avatar A.
-- `v` : 
-- `idcck` [ ] : table donnant la clé de cryptage `id + cc/cg` pour chaque `nc` (qui est l'index dans cette table) et permettant de récupérer en session toutes les ids des avatars non disparus et des groupes dont l'accès n'est pas résilié
-  - `id` est une redondance puisqu'on le retrouve dans `avcontact` mais ça permet à l'avatar d'avoir la liste des contacts en une fois .
-  - pour un groupe G le terme d'index `nc` est vide à la _résiliation_ de A du groupe G.
-  - pour un avatar B, le terme d'index `nc` est vide lors du constat de la _disparition_ de B ou en cas de refus de parrainage de B.
-  - chaque terme est crypté par la clé K. Ceci permet à un _animateur de groupe_ de mettre à 0 le terme `nc` à la résiliation sans avoir besoin de décrypter toute la liste (ce qu'il ne peut pas faire, n'ayant pas la clé K des membres). Même chose lors d'un refus de parrainage.
-
-## Table `avct` : CP `id nc`. Contact d'un avatar
-
-    CREATE TABLE "avct" (
+    CREATE TABLE "contact" (
     "id"   INTEGER,
     "nc"	INTEGER,
     "v"  	INTEGER,
@@ -297,12 +253,12 @@ Cette table donne les couples `id + cc/cg` pour chacun des `nc`. Elle énumère 
     "rndgk" BLOB,
     PRIMARY KEY("id", "nc")
     );
-    CREATE INDEX "id_v_avct" ON "avct" ( "id", "v" )
+    CREATE INDEX "id_v_contact" ON "contact" ( "id", "v" )
 
 - `id` : id de l'avatar A
 - `nc` : numéro de contact de B ou G pour A.
 - `v` : 
-- `st` : statut entier de 3 chiffres, `x y z` : **la valeur 0 indique un row supprimé (les champs après sont null)**.
+- `st` : statut entier de 3 chiffres, `x y z` : **les valeurs < 0 indiquent un row supprimé (les champs après sont null)**.
   - `x` : statut du contact 
     - 1 - contact _simple_ avec un avatar présumé actif
     - 2 - contact _simple_ avec un avatar disparu
@@ -334,11 +290,11 @@ Un *contact fort* permet de partager par **l'ardoise** un court texte entre A et
 **Remarques :**
 - un contact _fort_ invité mais avec une réponse de refus, redevient un contact _simple_. Toutefois l'ardoise contient l'explication du refus et `rndcc` est la clé qui crypte cette ardoise.
 - un parrainage refusé est traité par un statut `0` du row dans `avct` .
-- le row `avct` d'un groupe dont l'accès est résilié pour A reste pour information historique. La carte de visite du groupe n'est plus accessible, le groupe non plus (`rndgk` est null).
-- le row `avct` d'un avatar disparu reste pour information historique. La carte de visite de l'avatar n'est plus accessible (et d'ailleurs n'existe plus, `rndgk` est null.
-- dans ces deux derniers cas, l'utilisateur peut demander la suppression ce row d'information historique (`st` passe à 0).
+- le row `contact` d'un groupe dont l'accès est résilié pour A reste pour information historique. La carte de visite du groupe n'est plus accessible, le groupe non plus (`rndgk` est null).
+- le row `contact` d'un avatar disparu reste pour information historique. La carte de visite de l'avatar n'est plus accessible (et d'ailleurs n'existe plus), `rndgk` est null.
+- dans ces deux derniers cas, l'utilisateur peut demander la suppression ce row d'information historique (`st` passe à < 0).
 
-## Table `avinvitct` : CP : `id`. Invitation en attente reçue par B de A à établir un contact fort
+## Table `invitct` : CP : `id`. Invitation en attente reçue par B de A à établir un contact fort
 Un contact *fort* est requis pour partager, un statut, une ardoise et des secrets et s'échanger des quotas.
 
 Dans avct le contact simple a un statut invitation en cours
@@ -361,16 +317,16 @@ Dans avct le contact simple a un statut invitation en cours
 - `ccpub` : `rnd` de la clé `cc` du contact *fort* A / B, définie par A, cryptée par la clé publique de B.
 - `datac` : données cryptées par la clé `cc`.
 	- `[id + rnd, nom]` : id complète de A.
-	- `nc` : numéro du contact de A pour B (pour que B puisse écrire le statut et l'ardoise dans `avct` de A). 
-- `ardc` : texte de sollicitation écrit par A pour B et/ou réponse de B (pour A ce texte figure déjà dans `avct` pour l'élément `nc` au moment du lancement de l'invitation).
+	- `nc` : numéro du contact de A pour B (pour que B puisse écrire le statut et l'ardoise dans `contact` de A). 
+- `ardc` : texte de sollicitation écrit par A pour B et/ou réponse de B (pour A ce texte figure déjà dans `contact` pour l'élément `nc` au moment du lancement de l'invitation).
 
 **En cas d'acceptation**, B peut, soit créer un contact chez lui pour A quand il n'y en a pas encore, soit récupérer celui existant chez lui pour A s'il l'avait déjà en contact simple, et inscrire les données de A comme contact *fort* chez lui (`st rndcc ardc`). Chez A il y a mise à jour de `st ardc` avec le remerciement de B. Le statut `st` du row `avinvitct` (de B) est à 2.
 
-**En cas de refus**, le contact `nc` chez A redevient un contact _simple_, l'ardoise `ardc` de `avct` de A contient la raison du refus. Le statut `st` du row `avinvitct` (de B) est à 3. 
+**En cas de refus**, le contact `nc` chez A redevient un contact _simple_, l'ardoise `ardc` de `contact` de A contient la raison du refus. Le statut `st` du row `invitct` (de B) est à 3. 
 
 **Si B ne répond pas à temps**, le dépassement de `dlv` détecte le cas : le contact `nc` chez A redevient un contact _simple_. 
 
-Dans tous les cas le row `avinvitct` (de B) est supprimé par le GC sur la `dlv`.
+Dans tous les cas le row `invitct` (de B) est supprimé par le GC sur la `dlv`.
 
 A peut annuler une invitation (par sa clé primaire) avant la réponse de B.
 
@@ -382,12 +338,12 @@ Comme il va y avoir un don de quotas du *parrain* vers son *filleul*, ces deux-l
 - P peut indiquer que son contact est sans partage de secrets.
 - F pourra indiquer que son contact est sans partage de secrets.
 
-Le parrain fixe l'avatar filleul (mais pas son compte), donc son nom : le contact _fort_ est préétabli dans `avct` de P. Le filleul établira le sien, s'il accepte.
+Le parrain fixe l'avatar filleul (mais pas son compte), donc son nom : le contact _fort_ est préétabli dans `contact` de P. Le filleul établira le sien lors de son acceptation du parrainage.
 
-Un parrainage est indexé par le hash du PBKFD2 de la phrase de parrainage pour être retrouvée par le filleul.
+Un parrainage est identifié par le hash du PBKFD2 de la phrase de parrainage pour être retrouvée par le filleul.
 
     CREATE TABLE "parrain" (
-    "pps"  INTEGER,
+    "pph"  INTEGER,
     "id" INTEGER,
     "nc" INTEGER,  
     "dlv"  INTEGER,
@@ -395,30 +351,31 @@ Un parrainage est indexé par le hash du PBKFD2 de la phrase de parrainage pour 
     "datak"  BLOB,
     "datax"  BLOB,
     "ardc"  BLOB,
-    PRIMARY KEY("pps")
+    PRIMARY KEY("pph")
     ) WITHOUT ROWID;
     CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" );
-    CREATE INDEX "idp_parrain" ON "parrain" ( "id" )
+    CREATE INDEX "id_parrain" ON "parrain" ( "id" )
 
+- `pph` : hash du PBKFD2 de la phrase de parrainage.
 - `id` : id du parrain.
 - `nc` : numéro de contact du filleul chez le parrain.
-- `pps` : hash du PBKFD2 de la phrase de parrainage.
 - `dlv` : la date limite de validité permettant de purger les parrainages.
-- `st` : 0: annulé, 1: en attente, 2: accepté, 3: refusé
+- `st` : 0: annulé par P, 1: en attente de décision de F, 2: accepté par F, 3: refusé par F
 - `datak` : phrase de parrainage cryptée par la clé K du parrain.
 - `datax` : données de l'invitation cryptées par le PBKFD2 de la phrase de parrainage.
   - `[id + rnd, nom]` : id complète de l'avatar P. (id est une redondance, c'est le champ id en clair).
   - `[id + rnd, nom]` : id complète du filleul F.
   - `cc` : `rnd` de la clé `cc` générée par P pour le couple P / F.
+- `q1 q2 qm1 qm2` : quotas donnés par P à F en cas d'acceptation.
 - `ardc` : cryptée par la clé `cc`, *ardoise*, texte de sollicitation écrit par A pour B et/ou réponse de B.
 
-**La parrain créé par anticipation un contact *fort* pour le filleul**  avec un row `avct`. 
+**La parrain créé par anticipation un contact *fort* pour le filleul**  avec un row `contact`. 
 
-**Si le filleul ne fait rien à temps : (`st` toujours à 0)** lors du GC sur la `dlv`, le row `parrain` sera supprimé par GC de la `dlv`, le row dans `avct` sera marqué avec un `st` à 0 (supprimé).
+**Si le filleul ne fait rien à temps : (`st` toujours à 1)** lors du GC sur la `dlv`, le row `parrain` sera supprimé par GC de la `dlv`, le row dans `contact` sera marqué avec un `st` < 0 (supprimé).
 
-**Si le filleul refuse le parrainage :** le row dans `avct` du parrain est marqué avec un `st` à 3 (supprimé). L'ardoise de `parrain` renseigne sur la raison de B (et `datax` mis à null). Le row `parrain` est immuable et sera purgé par le GC sur `dlv`).
+**Si le filleul refuse le parrainage :** le row dans `contact` du parrain est marqué avec un `st` à 3 (refusé par le filleul). L'ardoise de `parrain` renseigne sur la raison de F (et `datax` mis à null). Le row `parrain` est immuable et sera purgé par le GC sur `dlv`).
 
-**Si le filleul accepte le parrainage :** le filleul crée son compte et son premier avatar (dont il a reçu `[id, rnd, nom]` de P) et créé un contact fort avec P. Les quotas sont prélevés à ce moment. Le `st` du row `parrain` est mis à 2. L'ardoise des `avcontact` de P et de F contient l'ardoise de l'acceptation (`ardc`).
+**Si le filleul accepte le parrainage :** le filleul crée son compte et son premier avatar (dont il a reçu `[id, rnd, nom]` de P) et créé un contact fort avec P. Les quotas sont prélevés à ce moment. Le `st` du row `parrain` est mis à 2. L'ardoise des `contact` de P et de F contient l'ardoise de l'acceptation (`ardc`).
 
 **Le parrain peut annuler son row :** son `st` passe à 0.
 
@@ -450,12 +407,12 @@ Une rencontre est identifiée par le hash du PBKFD2 de la phrase de rencontre.
 - `id` : id de l'avatar A ayant initié la rencontre.
 - `v` :
 - `dlv` : la date limite de validité permettant de purger les rencontres.
-- st : 0:annulée, 1:en attente, 2:acceptée, 3:refusée
+- `st` : 0:annulée, 1:en attente, 2:acceptée, 3:refusée
 - `datak` : phrase de rencontre cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.
 - `datax` : données de l'invitation cryptées par le PBKFD2 de la phrase de rencontre.
   - `[id + rnd, nom]` : id complète de A (pas de l'invité, son id complète n'est justement pas connue).
 
-Si B accepte la rencontre, il créé son contact simple, st passe à 2.
+Si B accepte la rencontre, il créé son contact simple, `st` passe à 2.
 
 Si B refuse la rencontre, `st` passe à 3.
 
@@ -463,66 +420,65 @@ Le GC sur `dlv` détruit le row `rencontre`.
 
 A peut annuler la rencontre (remord), `st` passe à 0.
 
-## Table `avinvitgr`. Invitation par A de M à un groupe G
-L'invitant peut retrouver en session la liste des invitations en cours qu'il a faites : un membre de G avec `ida` comme invitant et un statut en attente.
+## Table `invitgr`. Invitation par un animateur A de M à un groupe G
+L'invitant peut retrouver en session la liste des invitations en cours qu'il a faites : un membre de G avec `idi` comme invitant et un statut `invité`.
 
-    CREATE TABLE "avinvitgr" (
-    "idm"   INTEGER,
+    CREATE TABLE "invitgr" (
+    "id"   INTEGER,
     "v"   INTEGER,
     "dlv"	INTEGER,
     "datapub"  BLOB);
-    CREATE INDEX "dlv_grinvitgr" ON "grinvitgr" ( "dlv" );
-    CREATE INDEX "idm_grinvitgr" ON "grinvitgr" ( "idm" );
+    CREATE INDEX "dlv_invitgr" ON "invitgr" ( "dlv" );
+    CREATE INDEX "idm_invitgr" ON "invitgr" ( "idm" );
 
-- `idm` : id du membre invité.
+- `id` : id du membre invité.
 - `v` :
 - `dlv` :
-- `datapub` : crypté par la clé publique du membre invité. Données permettant à l'invité de se localiser dans la liste des membres du groupe.
+- `datapub` : crypté par la clé publique du membre invité. Données permettant à l'invité d'accéder à l'id complète du groupe (dont sa clé et sa carte de visite) et de se localiser dans la liste des membres du groupe.
 	- `id + rnd, nom` : id complète du groupe.
 	- `nm` : numéro de membre de l'invité.
 
-## Table `grlmg` : CP: `idg`. Liste des membres d'un groupe
-- `id` : entier depuis 5 bytes aléatoires.  
-- `code` : lisible (comme un nom de fichier) et immuable.
-- `cg` : 15 bytes aléatoires. Permet d'accéder à la liste des membres du groupe et à la carte de visite du groupe.
+## Table `groupe` : CP: `id`. Entête et état d'un groupe
+L'id **complète** d'un groupe est le triplet immuable `[id + rnd, nom]`
+- `id` : 5 bytes aléatoires (donnant un entier impair pair).
+- `rnd` : 15 bytes aléatoires.
+- `nom` : nom lisible et signifiant du groupe, entre 6 et 20 caractères.
+
+La clé de cryptage du groupe (ses données ...) et de sa carte de visite est le SHA de la `id + rnd`.
 
 Un groupe est caractérisé par :
-- sa carte de visite dans `cvsg`,
-- ses quotas et volumes dans `avgrvq`,
-- la liste de ses membres dans `grmlg`.
-- le détail de ses membres dans `grmembre`.
-- la liste de ses secrets dans `secrets`.
+- sa carte de visite : un row de `cvsg`,
+- ses quotas et volumes : un row de `avgrvq`,
+- son entête : un row de `groupe`.
+- la liste de ses membres : des rows de `membre`.
+- la liste de ses secrets : des rows de `secret`.
 
 Table
 
-    CREATE TABLE "grlmg" (
-    "idg"   INTEGER,
+    CREATE TABLE "groupe" (
+    "id"   INTEGER,
     "v"  INTEGER,
     "st"	INTEGER,
     "mcg" BLOB,
-    "idncg"  BLOB,
-    PRIMARY KEY("idg")
+    PRIMARY KEY("id")
     ) WITHOUT ROWID;
-    CREATE INDEX "idg_v_grlmg" ON "grlmg" ( "idg", "v" )
+    CREATE INDEX "id_v_groupe" ON "groupe" ( "id", "v" )
 
 - `id` : id du groupe.
 - `v` : 
-- `st` : statut : 1)ouvert, 2)fermé, 3)ré-ouverture en vote, 4)archivé 
-- `mcg` : liste des mots clés prédéfinis pour le groupe.
-- `idncg` [`idm + nc`]: liste indexée par le numéro de membre (cryptée par la clé du groupe `cg`). Pour chaque membre actif `nm`, la référence de son contact :
-	- `idm` : l'id du membre.
-	- `nc` : son numéro de contact qui permet au membre de retrouver la clé `cg` du groupe (dans `avidcc`).
+- `st` : statut : < 0-supprimé - Deux chiffres `x y`
+  - `x` : 1-ouvert, 2-fermé, 3-ré-ouverture en vote
+  - `y` : 0-en écriture, 1-archivé 
+- `mcg` : liste des mots clés définis pour le groupe cryptée par la clé du groupe.
 
-Quand un membre est résilié ou a disparu, son slot dans la liste est 0 : la liste des membres actifs s'obtient de cette liste.
-
-## Table `grmembre` : CP `idg nm`. Détail d'un membre d'un groupe
-Chaque membre d'un groupe a une entrée pour le groupe identifiée par un numéro de membre `nm` attribué en séquence.   
+## Table `membre` : CP `id nm`. Membre d'un groupe
+Chaque membre d'un groupe a une entrée pour le groupe identifiée par un numéro de membre `nm` attribué au hasard.   
 Les données relatives aux membres sont cryptées par la clé du groupe.
 
 Table
 
-    CREATE TABLE "grmembre" (
-    "idg"   INTEGER,
+    CREATE TABLE "membre" (
+    "id"   INTEGER,
     "nm"	INTEGER,
     "v"		INTEGER,
     "st"	TEXT,
@@ -533,23 +489,22 @@ Table
 - `id` : id du groupe.
 - `nm` : numéro du membre dans le groupe.
 - `v` :
-- `st` : statut.
+- `st` : statut. Comporte trois chiffres `xyz` : < 0 signifie supprimé.
+  - `x` : 1:pressenti, 2:invité, 3:actif, 4:ayant refusé, 8: résilié, 9:disparu.
+  - `y` : 1:lecteur, 2:auteur, 3:administrateur.
+  - `z` : plus haut y jamais atteint.
 - `dlv` : date limite de validité de l'invitation.
 - `datag` : données cryptées par la clé du groupe.
 	- `id + rnd, nom` : id complète de l'avatar membre.
-	- `idi` : id du membre qui l'a pressenti / invité.
+	- `idi` : id du membre qui l'a pressenti puis invité.
 	- `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
 - `ardg` : ardoise du membre vis à vis du groupe, texte d'invitation / réponse de l'invité
 - `vote` : de réouverture.
 
-Le statut comporte trois chiffres `xyz` :
-- x : 1:pressenti, 2:invité, 3:actif, 4:refusé, 8: résilié, 9:disparu.
-- y : 1:lecteur, 2:auteur, 3:administrateur.
-- z : plus haut y jamais atteint.
-
 **Remarques**
-- les membres de statut invité et actif accèdent à la liste des membres.
-- les membres actifs accèdent aux secrets.
+- les membres de statut _invité_ et _actif_ peuvent accéder à la liste des membres.
+- les membres _actifs_ accèdent aux secrets.
+les membres des autres statuts _pressenti, ayant refusé, résilié, disparu_ n'ont pas / plus la clé du groupe dans `rndk` de leur row avatar.
 - seuls les animateurs peuvent :
     - inviter d'autres avatars à rejoindre la liste.
     - changer les statuts des membres non animateurs.
@@ -562,24 +517,26 @@ Le statut comporte trois chiffres `xyz` :
 		- *restreint* : seul le dernier auteur peut le modifier.
 		- *archivé* : le secret ne peut plus changer (jamais).
 - un animateur peut lancer quand il veut un nettoyage pour détecter les membres qui auraient disparus *et* ne seraient plus auteurs d'aucuns secrets.
-- le row `grmembre` d'un membre subsiste quand il est résilié et / ou disparu pour information historique : la carte de visite n'est plus accessible.
+- le row `membre` d'un membre subsiste quand il est _résilié_ ou `disparu` pour information historique : sa carte de visite reste accessible.
 
 ## Secrets
 Un secret est identifié par,
-- id : l'id du groupe ou de l'avatar proriétaire.
-- ns : un numéro aléatoire relatif à cet id.
+- `id` : id du groupe ou de l'avatar proriétaire.
+- `ns` : un numéro aléatoire relatif à cet id.
 
 La clé de cryptage du secret `cs` est selon le cas :
 - (0) *secret personnel d'un avatar A* : la clé K de l'avatar.
 - (1) *secret d'un couple d'avatars A et B* : leur clé `cc` de contact fort.
 - (2) *secret d'un groupe G* : la clé du groupe G.
 
-**Un secret de couple A / B** est matérialisé par 2 secrets, un pour A et un pour B (et la même clé de cryptage, celle `cc` du couple). Chaque secret dans ce cas détient la référence de l'autre afin que la mise à jour de l'un puisse être répercutée sur l'autre (quand il existe, A et B peuvent indépendamment l'un de l'autre détruire leur exemplaire).
-
-A crée les deux exemplaires du secret en générant deux numéros relatifs à A et B afin que la relation entre A et B n'apparaisse pas dans la base.
+**Un secret de couple A / B est matérialisé par 2 secrets de même contenu**
+- un pour A et un pour B (et la même clé de cryptage, celle `cc` du couple). 
+- chaque secret dans ce cas détient la référence de l'autre afin que la mise à jour de l'un puisse être répercutée sur l'autre (quand il existe encore).
+- A et B peuvent indépendamment l'un de l'autre détruire leur exemplaire : de facto il n'y a plus de copie synchronisée de l'autre.
+- A crée les deux exemplaires du secret en générant deux numéros `ns` relatifs à A et B afin que la relation entre A et B n'apparaisse pas dans la base.
 
 ### Un secret a toujours un texte et possiblement une pièce jointe
-Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est constituée des 140 premiers caractères de son texte.
+Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est constituée des 140 premiers caractères de son texte ou moins (première ligne au plus).
 
 *Le texte complet d'un secret* n'existe que lorsque le texte fait plus de 140 caractères : il est stocké gzippé.
 
@@ -609,11 +566,11 @@ Un secret créé par A partagé avec B (contact *fort* de A) peut être mis à j
 - par personne si le statut du secret est *archivé*.
 - les seuls auteurs qui peuvent apparaître dans la liste des auteurs successifs du secret sont A et B.
 
-Un compte peut faire une requête retournant la liste des avatars ayant accès à un des secrets partagés (ou non) de ses avatars et disposer de la liste des auteurs qui devraient tous lui être connus (dans un groupe et / ou en tant que contact).
+Un compte peut faire une requête retournant la liste des avatars ayant accès à un des secrets partagés de ses avatars et disposer de la liste des auteurs qui devraient tous lui être connus (dans un groupe et / ou en tant que contact).
 
 ### Secret temporaire et permanent
 Par défaut à sa création un secret est *temporaire* :
-- son `nsc` *numéro de semaine de création* indique que S semaines plus tard il sera automatiquement détruit.
+- son `st` contient le *numéro de semaine de création* indiquant que S semaines plus tard il sera automatiquement détruit.
 - un avatar Ai qui le partage peut le déclarer *permanent*, le secret ne sera plus détruit automatiquement :
   - l'avatar propriétaire pour un secret personnel.
   - les deux avatars pour un secret de couple.
@@ -625,13 +582,13 @@ Par défaut à sa création un secret est *temporaire* :
 
 Dès que le secret est *permanent* il est décompté (en plus ou en moins à chaque mise à jour) sur le volume du groupe.
 
-## Table `secret` : CP `ids`. Secret
+## Table `secret` : CP `id`. Secret
 
     CREATE TABLE "secret" (
     "id"  INTEGER,
     "ns"  INTEGER,
     "v"		INTEGER,
-    "nsc"	INTEGER,
+    "st"	INTEGER,
     "txts"	BLOB,
     "mcs"   BLOB,
     "aps"	BLOB,
@@ -643,7 +600,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `id` : id du groupe ou de l'avatar.
 - `ns` : numéro du secret relatif au groupe / avatar.
 - `v` : 
-- `nsc` : numéro de semaine de création ou 9999 pour un *permanent*.
+- `st` : < 0 pour un secret _supprimé_, numéro de semaine de création pour un _temporaire_, 9999 pour un *permanent*.
 - `txts` : texte complet gzippé crypté par la clé du secret.
 - `mcs` : liste des mots clés.
 - `aps` : données d'aperçu du secret cryptées par la clé du secret.
@@ -658,6 +615,10 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
   - `r` : référence à un autre secret (du même groupe, couple, avatar).
 - `dups` : référence de l'autre exemplaire pour un secret de couple A/B.
 
+**Suppression d'un secret :**
+- pour un secret temporaire, st est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant st si elles elles se synchronise avant st, sinon ça sera fait à st.
+- pour un secret permanent, st est en négatif au numero de semaine courante + 18 mois.
+
 ### Mots clés
 Un secret peut apparaître avec plusieurs mots clés indiquant :
 - des états : _lus, important, à cacher, à relire, favori ..._
@@ -667,51 +628,73 @@ Le texte d'un mot clé peut contenir en tête un emoji.
 
 Les mots clés sont numérotés avec une conversion entre leur numéro et leur texte :
 - 1-49 : pour ceux génériques de l'installation dans la configuration.
-- 50-255 : pour ceux spécifiques de chaque compte dans `mc` de son row `cvsg` : la map est cryptée par la clé K du compte.
-- 50-255 : pour ceux spécifiques de chaque groupe dans `mc` de son row `cvsg` : la map est cryptée par la clé G du groupe.
+- 50-255 : pour ceux spécifiques de chaque compte dans `mc` du row `compte` de son avatar : la map est cryptée par la clé K du compte.
+- 50-255 : pour ceux spécifiques de chaque groupe dans `mc` de son row `groupe` : la map est cryptée par la clé G du groupe.
 
 **Pour un secret d'un avatar**
 - `mcs` est simplement la suite des numéros de mots clés attachés par l'avatar au secret.
 
 **Pour un secret de couple**
-- le secret est dédoublé, dans chaque exemplaire `mcs` est simplement la suite des numéros de mots clés attachés par l'avatar au secret.
+- le secret étant dédoublé, dans chaque exemplaire `mcs` est simplement la suite des numéros de mots clés attachés par l'avatar au secret.
 
 **Pour un secret de groupe**
 - c'est une map avec une entrée pour le groupe et une pour chaque membre (identifié par son numéro de membre dans le goupe).
 - chaque membre voit l'union des mots clés fixés pour le groupe avec les siens propres.
 
-# Gestions des avatars disparus
+# Gestion des disparitions
+Les ouvertures de session *signent* dans la table `cvsg`, colonne `dds`, les rows relatifs aux compte, avatars et groupes accédés par le compte.
+
+Une disparition est détectée dès lors que le GC quotidien détecte des dds trop vieilles.
+
+## Disparition des comptes
+La détection par `dds` trop ancienne d'un **compte** détruit son row dans `compte` et `cvsg`.
+
+Un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures.
+
+Le compte n'étant plus accessible, ses avatars ne seront plus signés ni les groupes auxquels il accédait.
+
+## Disparition des groupes
+Par construction s'il avait existé encore un avatar dont l'accès au groupe n'est pas résilié, le groupe aurait été signé lors de la connexion du compte de cet avatar : un groupe de signature ancienne n'est donc par principe plus référencé (au plus par des rows `contact` conservés pour historique mais marqué _résilié_).
+
+La détection par `dds` trop ancienne d'un **groupe**,
+- détruit ses rows dans les tables `membre secret cvsg`.
+- transfère ses quotas de son row `avgrvq` sur la banque centrale et détruit son row `avgrvq`.
+
+_Remarque_ : quand le dernier avatar ayant accès à un groupe _disparaît_, le groupe va finir par disparaître faute de ne plus être signé. Les données vont finir par être purgées, mais ça va prendre du temps. Avec la résiliation explicitement demandée (suppression du groupe), c'est différent : la purge des données ci-dessus peut être immédiate.
+
+## Disparition des avatars
 La détection s'effectue par le GC quotidien sur recherche des `dds` trop ancienne d'un avatar.
 
 Par principe un avatar est détecté disparu après la détection de la disparition de son compte. Il s'agit donc de purger les données.
 
-## Purge des données identifiées par l'id de l'avatar
+### Purge des données identifiées par l'id de l'avatar
 - transfert de ses quotas depuis son row `avgrvq` sur la banque et destruction de son row `avgrvq`.
-- destruction des rows les tables `avrsa avidcc avcontact avinvitct avinvitgr parrain rencontre secret`.
+- destruction des rows les tables `avrsa contact invitct invitgr parrain rencontre secret`.
 - son row dans `cvsg` est réduit, la carte de visite est effacée, son statut est _disparu_.
 
 Dès cet instant le volume occupé est récupéré.
 
-## Mise à jour des références chez les autres comptes
-L'avatar _disparu_ D est _référencé_ par des avatars et groupes :
-- `avidcc avcontact` des autres avatars l'ayant en contact.
-- `parrain rencontre` : la date limite de validité a déjà résolu la question, les rows ont déjà été détruits.
-- `grlmg grmembre` des groupes l'ayant pour membre.  
+### Mise à jour des références chez les autres comptes
+L'avatar _disparu_ D est _référencé_ dans des rows :
+- `parrain rencontre invitct invitgr` : la date limite de validité a déjà résolu la question, les rows ont déjà été détruits.
+- `contact` : autres avatars l'ayant en contact.
+- `membre` : groupes l'ayant pour membre.  
 
-Quand une session d'un avatar A synchronise les cartes de visite elle a connaissance par la carte de visite de D que cet avatar a disparu :
-- le row `avcontact` correspondant a son statut mis à jour. Mais il n'y a pas de raisons pour que les secrets partagés (et dédoublés) disparaissent aussi.
-- sur demande du compte, le contact peut être _oublié_ :
-  - dans la liste de ses contacts `avidcc` le slot correspondant est mis à 0.
-  - le row `avcontact` est supprimé.
-  - tous les `secret` de l'avatar portant ce numéro de contact sont détruits (et l'avatar crédité des volumes supprimés).
-- pour chaque groupe accédé par l'avatar :
-  - le slot correspondant dans `grlmg` est mis à 0 (ce qui évite à l'avenir d'aller rafraîchir sa carte de visite).
-  - le row `grmembre` a son statut mis à jour. 
-  - sur demande d'un compte animateur du groupe, le row pourrait être supprimé pour _nettoyer_ la liste des membres : mais des secrets du groupe peuvent continuer à référencer ce membre comme auteur. Ne pas nettoyer dans ce cas ?
+#### contacts
+Quand une session d'un avatar A synchronise les cartes de visite elle a connaissance par la carte de visite de D que cet avatar a disparu : le row `contact` correspondant a son statut mis à jour (disparu). Mais il n'y a pas de raisons pour que les secrets partagés avec D (et dédoublés) disparaissent aussi.
+
+Sur demande du compte, un contact _disparu_ peut être _oublié_ :
+- le row `contact` a un statut supprimé.
+- tous les `secret` de l'avatar portant ce numéro de contact sont détruits (et l'avatar crédité des volumes supprimés).
+
+#### membres
+Pour chaque groupe accédé par l'avatar :
+- le row `membre` de D (s'il existe) a son statut mis à jour à _disparu_. 
+- sur demande d'un compte animateur du groupe, le row pourrait être marqué _supprimé_ pour _nettoyer_ la liste des membres : mais des secrets du groupe peuvent continuer à référencer ce membre comme auteur. Ne pas nettoyer dans ce cas ?
 
 Dans la session la carte de visite est supprimée, elle ne sera plus synchronisée.
 
-Les références peuvent mettre longtemps a être mises à jour, tous les comptes référençant l'avatar D ayant à être ouverts (ou disparaissant elles-mêmes).
+Les références peuvent mettre longtemps a être mises à jour, tous les comptes référençant l'avatar D ayant à être ouverts (ou disparaissant eux-mêmes).
 
 # Base vivante et de backup ???
 La base de backup est l'image de la base vivante la veille au soir.
