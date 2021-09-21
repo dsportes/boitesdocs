@@ -4,33 +4,38 @@
 En IDB on trouve la réplication telle quelle de sélections des rows tables en base :
 - `compte` : le row du compte donne le liste des ids `ida` des avatars du compte.
 - les rows de clé `ida` des avatars du compte des tables :
-  - 0 - `contact` : détails des contacts de `ida`.
-  - 1 - `invitct` : invitations reçues par `ida` à être contact fort et encore en attente.
-  - 2 - `invitgr` : invitations reçues par `ida` à être membre d'un groupe et encore en attente.
-  - 3 - `rencontre` : rencontres initiées par `ida`.
-  - 4 - `secret` : secrets de `ida`.
-  - 5 - `cvsg` : le row carte de visite de `ida`.
-- les rows dont la clé `idg` fait partie de la liste des contacts d'un des `ida` :
+  - 0 - `avatar` : entête de l'avatar, **liste de ses contacts**.
+  - 1 - `invitgr` : invitations reçues par `ida` à être membre d'un groupe, **liste des groupes**.
+  - 2 - `contact` : détails des contacts de `ida`.
+  - 3 - `invitct` : invitations reçues par `ida` à être contact fort et encore en attente.
+  - 4 - `rencontre` : rencontres initiées par `ida`.
+  - 5 - `secret` : secrets de `ida`.
+- les rows dont la clé `idg` fait partie de la liste des groupes d'un des `ida` :
   - 0 - `groupe` : entête du groupe.
   - 1 - `membre` : détails des membres de `idg`.
   - 2 - `secret` : secrets du groupe `idg`.
-  - 3 - `cvsg` : le row carte de visite de `idg`.
-- `cvsg` : les rows dont la clé `id` est, soit un avatar / groupe contact d'un des `ida`, soit un des membres des groupes `idg`.
+- `avatar` : les rows dont la clé `id` est, soit un des contacts d'un des `ida`, soit un des membres des groupes `idg`.
 
 En IDB les contenus sont l'image en base, donc cryptés.
 
 En mémoire les rows sont décryptés / compilés.
 
-La liste des avatars du compte n'est connue qu'après lecture du row `compte`.
+**La liste des avatars du compte** n'est connue qu'après lecture du row `compte`.
 
-La liste des groupes accédés par au moins un avatar du compte n'est connue qu'après lecture des rows `contact` des avatars du compte.
+**La liste des groupes accédés** par au moins un avatar du compte n'est connue qu'après lecture des rows `invitgr` des avatars du compte.
 
-La liste de tous les avatars connus (dont la carte de visite est accessible) n'est connue qu'après la lecture des rows `membre` des groupes accédés.
+La liste de tous les avatars référencés (pour leur carte de visite) n'est connue qu'après la lecture des rows `avatar` et `membre` des groupes accédés.
+
+### Chargement de IDB en mémoire
+En mode _synchronisé_ et _avion_ ce chargement s'effectue au tout début : IDB n'est plus _relue_, seulement mise à jour.
+
+### Construction de la mémoire locale
+Après chargement de IDB en mémoire, elle s'effectue par _compilation_ : à la fin la mémoire locale a la même image que lors de la fin de la session précédente. 
 
 ### Map en mémoire `maxv`
-Cette map mémorise pour, le compte, chaque { avatar / groupe }, les cartes de visite, la plus haute version du ou des rows changés en mémoire pour chacune des 1, 6 ou 4 tables. Elle est donc initialisée en début de session, 
+Cette map mémorise pour, le compte, chaque { avatar / groupe }, les cartes de visite, la plus haute version du ou des rows changés en mémoire pour chacune des 1, 6 ou 3 tables. Elle est initialisée en début de session, 
 - soit vide (mode avion et incognito), 
-- soit depuis le contenu de IDB chargé en mémoire (mode synchronisé).
+- soit depuis le contenu de IDB chargé en mémoire (mode synchronisé, en avion ça ne sert à rien, le serveur ne sera pas accédé).
 
 Lorsque la mémoire locale est resynchronisée, par exemple pour la table `contact` de l'avatar `ida`, le résultat retourne les rows sélectés de version postérieure à celle de dernière synchronisation pour cette table et cet avatar.  
 On en déduit le numéro de version max de cet id / table.
@@ -41,7 +46,7 @@ Cette map comporte,
 - une pour chaque avatars de la liste des avatars du compte,
 - une par groupe de la liste des groupes accédés par un des avatars du compte.
 
-La valeur est une table de  N éléments : pour un avatar par exemple représentant les 6 compteurs max correspondant aux dernières synchronisation des tables `contact invitgct invitegr rencontre secret cvsg`.
+La valeur est une table de  N éléments : pour un avatar par exemple représentant les 6 compteurs max correspondant aux dernières synchronisation des tables `avatar contact invitct invitegr rencontre secret`.
 
 Par exemple :
 
@@ -54,15 +59,19 @@ Par exemple :
     ...
     }
 
-Cette map permet de savoir que s'il faut resynchroniser la table `contact` (la première) de `av1` il faut redemander tous les rows de versions postérieures à 436 : on en obtiendra le numéro par exemple 732 de la plus haute version de mise à jour d'un `contact` de `av1`.
+Cette map permet de savoir que s'il faut resynchroniser la table `contact` (la troisième) de `av1` il faut redemander tous les rows de versions postérieures à 434 : on en obtiendra le numéro par exemple 732 de la plus haute version de mise à jour d'un `contact` de `av1`.
 
 ## Principes de synchronisation
 L'état de synchronisation est mémorisé en mémoire et en IDB et se fait par éléments à synchroniser :
-- un élément pour le compte,
-- trois éléments par avatars : un pour les tables `contact invitgct invitegr rencontre`, le second pour `secret`, le troisième pour `cvsg`.
-- trois éléments par groupes : un pour les tables `groupe` et `membre`, le second pour `secret`, le troisième pour `cvsg`.
+- un élément pour le compte.
+- deux éléments par avatars : un pour les tables `avatar invitgr contact invitect parrain rencontre`, le second pour `secret`.
+- deux éléments par groupes : un pour les tables `groupe` et `membre`, le second pour `secret`.
+- un élément pour les cartes de visite des contacts et membres des groupes.
 
-Une session est une succession de phases de synchronisation : si tout se passe bien il n'y a qu'une phase mais si une rupture de synchronisation apparaît (clôture du Web Socket) une nouvelle phase est relancée. En IDB l'image courante de la phase courante est sauvegardée.
+Une session est une succession de phases de synchronisation : 
+- si tout se passe bien il n'y a qu'une phase.
+- si une rupture de synchronisation apparaît (clôture du Web Socket) une nouvelle phase est relancée. 
+- en IDB l'image courante de la phase courante est sauvegardée.
 
 Une phase de synchronisation a plusieurs étapes :
 

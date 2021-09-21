@@ -105,7 +105,7 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 <li>pour les groupes : ils n'ont plus d'avatars qui les référencent, purge de leur données.</li>
 <li>pour les avatars :
 <ul>
-<li>mise à jour le flag <code>ad</code> alerte/disparu.
+<li>mise à jour le statut OK/alerte/disparu.
 <ul>
 <li><em>alerte</em> : <em>l'avatar</em> est resté plusieurs mois sans connexion.</li>
 <li><em>disparu</em> : <em>l'avatar</em> est définitivement considéré comme disparu.</li>
@@ -119,8 +119,8 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 <ul>
 <li>à la signature d'un avatar, quand <code>dds</code> doit être mise à jour :
 <ul>
-<li>si <code>ad</code> était <em>OK</em>, <code>v</code> n'est <strong>pas</strong> changé,</li>
-<li>si <code>ad</code> était <em>alerte</em> (et va repasser à <em>OK</em>), <code>v</code> est changée.</li>
+<li>si le statut était <em>OK</em>, <code>v</code> n'est <strong>pas</strong> changé,</li>
+<li>si le statut était <em>alerte</em> (et va donc repasser à <em>OK</em>), <code>v</code> est changée afin que la mise à jour soit propagée dans les stockage off line.</li>
 </ul>
 </li>
 <li>l'état disparu est immuable, un avatar ne <em>renaît</em> jamais, le row <code>avatar</code> est marqué <em>supprimé</em>, les autres propriétés sont mise à null et le row sera physiquement détruit 18 mois après sa suppression.</li>
@@ -259,6 +259,13 @@ PRIMARY KEY(&quot;id&quot;)
 <li><code>clepub</code> : clé publique.</li>
 </ul>
 <h3>Table <code>avatar</code> : CP <code>id</code>. Données d'un avatar</h3>
+<p>Chaque avatar a un row dans cette table :</p>
+<ul>
+<li>donne son statut de disparition <em>OK alerte disparu</em> en hébergeant sa dernière signature de connexion,</li>
+<li>sa carte de visite,</li>
+<li>la liste de ses avatars en contact afin de garantir l'absence de doublons.</li>
+</ul>
+<p>Table :</p>
 <pre><code>CREATE TABLE &quot;avatar&quot; (
 &quot;id&quot;   INTEGER,
 &quot;v&quot;  	INTEGER,
@@ -277,18 +284,18 @@ CREATE INDEX &quot;vcv_avatar&quot; ON &quot;avatar&quot; ( &quot;vcv&quot;);
 <ul>
 <li><code>id</code> : id de l'avatar</li>
 <li><code>v</code> :</li>
-<li><code>st</code> : si négatif, l'avatar est supprimé / disparu (les autres colonnes sont à null).</li>
+<li><code>st</code> : si négatif, l'avatar est supprimé / disparu (les autres colonnes sont à null). 0:OK, 1:alerte</li>
 <li><code>vcv</code> : version de la carte de visite (séquence 0).</li>
 <li><code>dds</code> :</li>
 <li><code>cva</code> : carte de visite de l'avatar cryptée par la clé de l'avatar <code>[photo, info]</code>.</li>
-<li><code>lctk</code> : liste, cryptée par la clé K du compte, des ids des contacts de l'avatar afin de garantir l'unicité de ceux-ci. L'indice d'un contact est celui dans cette liste.</li>
+<li><code>lctk</code> : liste, cryptée par la clé K du compte, des ids des contacts de l'avatar afin de garantir l'unicité de ceux-ci. L'indice d'un contact est celui dans cette liste + 1 (la valeur 0 est réservée).</li>
 </ul>
 <h3>Table <code>contact</code> : CP <code>id ic</code>. Contact d'un avatar A</h3>
 <p>Les contacts ont un indice de contact <code>ic</code> attribué en séquence à la création du contact et qui les identifie pour toujours relativement à l'avatar A.<br>
 Un avatar A peut avoir pour contact un avatar B avec deux états successifs possibles :</p>
 <ul>
 <li><strong>simple</strong> (statut 0) : A a B pour contact <code>15</code> et B peut avoir ou non A pour contact <code>57</code>, ces situations sont autonomes l'une de l'autre et ni A ni B ne savent rien du contact éventuel de l'autre.</li>
-<li><strong>fort</strong> : A a B pour contact <code>15</code>, B a A pour contact <code>57</code> : ces numéros de contacts mutuels forts sont connus et immuables de part et d'autre. A peut restreindre la nature de ses échanges avec B mais ne peut plus les rompre tant que B n'a pas disparu.</li>
+<li><strong>fort</strong> : A a B pour contact <code>15</code>, B a A pour contact <code>57</code> : ces numéros de contacts mutuels forts sont connus et immuables de part et d'autre. A peut restreindre la nature de ses échanges avec B mais le contact fort subsiste tant que B n'a pas <em>disparu</em>.</li>
 </ul>
 <p>Table :</p>
 <pre><code>CREATE TABLE &quot;contact&quot; (
@@ -300,8 +307,8 @@ Un avatar A peut avoir pour contact un avatar B avec deux états successifs poss
 &quot;q2&quot; INTEGER,
 &quot;qm1&quot; INTEGER,
 &quot;qm2&quot; INTEGER,
-&quot;dlv&quot; INTEGER,
 &quot;ardc&quot;	BLOB,
+&quot;icbc&quot;  BLOB
 &quot;datak&quot;	BLOB,
 &quot;rndgk&quot; BLOB,
 PRIMARY KEY(&quot;id&quot;, &quot;ic&quot;)
@@ -314,50 +321,54 @@ CREATE INDEX &quot;id_v_contact&quot; ON &quot;contact&quot; ( &quot;id&quot;, &
 <li><code>v</code> :</li>
 <li><code>st</code> : statut entier de 3 chiffres, <code>x y z</code> : <strong>les valeurs &lt; 0 indiquent un row supprimé (les champs après sont null)</strong>.
 <ul>
-<li><code>x</code> : statut du contact
-<ul>
-<li>0 - contact obsolète : après refus de parrainage ou contact simple jugé obsolète.</li>
-<li>1 - contact <em>simple</em> avec un avatar présumé actif</li>
-<li>2 - contact <em>simple</em> avec un avatar disparu</li>
-<li>3 - contact <em>fort</em> en attente d'acceptation par un avatar présumé actif</li>
-<li>4 - contact <em>fort</em> en attente d'acceptation avec un avatar en cours de parrainage</li>
-<li>5 - contact <em>fort</em> avec un avatar présumé actif</li>
-<li>6 - contact <em>fort</em> avec un avatar disparu</li>
-</ul>
-</li>
+<li><code>x</code> : 0: contact présumé actif, 1:disparu</li>
 <li><code>y</code> : A accepte 1 (ou non 0) les partages de B.</li>
 <li><code>z</code> : B accepte 1 (ou non 0) les partages de A.</li>
 </ul>
 </li>
-<li><code>q1 q2 qm1 qm2</code> : balance des quotas donnés / reçus par l'avatar A à l'avatar B.</li>
-<li><code>dlv</code> : date limite de validité de l'invitation à être contact fort ou du parrainage. Au delà le statut 3 passe à 1 et le statut 4 à 0 (quotas rendus), <code>ardc</code> et <code>icbc</code> sont null.</li>
-<li><code>ardc</code> : <strong>ardoise</strong> partagée entre A et B cryptée par la clé <code>cc</code> associée au contact <em>fort</em> avec un avatar B (en attente ou refusé - retombé en simple).</li>
+<li><code>q1 q2 qm1 qm2</code> : balance des quotas donnés / reçus par l'avatar A à l'avatar B (contact <em>fort</em>).</li>
+<li><code>ardc</code> : <strong>ardoise</strong> partagée entre A et B cryptée par la clé <code>cc</code> associée au contact <em>fort</em> avec un avatar B.</li>
 <li><code>icbc</code> : pour un contact fort <em>accepté</em>, indice de A chez B (communiqué lors de l'acceptation par B) pour mise à jour dédoublée de l'ardoise et du statut, crypté par la clé <code>cc</code>.</li>
 <li><code>datak</code> : information cryptée par la clé K de A.
 <ul>
 <li><code>nomc</code> : nom complet de l'avatar <code>nom@rnd</code>.</li>
-<li><code>cc</code> : 32 bytes aléatoires dont le SHA donne la clé <code>cc</code> - utilisé seulement pour un contact <em>fort</em> B (en attente ou accepté).</li>
+<li><code>cc</code> : 32 bytes aléatoires donnant la clé <code>cc</code> d'un contact <em>fort</em> avec B (en attente ou accepté).</li>
+<li><code>dlv</code> : date limite de validité de l'invitation à être contact <em>fort</em> ou du parrainage.</li>
+<li><code>pph</code> : hash du PBKFD2 de la phrase de parrainage.</li>
 <li><code>info</code> : information libre donnée par A à propos du contact.</li>
 <li><code>mc</code> : liste des mots clés associés par A au contact.</li>
 </ul>
 </li>
 </ul>
-<p>Un contact est <strong>supprimé</strong> (<code>st</code> &lt; 0) quand :</p>
+<p>Un contact <strong>fort</strong>,</p>
 <ul>
-<li>soit après refus d'un parrainage (ou dépassement de sa <code>dlv</code>).</li>
-<li>soit pour un contact simple quand l'avatar l'a jugé <em>obsolète</em>.</li>
-<li>les colonnes <code>ardc</code> et <code>datak</code> sont null.</li>
+<li>est <em>accepté</em> quand <code>icbc</code> est non null.</li>
+<li>est <em>refusé</em> quand <code>icbc</code> est null et <code>ardc</code> ne l'est pas (raison du refus).</li>
+<li>en <em>attente d'acceptation</em> quand <code>dlv</code> n'est pas dépassée : l'invitation peut être accédée étant identifiée par le hash de <code>cc</code>, typiquement pour être annulée ou corrigée.</li>
+<li>est <em>sans réponse</em> quand <code>dlv</code> est dépassée.</li>
+</ul>
+<p><strong>Un parrainage,</strong></p>
+<ul>
+<li><em>en attente</em> : <code>icbc</code> est null, <code>dlv</code> n'est pas dépassée, <code>pph</code> permet d'accéder au parrainage.</li>
+<li><em>accepté</em> : <code>icbc</code> non null. <code>ardc</code> contient le message de remerciement.  <code>dlv</code> et <code>phh</code> sans signification.</li>
+<li><em>refusé</em> : le row <code>contact</code> est supprimé. Il faut / fallait lire la raison du refus dans le row <code>parrain</code>.</li>
+</ul>
+<p>Un contact est <strong>supprimé</strong> (<code>st</code> &lt; 0) :</p>
+<ul>
+<li>soit après refus d'un parrainage ou dépassement de sa <code>dlv</code>.</li>
+<li>soit pour un contact simple quand l'avatar l'a jugé explicitement <em>obsolète</em>.</li>
+<li>les autres colonnes <code>ardc icbc datak</code> sont null.</li>
 </ul>
 <p>Un <em>contact fort</em> permet de partager par <strong>l'ardoise</strong> un court texte entre A et B pour justifier d'un changement de statut ou n'importe quoi d'autre : en particulier quand A n'accepte pas le partage de secrets avec B par exemple, c'est le seul moyen de passer une courte information mutuelle qui n'encombre pas leurs volumes respectifs.</p>
 <p><strong>Remarques :</strong></p>
 <ul>
-<li>un contact <em>fort</em> invité mais avec une réponse de refus, redevient un contact <em>simple</em>. Toutefois l'ardoise contient l'explication du refus et <code>cc</code> est la clé qui crypte cette ardoise.</li>
+<li>un contact invité à devenir <em>fort</em> mais avec une réponse de refus (ou dépassement de la <code>dlv</code>), reste un contact <em>simple</em>.</li>
 <li>le row <code>contact</code> d'un avatar <em>disparu</em> reste pour information historique. La carte de visite du contact n'existe plus. L'utilisateur ne peut demander la suppression ce row d'information historique (<code>st</code> passe à &lt; 0) que si c'était un contact simple.</li>
 </ul>
 <h2>Table <code>invitgr</code>. Invitation d'un avatar M par un animateur A à un groupe G</h2>
 <p>Les invitations restent présentes jusqu'à disparition de l'avatar M : un numéro aléatoire d'invitation <code>niv</code> les identifient.</p>
 <p>Pour un couple avatar / groupe il ne peut y avoir qu'au plus une invitation : ceci est garanti par le row <code>groupe</code>.</p>
-<p>L'invitant peut retrouver en session la liste des invitations en cours qu'il a faites : un membre de G avec son indice de membre comme invitant et un statut <code>invité</code>.</p>
+<p><em>Remarque</em> : L'invitant peut retrouver en session la liste des invitations en cours qu'il a faites : un membre de G avec son indice de membre comme invitant et un statut <code>invité</code>.</p>
 <pre><code>CREATE TABLE &quot;invitgr&quot; (
 &quot;niv&quot; INTEGER,
 &quot;id&quot;  INTEGER,
@@ -377,8 +388,13 @@ CREATE INDEX &quot;id_invitgr&quot; ON &quot;invitgr&quot; ( &quot;id&quot; );
 <li><code>id</code> : id du membre invité.</li>
 <li><code>v</code> :</li>
 <li><code>dlv</code> :</li>
-<li><code>st</code> : statut. 0:annulée, 1:invité, 2:accepté, 3:refusé, 8:résilié. Si <code>st</code> &lt; 0, c'est une suppression.</li>
-<li><code>datap</code> : crypté par la clé publique du membre invité. Données donnant accès à l'invité au groupe et de se localiser dans la liste des membres du groupe <code>[idg, cleg, im]</code>.
+<li><code>st</code> : statut. Si <code>st</code> &lt; 0, c'est une suppression.
+<ul>
+<li><code>x</code> : 0:annulée, (1:pressenti), 2:invité, 3:ayant accepté, 4:ayant refusé, 5:sans réponse, 8: résilié, 9:disparu.</li>
+<li><code>y</code> : 1:lecteur, 2:auteur, 3:administrateur.</li>
+</ul>
+</li>
+<li><code>datap</code> : pour une invitation <em>en cours</em>, crypté par la clé publique du membre invité, référence dans la liste des membres du groupe <code>[idg, cleg, im]</code>.
 <ul>
 <li><code>idg</code> : id du groupe.</li>
 <li><code>cleg</code> : clé du groupe.
@@ -388,7 +404,7 @@ CREATE INDEX &quot;id_invitgr&quot; ON &quot;invitgr&quot; ( &quot;id&quot; );
 </li>
 </ul>
 </li>
-<li><code>datak</code> : crypté par la clé K du compte de l'avatar :
+<li><code>datak</code> : crypté par la clé K du compte de l'avatar, après une acceptation :
 <ul>
 <li><code>idg</code> : id du groupe.</li>
 <li><code>im</code> : numéro de membre de l'invité dans le groupe.</li>
@@ -400,18 +416,18 @@ CREATE INDEX &quot;id_invitgr&quot; ON &quot;invitgr&quot; ( &quot;id&quot; );
 </ul>
 <p><strong>Remarques :</strong></p>
 <ul>
-<li>tant que l'invitation est en statut invité et que <code>dlv</code> n'est pas passée, <code>datap</code> existe et l'invitation est en attente. Si <code>dlv</code> est dépassée, le row est <em>supprimé</em>.</li>
-<li>en cas d'acceptation le statut passe à 3, <code>datap</code> est null et <code>datak</code> contient les informations d'accès. <code>dlv</code> est à 9999. La clé du groupe est dans la table <code>membre</code>.</li>
+<li>tant que l'invitation est en statut <em>en cours</em> et que <code>dlv</code> n'est pas dépassée, <code>datap</code> existe et l'invitation est en attente.</li>
+<li>le GC ayant détecté un dépassement de dlv, <em>supprime</em> le row.</li>
+<li>en cas d'acceptation le statut passe à 2, <code>datap</code> est null et <code>datak</code> contient les informations d'accès. <code>dlv</code> est à 99999.</li>
+<li>la clé du groupe est <code>clegk</code> est mise à null sur résiliation. Le groupe, ses membres et ses secrets sont inaccessibles après résiliation (dans <code>datak</code>, <code>idg / im</code> sont inutiles).</li>
 </ul>
 <h2>Table <code>invitct</code> : CP : <code>id</code>. Invitation en attente reçue par B de A à établir un contact fort</h2>
 <p>Un contact <em>fort</em> est requis pour partager, un statut, une ardoise, des secrets et s'échanger des quotas.</p>
-<p>Dans <code>contact</code> le contact simple a un statut invitation en cours.</p>
 <pre><code>CREATE TABLE &quot;invitct&quot; (
 &quot;cch&quot; INTEGER,
 &quot;id&quot;  INTEGER,
 &quot;dlv&quot;	INTEGER,
 &quot;st&quot;  INTEGER,
-&quot;idncah&quot;  INTEGER,
 &quot;ccpub&quot; BLOB,
 &quot;datac&quot;  BLOB,
 &quot;ardc&quot;  BLOB)
@@ -423,7 +439,7 @@ CREATE INDEX &quot;id_invitct&quot; ON &quot;invitct&quot; ( &quot;id&quot; );
 <li><code>cch</code> : hash de la clé <code>cc</code>, sert d'identifiant à l'invitation.</li>
 <li><code>id</code> : id de B.</li>
 <li><code>dlv</code> :</li>
-<li><code>st</code> : 0: annulée, 1: en attente, 2: accepté, 3: refusé</li>
+<li><code>st</code> : 0: annulée, 1: en attente, 2: acceptée, 3: refusée</li>
 <li><code>ccpub</code> : clé <code>cc</code> du contact <em>fort</em> A / B, définie par A, cryptée par la clé publique de B.</li>
 <li><code>datac</code> : données cryptées par la clé <code>cc</code>.
 <ul>
@@ -431,14 +447,14 @@ CREATE INDEX &quot;id_invitct&quot; ON &quot;invitct&quot; ( &quot;id&quot; );
 <li><code>ic</code> : numéro du contact de A pour B (pour que B puisse écrire le statut et l'ardoise dans <code>contact</code> de A).</li>
 </ul>
 </li>
-<li><code>ardc</code> : texte de sollicitation écrit par A pour B et/ou réponse de B (pour A ce texte figure déjà dans <code>contact</code> pour l'élément <code>ic</code> au moment du lancement de l'invitation).</li>
+<li><code>ardc</code> : texte de sollicitation écrit par A pour B et/ou réponse de B.</li>
 </ul>
 <p><strong>En cas d'acceptation</strong>, B peut, soit créer un contact chez lui pour A quand il n'y en a pas encore, soit récupérer celui existant chez lui pour A s'il l'avait déjà en contact simple, et inscrire les données de A comme contact <em>fort</em> chez lui (<code>st cc ardc icbc</code>).</p>
 <ul>
 <li>Chez A il y a mise à jour de <code>st ardc icbc</code> avec le remerciement de B dans <code>ardc</code>. Le statut <code>st</code> du row <code>invitct</code> (de B) est à 2. <code>icbc</code> est le numéro de contact de A chez B et est inscrit chez A pour permettre la mise à jour dupliquée ultérieure du statut et de l'ardoise.</li>
 </ul>
-<p><strong>En cas de refus</strong>, le contact <code>ic</code> chez A redevient un contact <em>simple</em>, l'ardoise <code>ardc</code> de <code>contact</code> de A contient la raison du refus. Le statut <code>st</code> du row <code>invitct</code> (de B) est à 3.</p>
-<p><strong>Si B ne répond pas à temps</strong>, le dépassement de <code>dlv</code> dans <code>contact</code> de A détecte le cas : le contact <code>ic</code> chez A redevient un contact <em>simple</em>.</p>
+<p><strong>En cas de refus</strong>, le contact <code>ic</code> chez A reste un contact <em>simple</em>, l'ardoise <code>ardc</code> contient la raison du refus. Le statut <code>st</code> du row <code>invitct</code> (de B) est à 3.</p>
+<p><strong>Si B ne répond pas à temps</strong>, le dépassement de <code>dlv</code> dans <code>contact</code> de A détecte le cas : le contact <code>ic</code> chez A reste un contact <em>simple</em>.</p>
 <p>Dans tous les cas le row <code>invitct</code> (de B) est supprimé par le GC sur la <code>dlv</code>.</p>
 <p>A peut annuler une invitation (par sa clé primaire) avant la réponse de B.</p>
 <p><strong>Quand deux invitations croisées de A pour B et de B pour A sont en cours :</strong>
@@ -487,10 +503,28 @@ CREATE INDEX &quot;id_parrain&quot; ON &quot;parrain&quot; ( &quot;id&quot; )
 <li><code>q1 q2 qm1 qm2</code> : quotas donnés par P à F en cas d'acceptation.</li>
 <li><code>ardc</code> : cryptée par la clé <code>cc</code>, <em>ardoise</em>, texte de sollicitation écrit par A pour B et/ou réponse de B.</li>
 </ul>
-<p><strong>La parrain créé par anticipation un contact <em>fort</em> pour le filleul</strong>  avec un row <code>contact</code>. Les quotas de P sont prélevés à ce moment.</p>
-<p><strong>Si le filleul ne fait rien à temps : (<code>st</code> toujours à 1)</strong> lors du GC sur la <code>dlv</code>, le row <code>parrain</code> sera supprimé par GC de la <code>dlv</code>, le row dans <code>contact</code> sera marqué avec un <code>st</code> &lt; 0 (supprimé). Les quotas de P lui sont restitués par le GC.</p>
-<p><strong>Si le filleul refuse le parrainage :</strong> le row dans <code>contact</code> du parrain est marqué avec un <code>st</code> à 3 (refusé par le filleul). L'ardoise du <code>parrain</code> renseigne sur la raison de F (et <code>datax</code> mis à null). Le row <code>parrain</code> est immuable et sera purgé par le GC sur <code>dlv</code>). Les quotas de P lui sont restitués.</p>
-<p><strong>Si le filleul accepte le parrainage :</strong> le filleul crée son compte et son premier avatar (dont il a reçu <code>nom@rnd</code> et l'indice de P) et créé un contact fort avec P. Le <code>st</code> du row <code>parrain</code> est mis à 2. L'ardoise des <code>contact</code> de P et de F contient l'ardoise de l'acceptation (<code>ardc</code>).</p>
+<p><strong>La parrain créé par anticipation un contact <em>fort</em> pour le filleul</strong>  avec un row <code>contact</code>.</p>
+<ul>
+<li>Les quotas de P sont prélevés à ce moment.</li>
+</ul>
+<p><strong>Si le filleul ne fait rien à temps : (<code>st</code> toujours à 1)</strong></p>
+<ul>
+<li>Lors du GC sur la <code>dlv</code>, le row <code>parrain</code> sera supprimé par GC de la <code>dlv</code>.</li>
+<li>Les quotas de P lui sont restitués par le GC.</li>
+</ul>
+<p><strong>Si le filleul refuse le parrainage :</strong></p>
+<ul>
+<li>Le row dans <code>contact</code> du parrain est marqué avec un <code>st</code> &lt; 0 (supprimé), les autres propriétés sont null).</li>
+<li>L'ardoise du <code>parrain</code> renseigne sur la raison de F (et <code>datax</code> mis à null).</li>
+<li>Le row <code>parrain</code> est immuable et sera purgé par le GC sur <code>dlv</code>.</li>
+<li>Les quotas de P lui sont restitués.</li>
+</ul>
+<p><strong>Si le filleul accepte le parrainage :</strong></p>
+<ul>
+<li>Le filleul crée son compte et son premier avatar (dont il a reçu <code>nom@rnd</code> et l'indice de P) et créé un contact fort avec P.</li>
+<li>L'ardoise des <code>contact</code> de P et de F contient l'ardoise de l'acceptation (<code>ardc</code>).</li>
+<li>Le row <code>parrain</code> est immuable et sera purgé par le GC sur <code>dlv</code>.</li>
+</ul>
 <p><strong>Le parrain peut annuler son row :</strong> son <code>st</code> passe à 0.</p>
 <p>Dans tous les cas le GC sur <code>dlv</code> supprime le row <code>parrain</code>.</p>
 <h2>Table <code>rencontre</code> : CP <code>prh</code>. Rencontre entre les avatars A et B</h2>
@@ -500,7 +534,7 @@ CREATE INDEX &quot;id_parrain&quot; ON &quot;parrain&quot; ( &quot;id&quot; )
 <li>soit pour B inviter A à participer à un groupe.</li>
 </ul>
 <p>Une rencontre est juste un row qui va permettre à A de transmettre à B son <code>nom@rnd</code> en utilisant une phrase de rencontre convenue entre eux.<br>
-En accédant à cette rencontre B peut ainsi inscrire A comme contact <em>simple</em> : ensuite il pourra normalement l'inviter à un contact <em>fort</em> (ou l'inviter à un groupe).</p>
+En accédant à cette rencontre B pourra inscrire A comme contact <em>simple</em> : ensuite il pourra normalement l'inviter à un contact <em>fort</em> (ou l'inviter à un groupe).</p>
 <p>Une rencontre est identifiée par le hash du PBKFD2 de la phrase de rencontre.</p>
 <pre><code>CREATE TABLE &quot;rencontre&quot; (
 &quot;prh&quot; INTEGER,
@@ -522,10 +556,10 @@ CREATE INDEX &quot;id_rencontre&quot; ON &quot;rencontre&quot; ( &quot;id&quot; 
 <li><code>dlv</code> : la date limite de validité permettant de purger les rencontres.</li>
 <li><code>st</code> : 0:annulée, 1:en attente, 2:acceptée, 3:refusée</li>
 <li><code>datak</code> : phrase de rencontre cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.</li>
-<li><code>nomcx</code> : nom complet de A (pas de B, son nom complet n'est justement pas connue de A) crypté par la clé X.</li>
+<li><code>nomcx</code> : nom complet de A (pas de B, son nom complet n'est justement pas connu de A) crypté par la clé X.</li>
 </ul>
-<p>Si B accepte la rencontre, il créé son contact simple, <code>st</code> passe à 2.</p>
-<p>Si B refuse la rencontre, le row rencontre est supprimé (ou simplement ignoré, le GC le supprimera) .</p>
+<p>Si B accepte la rencontre, il créé un contact simple, <code>st</code> passe à 2.</p>
+<p>Si B refuse la rencontre, <code>st</code> passe à 3.</p>
 <p>Le GC sur <code>dlv</code> détruit le row <code>rencontre</code>.</p>
 <p>A peut annuler la rencontre (remord), <code>st</code> passe à 0.</p>
 <h2>Table <code>groupe</code> : CP: <code>id</code>. Entête et état d'un groupe</h2>
@@ -536,7 +570,7 @@ CREATE INDEX &quot;id_rencontre&quot; ON &quot;rencontre&quot; ( &quot;id&quot; 
 <li>la liste de ses membres : des rows de <code>membre</code>.</li>
 <li>la liste de ses secrets : des rows de <code>secret</code>.</li>
 </ul>
-<p>Table</p>
+<p>Table :</p>
 <pre><code>CREATE TABLE &quot;groupe&quot; (
 &quot;id&quot;  INTEGER,
 &quot;v&quot;   INTEGER,
@@ -562,7 +596,7 @@ CREATE INDEX &quot;id_v_groupe&quot; ON &quot;groupe&quot; ( &quot;id&quot;, &qu
 <li><code>mcg</code> : liste des mots clés définis pour le groupe cryptée par la clé du groupe cryptée par la clé G du groupe.</li>
 <li><code>lstmg</code> : liste des ids des membres du groupe.</li>
 </ul>
-<p>Chaque membre, quel que soit son statut (pressenti, invité, actif, résilié, disparu) a un indice de 0 à N dans cette liste et n'y est présent qu'une et une seule fois. Ce row permet un contrôle d'unicité d'attribution de cet indice (ajout à la fin) afin de prémunir contre des inscriptions possiblement parallèles.</p>
+<p><strong>L'indice d'un membre</strong>, quel que soit son statut, est son index + 1 dans cette liste et n'y est présent qu'une et une seule fois. Ce row permet un contrôle d'unicité d'attribution de cet indice (ajout à la fin) afin de prémunir contre des inscriptions possiblement parallèles.</p>
 <h2>Table <code>membre</code> : CP <code>id nm</code>. Membre d'un groupe</h2>
 <p>Chaque membre d'un groupe a une entrée pour le groupe identifiée par son indice de membre <code>im</code>.<br>
 Les données relatives aux membres sont cryptées par la clé du groupe.</p>
@@ -572,6 +606,8 @@ Les données relatives aux membres sont cryptées par la clé du groupe.</p>
 &quot;im&quot;	INTEGER,
 &quot;v&quot;		INTEGER,
 &quot;st&quot;	TEXT,
+&quot;vote&quot;  INTEGER,
+&quot;dlv&quot;   INTEGER,
 &quot;datag&quot;	BLOB,
 &quot;ardg&quot;  BLOB,
 PRIMARY KEY(&quot;id&quot;, &quot;im&quot;));
@@ -581,17 +617,17 @@ CREATE INDEX &quot;id_v_avlab&quot; ON &quot;membre&quot; ( &quot;id&quot;, &quo
 <li><code>id</code> : id du groupe.</li>
 <li><code>im</code> : numéro du membre dans le groupe.</li>
 <li><code>v</code> :</li>
-<li><code>st</code> : statut. Comporte trois chiffres <code>xyv</code> : &lt; 0 signifie supprimé.
+<li><code>st</code> : statut. <code>xy</code> : &lt; 0 signifie supprimé.
 <ul>
-<li><code>x</code> : 1:pressenti, 2:invité, 3:actif, 4:ayant refusé, 8: résilié, 9:disparu.</li>
-<li><code>y</code> : 1:lecteur, 2:auteur, 3:administrateur.</li>
-<li><code>v</code> : vote de réouverture.</li>
+<li><code>x</code> : 0:annulée, (1:pressenti), 2:invité, 3:ayant accepté, 4:ayant refusé, 5:sans réponse, 8: résilié, 9:disparu.</li>
+<li><code>y</code> : 0:lecteur, 1:auteur, 2:administrateur.</li>
 </ul>
 </li>
+<li><code>vote</code> : vote de réouverture.</li>
 <li><code>dlv</code> : date limite de validité de l'invitation.</li>
 <li><code>datag</code> : données cryptées par la clé du groupe.
 <ul>
-<li><code>niv</code> : numéro d'invitation du membre (permet de supprimer sa cle de groupe quand il est résilié et de mettre à jour son statut).</li>
+<li><code>niv</code> : numéro d'invitation du membre dans <code>invitgr</code>. Permet de supprimer sa cle de groupe quand il est résilié et de mettre à jour son statut.</li>
 <li><code>nomc</code> : nom complet de l'avatar <code>nom@rnd</code>.
 <ul>
 <li><code>idi</code> : id du membre qui l'a pressenti puis invité.</li>
@@ -604,18 +640,18 @@ CREATE INDEX &quot;id_v_avlab&quot; ON &quot;membre&quot; ( &quot;id&quot;, &quo
 </ul>
 <p><strong>Remarques</strong></p>
 <ul>
-<li>les membres de statut <em>invité</em> et <em>actif</em> peuvent accéder à la liste des membres et à leur <em>ardoise</em> (ils ont la clé du groupe dans leur row <code>invitgr</code>).</li>
-<li>les membres <em>actifs</em> accèdent aux secrets. Les membres invités pourraient aussi en lecture (ils ont la clé). <strong>A revoir</strong>.
-les membres des statuts <em>pressenti, ayant refusé, résilié, disparu</em> n'ont pas / plus la clé du groupe dans <code>clegk</code> de leur row <code>invitgr</code>.</li>
-<li>seuls les animateurs peuvent :
+<li>les membres de statut <em>invité</em> et <em>ayant accepté</em> peuvent accéder à la liste des membres et à leur <em>ardoise</em> (ils ont la clé du groupe dans leur row <code>invitgr</code>).</li>
+<li>les membres <em>ayant accepté</em> accèdent aux secrets. Les membres invités pourraient aussi en lecture (ils ont la clé). <strong>A revoir</strong>.</li>
+<li>les membres des statuts <em>pressenti, ayant refusé, résilié, disparu</em> n'ont pas / plus la clé du groupe dans <code>clegk</code> de leur row <code>invitgr</code>.</li>
+</ul>
+<p>Les animateurs peuvent :</p>
 <ul>
 <li>inviter d'autres avatars à rejoindre la liste.</li>
 <li>changer les statuts des membres non animateurs.</li>
 <li>détruire le groupe.</li>
 <li>attribuer un statut <em>permanent</em> à un secret partagé par le groupe.</li>
 </ul>
-</li>
-<li>les avatars membres du groupe peuvent s'ils sont actifs et auteur / animateur :
+<p>Les membres du groupe peuvent s'ils sont actifs et auteur / animateur :</p>
 <ul>
 <li>partager un secret avec le groupe,</li>
 <li>modifier un secret du groupe selon le statut du secret :
@@ -626,17 +662,21 @@ les membres des statuts <em>pressenti, ayant refusé, résilié, disparu</em> n'
 </ul>
 </li>
 </ul>
-</li>
-<li>un animateur peut lancer quand il veut un nettoyage pour détecter les membres qui auraient disparus <em>et</em> ne seraient plus auteurs d'aucuns secrets.</li>
-<li>le row <code>membre</code> d'un membre subsiste quand il est <em>résilié</em> ou <em>disparu</em> pour information historique : sa carte de visite reste accessible.</li>
+<p>Un animateur peut lancer quand il veut un nettoyage pour détecter les membres qui auraient disparus <em>et</em> ne seraient plus auteurs d'aucuns secrets.</p>
+<p>Le row <code>membre</code> d'un membre subsiste quand il est <em>résilié</em> ou <em>disparu</em> pour information historique : sa carte de visite reste accessible.</p>
+<p>Le GC sur dépassement de <code>dlv</code> :</p>
+<ul>
+<li>met le statut à 5,</li>
+<li>met la <code>dlv</code> à 99999,</li>
+<li>le GC gère de l'autre côté <code>invitgr</code>.</li>
 </ul>
 <h2>Secrets</h2>
-<p>Un secret est identifié par <code>ids</code> tiré au hasard sur 5 bytes..</p>
+<p>Un secret est identifié par <code>ids</code> tiré au hasard sur 5 bytes.</p>
 <p>La clé de cryptage du secret <code>cs</code> est selon le cas :</p>
 <ul>
-<li>(0) <em>secret personnel d'un avatar A</em> : la clé K de l'avatar.</li>
-<li>(1) <em>secret d'un couple d'avatars A et B</em> : leur clé <code>cc</code> de contact fort.</li>
-<li>(2) <em>secret d'un groupe G</em> : la clé du groupe G.</li>
+<li>(0) <em>secret personnel d'un avatar A</em> : la clé K de l'avatar. <code>ic</code> vaut 0.</li>
+<li>(1) <em>secret d'un couple d'avatars A et B</em> : leur clé <code>cc</code> de contact fort. <code>ic</code> donne l'indice du contact ce qui permet d'obtenir <code>cc</code>.</li>
+<li>(2) <em>secret d'un groupe G</em> : la clé du groupe G. <code>ic</code> vaut 0. <code>ic</code> vaut 0.</li>
 </ul>
 <p><strong>Un secret de couple A / B est matérialisé par 2 secrets de même contenu</strong></p>
 <ul>
@@ -702,6 +742,7 @@ les membres des statuts <em>pressenti, ayant refusé, résilié, disparu</em> n'
 <pre><code>CREATE TABLE &quot;secret&quot; (
 &quot;ids&quot;  INTEGER,
 &quot;id&quot;  INTEGER,
+&quot;ic&quot;  INTEGER,
 &quot;v&quot;		INTEGER,
 &quot;st&quot;	INTEGER,
 &quot;txts&quot;	BLOB,
@@ -715,13 +756,14 @@ CREATE INDEX &quot;st_secret&quot; ON &quot;secret&quot; ( &quot;st&quot; )
 <ul>
 <li><code>ids</code> : id du secret.</li>
 <li><code>id</code> : id du groupe ou de l'avatar.</li>
+<li><code>ic</code> : indice du contact pour un secret de couple, sinon 0.</li>
 <li><code>v</code> :</li>
-<li><code>st</code> : &lt; 0 pour un secret <em>supprimé</em>, numéro de semaine de création pour un <em>temporaire</em>, 9999 pour un <em>permanent</em>.</li>
+<li><code>st</code> : &lt; 0 pour un secret <em>supprimé</em>, numéro de semaine de création pour un <em>temporaire</em>, 99999 pour un <em>permanent</em>.</li>
 <li><code>txts</code> : texte complet gzippé crypté par la clé du secret.</li>
 <li><code>mcs</code> : liste des mots clés.</li>
 <li><code>aps</code> : données d'aperçu du secret cryptées par la clé du secret.
 <ul>
-<li><code>la</code> [] : liste des auteurs (identifié par leur numéro de membre pour un groupe) ou id du dernier auteur pour un secret de couple.</li>
+<li><code>la</code> [] : liste des auteurs (identifié par leur indice de membre pour un groupe) ou id du dernier auteur pour un secret de couple.</li>
 <li><code>ap</code> : texte d'aperçu.</li>
 <li><code>st</code> : 5 bytes donnant :
 <ul>
@@ -761,18 +803,18 @@ CREATE INDEX &quot;st_secret&quot; ON &quot;secret&quot; ( &quot;st&quot; )
 </ul>
 <p><strong>Pour un secret de couple</strong></p>
 <ul>
-<li>le secret étant dédoublé, dans chaque exemplaire <code>mcs</code> est simplement la suite des numéros de mots clés attachés par l'avatar au secret.</li>
+<li>le secret étant dédoublé, dans chaque exemplaire <code>mcs</code> est la suite des numéros de mots clés attachés par l'avatar au secret.</li>
 </ul>
 <p><strong>Pour un secret de groupe</strong></p>
 <ul>
-<li>c'est une map avec une entrée pour le groupe et une pour chaque membre (identifié par son indice de membre dans le groupe).</li>
+<li>un mot clé de numéro <code>mc</code> pour le membre d'indice <code>im</code>, porte par convention le numéro <code>im*100 + mc</code>, pour un mot clé <code>mc</code> du groupe c'est juste <code>mc</code>.</li>
 <li>chaque membre voit l'union des mots clés fixés pour le groupe avec les siens propres.</li>
 </ul>
 <h1>Gestion des disparitions</h1>
-<p>Les ouvertures de session <em>signent</em> dans les tables <code>compte avatar groupe</code>, colonne <code>dds</code>, les rows relatifs aux compte, avatars et groupes accédés par le compte.</p>
+<p>Les ouvertures de session <em>signent</em> dans les tables <code>compte avatar groupe</code>, colonne <code>dds</code>, les rows relatifs aux compte, avatars du compte et groupes accédés par le compte.</p>
 <p>Une disparition est détectée dès lors que le GC quotidien détecte des <code>dds</code> trop vieilles.</p>
 <h2>Disparition des comptes</h2>
-<p>La détection par <code>dds</code> trop ancienne d'un <strong>compte</strong> détruit son row dans <code>compte</code> et <code>cvsg</code>.</p>
+<p>La détection par <code>dds</code> trop ancienne d'un <strong>compte</strong> détruit son row dans <code>compte</code>.</p>
 <p>Un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures.</p>
 <p>Le compte n'étant plus accessible, ses avatars ne seront plus signés ni les groupes auxquels il accédait.</p>
 <h2>Disparition des groupes</h2>
@@ -795,15 +837,16 @@ CREATE INDEX &quot;st_secret&quot; ON &quot;secret&quot; ( &quot;st&quot; )
 <h3>Mise à jour des références chez les autres comptes</h3>
 <p>L'avatar <em>disparu</em> D reste toutefois encore <em>référencé</em> dans des rows :</p>
 <ul>
-<li><code>parrain rencontre invitct invitgr</code> : la date limite de validité a déjà résolu la question, les rows ont déjà été détruits.</li>
+<li><code>parrain rencontre invitct invitgr</code> : la date limite de validité a déjà résolu la question, les rows ont <em>déjà</em> été détruits.</li>
 <li><code>avatar contact</code> : autres avatars l'ayant en contact.</li>
 <li><code>groupe membre</code> : groupes l'ayant pour membre.</li>
 </ul>
 <h4>contacts</h4>
-<p>Quand une session d'un avatar A synchronise les cartes de visite elle a connaissance par la carte de visite de D que cet avatar a disparu : le row <code>contact</code> correspondant a son statut mis à jour (disparu). Mais il n'y a pas de raisons pour que les secrets partagés avec D (et dédoublés) disparaissent aussi.</p>
-<p>Sur demande du compte, un contact <em>disparu</em> peut être <em>oublié</em> :</p>
+<p>Quand une session d'un avatar A synchronise les cartes de visite elle a connaissance par la carte de visite de D que cet avatar a disparu : le row <code>contact</code> correspondant a son statut mis à jour (disparu).</p>
+<p>Il n'y a pas de raisons pour que les secrets partagés avec D (et dédoublés) disparaissent aussi.</p>
+<p>Le row contact garde une trace historique mais sur demande du compte, un contact <em>disparu</em> peut être <em>oublié</em> :</p>
 <ul>
-<li>le row <code>contact</code> a un statut supprimé.</li>
+<li>le row <code>contact</code> a un statut supprimé (<code>st</code> &lt; 0).</li>
 <li>tous les <code>secret</code> de l'avatar portant ce numéro de contact sont détruits (et l'avatar crédité des volumes supprimés).</li>
 </ul>
 <h4>membres</h4>
