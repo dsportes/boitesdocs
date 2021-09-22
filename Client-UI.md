@@ -1,22 +1,31 @@
 # Boîtes à secrets - Client
 
-## Données en IDB et en mémoire
+## Données en IDB
 En IDB on trouve la réplication telle quelle de sélections des rows tables en base :
-- `compte` : le row du compte donne le liste des ids `ida` des avatars du compte.
-- les rows de clé `ida` des avatars du compte des tables :
-  - 0 - `avatar` : entête de l'avatar, **liste de ses contacts**.
-  - 1 - `invitgr` : invitations reçues par `ida` à être membre d'un groupe, **liste des groupes**.
-  - 2 - `contact` : détails des contacts de `ida`.
-  - 3 - `invitct` : invitations reçues par `ida` à être contact fort et encore en attente.
-  - 4 - `rencontre` : rencontres initiées par `ida`.
-  - 5 - `secret` : secrets de `ida`.
+- `compte` : le row du compte. Donne la liste des ids `ida` des avatars du compte et leur nom complet (donc clé).
+- pour chaque `ida`, les rows de clé `ida` des tables :
+  - `invitgr` : invitations reçues par `ida` à être membre d'un groupe. L'union donne la **liste des groupes `idg` (id, clé, nom)** des comptes accédés.
+  - `avatar` : entête de l'avatar.
+  - `contact` : contacts de `ida`. Donne la **liste de ses contacts** avec leur nom complet (donc clé).
+  - `invitct` : invitations reçues par `ida` à être contact fort et encore en attente.
+  - `rencontre` : rencontres initiées par `ida`.
+  - `parrain` : parrainages accordés par `ida`.
+  - `secret` : secrets de `ida`.
 - les rows dont la clé `idg` fait partie de la liste des groupes d'un des `ida` :
-  - 0 - `groupe` : entête du groupe.
-  - 1 - `membre` : détails des membres de `idg`.
-  - 2 - `secret` : secrets du groupe `idg`.
-- `avatar` : les rows dont la clé `id` est, soit un des contacts d'un des `ida`, soit un des membres des groupes `idg`.
+  - `groupe` : entête du groupe.
+  - `membre` : détails des membres de `idg`.
+  - `secret` : secrets du groupe `idg`.
+- `avatar` (`st cva` seulement) : statut et carte de visite des rows dont la clé `id` est, soit un des contacts d'un des `ida`, soit un des membres des groupes `idg`.
 
 En IDB les contenus sont l'image en base, donc cryptés.
+
+### Phase de remise à niveau
+Elle consiste en début de session à obtenir du serveur les rows des tables mis à jour depuis la version connue en IDB.
+- pour un avatar av1
+Les rows des tables associées à un avatar ont une version
+
+
+
 
 En mémoire les rows sont décryptés / compilés.
 
@@ -64,9 +73,14 @@ Cette map permet de savoir que s'il faut resynchroniser la table `contact` (la t
 ## Principes de synchronisation
 L'état de synchronisation est mémorisé en mémoire et en IDB et se fait par éléments à synchroniser :
 - un élément pour le compte.
-- deux éléments par avatars : un pour les tables `avatar invitgr contact invitect parrain rencontre`, le second pour `secret`.
-- deux éléments par groupes : un pour les tables `groupe` et `membre`, le second pour `secret`.
-- un élément pour les cartes de visite des contacts et membres des groupes.
+- trois éléments par avatars : 
+  - un pour les tables `avatar contact invitect parrain rencontre`, 
+  - le second pour `secret`,
+  - le troisième pour les cartes de visite des contacts (table `avatar` sur la version `vcv`).
+- trois éléments par groupes : 
+  - un pour les tables `groupe` et `membre`, 
+  - le second pour `secret`.
+  - le troisième pour les cartes de visite des membres (table `avatar` sur la version `vcv`).
 
 Une session est une succession de phases de synchronisation : 
 - si tout se passe bien il n'y a qu'une phase.
@@ -78,31 +92,31 @@ Une phase de synchronisation a plusieurs étapes :
 ### I - initialisation
 La liste des comptes, avatars, groupes est en construction. Requêtes :
 - 1 - obtention du row `compte` : le décryptage en session donne la liste des avatars du compte.
-- 2 - obtention des rows `contact` de ces avatars : le décryptage en session donne,
-  - la liste des groupes,
-  - la liste des avatars *contact* (contact d'au moins un des avatars du compte).
+- 2 - obtention des rows `invitgr` de ces avatars : le décryptage en session de ces rows donne la liste des groupes (et leur clé de groupe).
 - 3 - ouverture avec le serveur d'un contexte de synchronisation comportant :
   - le compte avec signature,
   - la liste des avatars du compte avec signature,
   - la liste des groupes accédés avec signature.
   
-Dès lors le Web Socket envoie des notifications dès que des rows sont changés en base de données et relatifs à un de ces éléments d'après leur id.
+Dès lors le Web Socket envoie des notifications dès que des rows sont changés en base de données et relatifs à un de ces éléments d'après leur id. Les listes des avatars du compte et des groupes accédés par le compte sont fixées et suivies.
 
-*Remarque* : la requête 3 commence à vérifier si la version du compte est toujours celle obtenue à la requête 1 et s'il n'y a pas de row _contact_ pour chaque avatar du compte dont la version est postérieure à celles obtenues lors de la requête 2. Si c'est le cas c'est qu'il y a eu des mises à jour de ces listes entre la requête 2 et la requête 3 : l'initialisation est reprise.
+*Remarque* : 
+- la requête 3 commence à vérifier si la version du compte est toujours celle obtenue à la requête 1 et si pour chaque avatar du compte, la version est inchangée (donc pas de changement des `invitgr` relatifs à ces avatars).
+- s'il y a eu des mises à jour de ces listes entre la requête 2 et la requête 3 : l'initialisation est reprise.
 
 ### R - remise à niveau incrémentale *élément par élément***
-Pour chaque élément, envoi d'une requête d'obtention des rows postérieurs aux versions détenues en session.
+Pour chaque élément, envoi d'une requête d'obtention des rows de versions postérieures aux versions détenues en session.
 
 L'élément est marqué _synchrone_, les notifications reçues par Web Socket le concernant sont désormais prises en compte en session.
 
 Pour un élément *carte de visite* la requête,
-- envoie la liste des ids des contacts ou membres et la version,
+- envoie la liste des ids des contacts ou membres et la version à comparer avec `vcv`,
 - le serveur fusionne dans le contexte de la session cette liste avec celle des ids des cartes de visite dont la mise à jour est à notifier.
-- retourne les rows cvsg dont la version est supérieure à celle filtrée.
+- retourne les rows avatar (seulement `st cva`) dont la version est supérieure à celle filtrée.
 
 Remarques :
-- quand un nouveau row contact ou membre apparaît en retour d'une requête ou d'une notification, une requête est envoyée pour ajouter cette id à la liste des cartes de visite à synchroniser.
-- on se dispense de détecter les suppressions en cours de session : il pourrait y avoir quelques notifications superflues.
+- quand un nouveau row `contact` ou `membre` apparaît en retour d'une requête ou d'une notification, une requête est envoyée pour ajouter cette id à la liste des cartes de visite à synchroniser.
+- on se dispense de détecter les suppressions d'avatars (disparitions pour l'essentiel) en cours de session : il pourrait y avoir quelques notifications superflues de cartes de visites.
 
 **Sync - quand il n'y a plus d'éléments à remettre à niveau** la session est *synchrone* : l'image en IDB et en mémoire est complète et synchronisée avec  celle du serveur. Les notifications de changement par Web Socket sont traitées et maintiennent cette synchronisation. 
 

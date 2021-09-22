@@ -225,14 +225,13 @@ Table :
     "st"  INTEGER,
     "vcv" INTEGER,
     "dds" INTEGER,
-    "ad" INTEGER,
     "cva"	BLOB,
     "lctk" BLOB,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
     CREATE INDEX "id_v_avatar" ON "avatar" ( "id", "v" );
     CREATE INDEX "dds_avatar" ON "avatar" ( "dds" );
-    CREATE INDEX "vcv_avatar" ON "avatar" ( "vcv");
+    CREATE INDEX "id_vcv_avatar" ON "avatar" ( "id", "vcv");
 
 - `id` : id de l'avatar
 - `v` :
