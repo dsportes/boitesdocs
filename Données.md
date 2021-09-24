@@ -66,16 +66,10 @@ Le GC traitement quotidien des `dds` :
 - pour les comptes : purge des rows `compte` afin de bloquer la connexion.
 - pour les groupes : ils n'ont plus d'avatars qui les référencent, purge de leur données.
 - pour les avatars :
-  - mise à jour le statut OK/alerte/disparu.
+  - mise à jour du statut OK/alerte/disparu.
     - *alerte* : _l'avatar_ est resté plusieurs mois sans connexion.
-    - *disparu* : _l'avatar_ est définitivement considéré comme disparu.
+    - *disparu / supprimé* : _l'avatar_ est définitivement disparu.
   - purge / suppression de données pour les disparus.
-
-**Remarques**
-- à la signature d'un avatar, quand `dds` doit être mise à jour :
-  - si le statut était _OK_, `v` n'est **pas** changé,
-  - si le statut était _alerte_ (et va donc repasser à _OK_), `v` est changée afin que la mise à jour soit propagée dans les stockage off line.
-- l'état disparu est immuable, un avatar ne _renaît_ jamais, le row `avatar` est marqué _supprimé_, les autres propriétés sont mise à null et le row sera physiquement détruit 18 mois après sa suppression.
 
 ### Version des rows
 Les rows des tables devant être présents sur les clients ont une version, de manière à pouvoir être chargés sur les postes clients de manière incrémentale : la version est donc croissante avec le temps et figure dans tous les rows de ces tables.  
@@ -240,6 +234,18 @@ Table :
 - `dds` :
 - `cva` : carte de visite de l'avatar cryptée par la clé de l'avatar `[photo, info]`.
 - `lctk` : liste, cryptée par la clé K du compte, des ids des contacts de l'avatar afin de garantir l'unicité de ceux-ci. L'indice d'un contact est celui dans cette liste + 1 (la valeur 0 est réservée).
+
+Sur GC quotidien sur `dds` : 
+- mise à jour du statut `st` OK/alerte/disparu.
+  - *alerte* (1): _l'avatar_ est resté plusieurs mois sans connexion.
+  - *disparu / supprimé* (<0): _l'avatar_ est définitivement disparu.
+- purge / suppression des données pour les disparus.
+
+**Remarques**
+- à la signature d'un avatar, quand `dds` doit être mise à jour :
+  - si le statut était _OK_, `v` n'est **pas** changé,
+  - si le statut était _alerte_ (et va donc repasser à _OK_), `v` est changée afin que la mise à jour soit propagée dans les stockage off line.
+- l'état disparu est immuable, un avatar ne _renaît_ jamais, le row `avatar` est marqué _supprimé_, les autres propriétés sont mise à null et le row sera physiquement détruit 18 mois après sa suppression.
 
 ### Table `contact` : CP `id ic`. Contact d'un avatar A
 Les contacts ont un indice de contact `ic` attribué en séquence à la création du contact et qui les identifie pour toujours relativement à l'avatar A.  

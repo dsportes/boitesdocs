@@ -1,7 +1,7 @@
 # Boîtes à secrets - Client
 
 ## Données en IDB
-En IDB on trouve la réplication telle quelle de sélections des rows tables en base :
+En IDB on trouve la réplication telle quelle de sélections selon l'id d'un compte, avatar ou groupe des rows des tables en base :
 - `compte` : le row du compte. Donne la liste des ids `ida` des avatars du compte et leur nom complet (donc clé).
 - pour chaque `ida`, les rows de clé `ida` des tables :
   - `invitgr` : invitations reçues par `ida` à être membre d'un groupe. L'union donne la **liste des groupes `idg` (id, clé, nom)** des comptes accédés.
@@ -19,167 +19,167 @@ En IDB on trouve la réplication telle quelle de sélections des rows tables en 
 
 En IDB les contenus sont l'image en base, donc cryptés.
 
-### Phase de remise à niveau
-Elle consiste en début de session à obtenir du serveur les rows des tables mis à jour depuis la version connue en IDB.
-- pour un avatar av1
-Les rows des tables associées à un avatar ont une version
+## Structure en mémoire
+Elle comporte :
+- un objet `compte`;
+- une map d'objets `avatars`, la clé étant l'id de chaque avatar du compte en base 64. La valeur est un objet de classe `Avatar` (voir plus loin).
+- une map d'objets `groupes` , la clé étant l'id de chaque groupe en base 64.
+La valeur est un objet de classe `Groupe` (voir plus loin).
+- une map d'objets `cvs`, la clé étant l'id en base 64 de chaque avatar référencé (avatar du compte, contact d'un avatar du compte, membre d'un groupe). La valeur est un objet de classe `Cv` (voir plus loin).
 
+## Phases d'une session
+### Phase A d'authentification du compte
+Soit par donnée de la phrase secrète, soit par création d'un compte : au retour de cette phase le row `compte` correspondant est connu et en mémoire, le nom de la base IDB est également connu.
 
+### Phase C de chargement de IDB : mode _avion_ et _synchronisé_ seulement
+Toute la base IDB est lue en mémoire dans une map temporaire `idb`, mais pas _compilée_.  
+La structure en mémoire compilée est juste amorcée avec :
+- l'objet singleton `compte`, 
+- la map `avatars` avec juste l'entête des avatars du compte (nom complet, clé),
+- les maps `groupes cvs` sont vides. 
 
-
-En mémoire les rows sont décryptés / compilés.
-
-**La liste des avatars du compte** n'est connue qu'après lecture du row `compte`.
-
-**La liste des groupes accédés** par au moins un avatar du compte n'est connue qu'après lecture des rows `invitgr` des avatars du compte.
-
-La liste de tous les avatars référencés (pour leur carte de visite) n'est connue qu'après la lecture des rows `avatar` et `membre` des groupes accédés.
-
-### Chargement de IDB en mémoire
-En mode _synchronisé_ et _avion_ ce chargement s'effectue au tout début : IDB n'est plus _relue_, seulement mise à jour.
-
-### Construction de la mémoire locale
-Après chargement de IDB en mémoire, elle s'effectue par _compilation_ : à la fin la mémoire locale a la même image que lors de la fin de la session précédente. 
-
-### Map en mémoire `maxv`
-Cette map mémorise pour, le compte, chaque { avatar / groupe }, les cartes de visite, la plus haute version du ou des rows changés en mémoire pour chacune des 1, 6 ou 3 tables. Elle est initialisée en début de session, 
-- soit vide (mode avion et incognito), 
-- soit depuis le contenu de IDB chargé en mémoire (mode synchronisé, en avion ça ne sert à rien, le serveur ne sera pas accédé).
-
-Lorsque la mémoire locale est resynchronisée, par exemple pour la table `contact` de l'avatar `ida`, le résultat retourne les rows sélectés de version postérieure à celle de dernière synchronisation pour cette table et cet avatar.  
-On en déduit le numéro de version max de cet id / table.
-
-Cette map comporte,
-- une entrée pour le compte (clé "0"), 
-- une entrée pour les cartes de visite (clé "1"). 
-- une pour chaque avatars de la liste des avatars du compte,
-- une par groupe de la liste des groupes accédés par un des avatars du compte.
-
-La valeur est une table de  N éléments : pour un avatar par exemple représentant les 6 compteurs max correspondant aux dernières synchronisation des tables `avatar contact invitct invitegr rencontre secret`.
+Cette lecture mémorise dans une map `versions` une entrée par avatar / groupe.
+La valeur est une table de  N éléments : pour un avatar par exemple ce sont 7 compteurs donnant pour cet avatar / groupe la version la plus haute des tables `invitegr avatar contact invitct rencontre parrain secret`.
 
 Par exemple :
 
     {
-    "0" : [203],
-    "1" : [987],
-    av1 : [436, 512, 434, 418, 718, 932],
+    av1 : [436, 512, 434, 418, 517, 718, 932],
     av2 : ... ,
-    gr1 : [65, 66, 65, 933],
+    gr1 : [65, 66, 933],
     ...
     }
 
-Cette map permet de savoir que s'il faut resynchroniser la table `contact` (la troisième) de `av1` il faut redemander tous les rows de versions postérieures à 434 : on en obtiendra le numéro par exemple 732 de la plus haute version de mise à jour d'un `contact` de `av1`.
+Cette map permet de savoir que pour remettre à niveau la table `contact` (la troisième) de `av1` il faut demander tous les rows de versions postérieures à 434.
 
-## Principes de synchronisation
-L'état de synchronisation est mémorisé en mémoire et en IDB et se fait par éléments à synchroniser :
-- un élément pour le compte.
-- trois éléments par avatars : 
-  - un pour les tables `avatar contact invitect parrain rencontre`, 
-  - le second pour `secret`,
-  - le troisième pour les cartes de visite des contacts (table `avatar` sur la version `vcv`).
-- trois éléments par groupes : 
-  - un pour les tables `groupe` et `membre`, 
-  - le second pour `secret`.
-  - le troisième pour les cartes de visite des membres (table `avatar` sur la version `vcv`).
+### Phase R _remise à niveau_ : mode _synchronisé_ et _incognito_ seulement
+Elle consiste à obtenir du serveur les rows des tables mis à jour postérieurement à la version connue en IDB.
 
-Une session est une succession de phases de synchronisation : 
-- si tout se passe bien il n'y a qu'une phase.
-- si une rupture de synchronisation apparaît (clôture du Web Socket) une nouvelle phase est relancée. 
-- en IDB l'image courante de la phase courante est sauvegardée.
+La session n'est pas opérable durant cette phase.
 
-Une phase de synchronisation a plusieurs étapes :
+Après l'étape _amorce_, il y a autant d'étapes _avatar / groupe_ dans cette phase que, 
+- d'avatars `avc` du compte cités dans le row compte.
+- de groupes accédés `gra` cités dans les rows `invitgr` relatifs à chaque avatar avc. 
 
-### I - initialisation
-La liste des comptes, avatars, groupes est en construction. Requêtes :
-- 1 - obtention du row `compte` : le décryptage en session donne la liste des avatars du compte.
-- 2 - obtention des rows `invitgr` de ces avatars : le décryptage en session de ces rows donne la liste des groupes (et leur clé de groupe).
-- 3 - ouverture avec le serveur d'un contexte de synchronisation comportant :
+Enfin l'étape _finalisation_ vient clore la phase de remise à niveau.
+
+On entre alors dans la phase S _synchrone_ ou l'état des données est au plus près du dernier état cohérent des données en base (par principe possiblement légèrement retardée). Si un incident interrompt cette phase, une nouvelle phase de remise à niveau est lancée, la session n'étant plus opérable jusqu'à la fin de la remise à niveau.
+
+#### État de synchronisation
+- `dhsync` : si 0, une remise à niveau est en cours (la map `etapes` existe), sinon on est en phase _synchronisée_ et c'est la date-heure de la dernière transaction sur le serveur que les données reflète.
+- `dhv` :  date-heure de vie. Si `dhsync` est non 0, c'est la dernière date-heure de vie constatée de la session, toujours postérieure ou égale à `dhsync`.
+- `etapes` : map avec une entrée par avatar / groupe dont la valeur est :
+  - 0 : si l'avatar ou le groupe n'a pas encore été remis à niveau;
+  - la date-heure de la transaction de remise à niveau si l'étape est passée.
+
+Le triplet `dhsync dhv etapes` est stocké en IDB, c'est un singleton. Quand `etapes` existe, ceci indique,
+- à la session courante que la remise à niveau est _en cours_ et son degré d'avancement.
+- à une session ultérieure en mode _avion_ que l'interprétation des données est sujette à caution, tous les avatars / groupes ne sont pas connus au même niveau de fraîcheur, certaines cartes de visite peuvent être retardées, voire manquantes.
+
+#### Étape _amorce_
+Le décryptage du row `compte` lors de l'authentification a donné la liste des avatars du compte.
+
+Envoi de 2 requêtes :
+- 1 - obtention des rows `invitgr` de ces avatars : le décryptage en session de ces rows donne la liste des groupes (et leur clé de groupe).
+- 2 - ouverture avec le serveur d'un contexte de synchronisation comportant :
   - le compte avec signature,
   - la liste des avatars du compte avec signature,
   - la liste des groupes accédés avec signature.
   
-Dès lors le Web Socket envoie des notifications dès que des rows sont changés en base de données et relatifs à un de ces éléments d'après leur id. Les listes des avatars du compte et des groupes accédés par le compte sont fixées et suivies.
+Après cette requête le Web Socket envoie des notifications dès que des rows sont changés en base de données et relatifs à un de ces éléments d'après leur id. Les listes des avatars du compte et des groupes accédés par le compte sont fixées et suivies.
 
 *Remarque* : 
-- la requête 3 commence à vérifier si la version du compte est toujours celle obtenue à la requête 1 et si pour chaque avatar du compte, la version est inchangée (donc pas de changement des `invitgr` relatifs à ces avatars).
-- s'il y a eu des mises à jour de ces listes entre la requête 2 et la requête 3 : l'initialisation est reprise.
+- la requête 2 commence par vérifier si la version du compte est toujours celle obtenue à l'authentification et si pour chaque avatar du compte, la version est inchangée (donc pas de changement des `invitgr` relatifs à ces avatars).
+- s'il y a eu des mises à jour de ces listes, l'étape _amorce_ est reprise.
 
-### R - remise à niveau incrémentale *élément par élément***
-Pour chaque élément, envoi d'une requête d'obtention des rows de versions postérieures aux versions détenues en session.
+**IDB est purgée des rows des avatars et groupes** qui sont présents dans IDB en mémoire mais n'apparaissent plus dans les deux listes d'avatars du compte et groupes accédés. Dans la même transaction, le triplet de l'état de synchronisation est stocké (marque le début de la remise à niveau).
 
-L'élément est marqué _synchrone_, les notifications reçues par Web Socket le concernant sont désormais prises en compte en session.
+#### Déroulement d'une étape _avatar_ pour un `avc` 
+Une requête est envoyée au serveur pour récupérer les rows des tables `avatar contact invitct rencontre parrain secret` changés postérieurement aux versions connues en IDB.
 
-Pour un élément *carte de visite* la requête,
-- envoie la liste des ids des contacts ou membres et la version à comparer avec `vcv`,
-- le serveur fusionne dans le contexte de la session cette liste avec celle des ids des cartes de visite dont la mise à jour est à notifier.
-- retourne les rows avatar (seulement `st cva`) dont la version est supérieure à celle filtrée.
+Les rows (venant de IDB en mémoire ou récupérés par la requête) sont compilés dans la structure en mémoire.
 
-Remarques :
-- quand un nouveau row `contact` ou `membre` apparaît en retour d'une requête ou d'une notification, une requête est envoyée pour ajouter cette id à la liste des cartes de visite à synchroniser.
-- on se dispense de détecter les suppressions d'avatars (disparitions pour l'essentiel) en cours de session : il pourrait y avoir quelques notifications superflues de cartes de visites.
+La complétion de l'étape donne lieu à **une transaction unique** en IDB :
+- mise à jour de IDB par insertion, mise à jour, parfois suppression des rows de ces tables.
+- mémorisation de l'état de synchronisation.
 
-**Sync - quand il n'y a plus d'éléments à remettre à niveau** la session est *synchrone* : l'image en IDB et en mémoire est complète et synchronisée avec  celle du serveur. Les notifications de changement par Web Socket sont traitées et maintiennent cette synchronisation. 
+#### Déroulement d'une étape _groupe_ `gra` 
+Comme pour une étape _avatar_ avec les tables `groupe membre secret`.
 
-Si au cours de la session il y a par exemple un groupe supplémentaire, la liste des éléments change : un ou plusieurs éléments se retrouvent en état R, la session n'est plus OK mais en R.
+#### Étape de _finalisation_
+Son objet est de récupérer toutes les cartes de visites pour tous les contacts des `avc` et tous les groupes des `gra` :
+- liste 1 : liste des ids des avc / gra, dont la carte de visite est absente.
+- liste 2 : liste des ids des avc / gra, dont la carte de visite est présente et obtention de la variable `maxvcv`, la plus haute des versions de ces cartes de visite `vcv`.
 
-#### `dhsync` : date heure de synchronisation
-Cette date-heure est la plus récente de :
-- celle de la dernière requête de remise à niveau,
-- celle du dernier traitement des notifications reçues par Web Socket,
-- de la date-heure courante à 5s près.
+Envoi d'une requête :
+- obtention des cartes de visites de la liste 1 sans condition de `vcv`.
+- obtention des cartes de visites de la liste 2 avec `vcv > maxvcv`.
+- enregistrement dans le contexte de session de l'union des listes 1 et 2.
 
-Tous les éléments qui sont en état *synchrone* peuvent être considérés comme étant à jour à `dhsync` (puisqu'aucune notifications non traitées n'est pendante).
+Désormais le serveur notifie les mises à jour des cartes de visites intéressant la session.
 
-### `etatsync` : état de synchronisation
-Cet objet contient :
-- `dhsync` :
-- `nbnws` (mémoire seulement, pas IDB): nombre de notifications Web Socket reçues et en attente de traitement. 0 à l'initialisation.
-- `nbeltr` (mémoire seulement, pas IDB): nombre d'élément à remettre à niveau. Ils sont comptés à l'initialisation.
-- `eltsync` : une map avec une entrée par élément à synchroniser et pour valeur un triplet de date-heures :
-  - la première pour l'état général de l'élément.
-  - la seconde pour les secrets.
-  - la troisième pour les cartes de visite.
-  - une valeur de 0 signifie que la mémoire est vide pour cet élément,
-  - une valeur `dh1` signifie que cet élément a été mis à niveau à cette date-heure mais n'est pas synchronisé (il est donc en retard),
-  - une valeur de 1 signifie que cet élément est *synchrone*, donc supposé être à niveau de la date-heure `dhsync`.
+**Enregistrement en une transaction IDB** des cartes de visites mises à jour et suppression des cartes de visite non référencées.
 
-### Étape d'initialisation
-L'état de synchronisation est lu depuis IDB : 
-- toutes les date-heures des éléments marqués 1 sont mis à la valeur `dhsync`. Ils ne sont plus synchrones.
-- les date-heures des nouveaux éléments après les requêtes d'initialisation sont mises à 0 : ces éléments n'ont pas encore été chargés.
-- les éléments qui ne sont plus cités après les requêtes d'initialisation sont supprimés de IDB et de `etatsync`.
-- à la fin de cette étape, aucun élément n'est *synchrone*, tous sont soit pas chargés du tout, soit en retard, bref à remettre à niveau.
+A cet instant :
+- la structure en mémoire est complète et compilée.
+- la structure temporaire des rows lus de IDB est détruite.
+- l'état n'est pas encore cohérent : des transactions parallèles ont pu effectuer des mises à jour qui sont disponibles dans la queue des notifications du Web Socket.
 
-### Remises à niveau
-Les remises à niveaux des éléments interviennent élément par élément :
-- `dhsync` est mise à la date-heure de la requête de mise à niveau,
-- la date-heure de l'élément est mise à 1 (il est *synchrone*), les notifications par Web Socket le concernant sont traitées au fil de l'eau (et enregistrées dans IDB).
+##### Traitement des notifications reçues par Web Socket
+Pendant toute le phase de remise à niveau des notifications de mises à jour ont pu être reçues : elles sont traitées.
+- prétraitement des cartes de visites : des contacts et des membres ont pu être ajoutés et n'ont pas (en général) de cartes de visites. Celles-ci sont demandées au serveur qui les ajoutent à la liste des cartes à notifier.
+- une seule transaction IDB 
+  - met à jour les rows reçus (et la structure en mémoire). 
+  - met à jour l'état de synchronisation :
+    - `dhsync` contient est la date-heure de la dernière requête / notification reçue.
+    - `ddv` = `dhsync`
+    - `etapes` est null.
 
-### Vie courante synchrone
-Tous les éléments sont en état *synchrone*. Des événements peuvent survenir :
-- arrivée d'un bloc de notifications par Web Socket : les rows concernant des éléments en état *synchrone* sont enregistrés et `etatsync` est mis à jour en IDB avec pour `dhsync` la date-heure de la notification. L'état global reste *synchrone* (`nbeltr` est toujours 0).
-- une opération ou une notification fait apparaître un nouvel élément à synchroniser (par exemple l'inscription comme membre à un nouveau groupe) : le ou les éléments sont en remise à niveau, `nbeltr` est incrémenté. La session n'est plus *synchrone*. 
+Désormais la session passe en phase _synchrone_.
 
-#### Mise à jour des cartes de visite
-Le statut *alerte* ou *disparu* est véhiculé avec la carte de visite.  
-Les cartes de visite modifiées sont notifiées par Web Socket. Mais une notification ou une opération peut aussi augmenter la liste des ids dont la carte de visite est surveillé :
-- une opération permet de la récupérer,
-- cette opération enregistre l'id nouvelle à surveiller par le serveur pour la session afin que les mises à jour ultérieures soient notifiées par Web Socket.
+### Phase _synchrone_
+L'utilisateur peut effectuer des actions et naviguer.
 
-## Classes
-### Classe `Global` - singleton non persistant
-Champs:
-- `pcb` : PBKFD2 de la phrase complète **saisie** en session - clé X
-- `pcbh` : Hash de pcb.
-- `idc` : id du compte (après connexion).
-- `clek` : clé K du compte, décryptée par la clé X (après connexion).
+La session évolue selon :
+- les actions déclenchées par l'utilisateur qui vont envoyer des requêtes au serveur.
+- les notifications reçues du Web Socket comportant les rows mis à jour par les transactions du serveur et intéressant la session.
 
+L'état interne de la structure en mémoire reflète le dernier état de notification traité : la date-heure `dhsync` est mise à jour en IDB (avec `dds` = `dhsync`).
+
+Le traitement d'un bloc de notifications s'effectue en deux étapes :
+- prétraitement éventuel pour demander les cartes de visite manquantes,
+- traitement effectif en mémoire et mise à jour de IDB en une seule transaction.
+
+_**Remarques :**_
+- quand un traitement de notification débute, il récupère tous les blocs de notification reçus et an attente de traitement : les suivants sont accumulés en queue pour le traitement ultérieur.
+- quand il n'y a pas eu de traitement de notification pendant 5s, `ddv` est écrite en IDB avec la date-heure courante.
+
+### Interruption de synchronisation
+- Les actions de l'utilisateur sont bloquées, la requête en cours au serveur est ignorée.
+- La queue des notifications est détruite.
+- La phase de _remise à niveau_ est enclenchée : la structure en mémoire est détruite, IDB relue.
+
+## `localStorage` et IDB
 **En mode *avion*** dans le `localStorage` les clés `monorg-hhh` donne chacune le numéro de compte `ccc` associé à la phrase de connexion dont le hash est `hhh` : `monorg-ccc` est le nom de la base IDB qui contient les données de la session de ce compte pour l'organisation `monorg` dans ce browser.
 
 **En mode *synchronisé***, il se peut que la phrase secrète actuelle enregistrée dans le serveur (dont le hash est `hhh`) ait changé depuis la dernière session synchronisée exécutée pour ce compte :
 - si la clé `monorg-hhh` n'existe pas : elle est créée avec pour valeur `monorg-ccc` (le nom de la base pour le compte `ccc`).
 - si la base `monorg-ccc` n'existe pas elle est créée.
 - l'ancienne clé, désormais obsolète, pointe bien vers le même compte mais ne permet plus d'accéder à ce compte, dont la clé K a été ré-encryptée par la nouvelle phrase.
+
+## Classes
+
+### `global` - singleton
+- `compte` :
+  - `pcb` : PBKFD2 de la phrase complète **saisie** en session - clé X
+  - `pcbh` : Hash de pcb.
+  - `idc` : id du compte (après connexion).
+  - `clek` : clé K du compte, décryptée par la clé X (après connexion).
+- `avatars` : map de clé id de l'avatar
+- `groupes` : map de clé id du groupe
+- `cvs` : : map de clé id de l'avatar
+- `versions` :
+- `idb` : map de clé id majeure. Valeur : par table, un row ou une map de rows par id mineure.
 
 ### Classe `Compte` - singleton
 Image décryptée du row de la table Compte du compte de la session.
@@ -199,25 +199,6 @@ Propriétés - Chacune est un row (singleton) ou une map contenant les rows de l
   - 5 - `secret` : secrets de `ida`.
 
 
-
-### `etat` - singleton
-Ce singleton est persistant crypté par la clé K et donne l'état de synchronisation initiale. 
-**Données globales persistantes**
-- `idc` : id du compte.
-- `v` : version du compte.
-- avatars { } : clé : id de l'avatar, valeur : version de sa mise à jour. 
-- synchro des photos des contacts :
-    - clé : id de l'avatar du compte
-    - valeur : date-heure de dernière synchro par *ouverture* de l'avatar
-- synchro des photos des membres :
-    - clé : id du groupe
-    - valeur : date-heure de dernière synchro par *ouverture* du groupe 
-- liste des secrets d'avatars persistants :
-	- clé : id de l'avatar.
-	- valeur : date-heure de dernière synchronisation.
-- liste des secrets de groupe persistants :
-	- clé : id du groupe.
-	- valeur : date-heure de dernière synchronisation.
 
 ### `cptvq` - singleton
 C'est une map avec une entrée par avatar du compte / groupe du compte donnant ses compteurs de volume et ses quotas.
