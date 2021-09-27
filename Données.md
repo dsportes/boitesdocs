@@ -167,7 +167,7 @@ Table :
     "dpbh"	INTEGER,
     "pcbsh"	INTEGER,
     "kx"   BLOB,
-    "lack"  BLOB,
+    "mack"  BLOB,
     "mmck"	BLOB,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
@@ -176,14 +176,14 @@ Table :
 - `id` : id du compte.
 - `v` : 
 - `dds` : date (jour) de dernière signature.
-- `dpbh` : pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
+- `dpbh` : hashBin (53 bits) du PBKFD2 du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbsh` : hash du SHA du PBKFD2 de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
 - `kx` : clé K du compte, crypté par la X (phrase secrète courante).
 - `mmck` {} : cryptées par la clé K, map des mots clés déclarés par le compte.
   - *clé* : id du mot clé de 1 à 99.
   - *valeur* : libellé du mot clé.
-- `lack` [] : liste des avatars du compte `[nom@rnd, cpriv]`, cryptée par la clé K, 
-  - `nom@rnd` : nom complet.
+- `mack` {} : map des avatars du compte `[nom@rnd, cpriv]`, cryptée par la clé K
+  - `nomc` : `nom@rnd`, nom complet.
   - `cpriv` : clé privée asymétrique.
 
 **Remarques :** 
