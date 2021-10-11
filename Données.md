@@ -177,7 +177,7 @@ Table :
 - `v` : 
 - `dds` : date (jour) de dernière signature.
 - `dpbh` : hashBin (53 bits) du PBKFD2 du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
-- `pcbsh` : hash du SHA du PBKFD2 de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
+- `pcbh` : hashBin (53 bits) du PBKFD2 de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
 - `kx` : clé K du compte, crypté par la X (phrase secrète courante).
 - `mmck` {} : cryptées par la clé K, map des mots clés déclarés par le compte.
   - *clé* : id du mot clé de 1 à 99.
