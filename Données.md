@@ -52,7 +52,7 @@ L'`id` d'un avatar est le hash (integer) de sa clé.
    - _alerte_ : des mois sans signe de vie, sera considéré comme disparu dans les 2 mois qui suivent.
    - _disparu_
 - `dlv` : date limite de validité, en nombre de jours depuis le 1/1/2021.
-- `st` : `contact, invitgr, membre, groupe, secret` : quand `st` est négatif c'est le numéro de semaine de sa suppression. Les rows ne sont pas supprimés physiquement pendant un certain temps afin de permettre aux mises à jour incrémentales des sessions de détecter les suppressions. Une session pour un compte étant ouverte au moins tous les 18 mois, les `st` négatifs de plus de 18 mois peuvent être physiquement supprimés.
+- `st` : `avatar, contact, invitgr, invitct, parrain, membre, groupe, secret` : quand `st` est négatif c'est le numéro de semaine de sa suppression. Les rows ne sont pas supprimés physiquement pendant un certain temps afin de permettre aux mises à jour incrémentales des sessions de détecter les suppressions. Une session pour un compte étant ouverte au moins tous les 18 mois, les `st` négatifs de plus de 18 mois peuvent être physiquement supprimés.
 
 Les comptes sont censés avoir au maximum N semaines entre 2 connexions faute de quoi ils sont considérés comme disparus.
 
@@ -119,7 +119,7 @@ L'id 0 correspondant à l'état courant et l'id 1 à la dernière sauvegarde.
 
     CREATE TABLE "versions" (
     "id"  INTEGER,
-    "v"  BLOB
+    "v"  BLOB,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
 
@@ -165,7 +165,7 @@ Table :
     "v"		INTEGER,
     "dds" INTEGER,
     "dpbh"	INTEGER,
-    "pcbsh"	INTEGER,
+    "pcbh"	INTEGER,
     "kx"   BLOB,
     "mack"  BLOB,
     "mmck"	BLOB,
@@ -267,10 +267,9 @@ Table :
     "ardc"	BLOB,
     "icbc"  BLOB
     "datak"	BLOB,
-    "rndgk" BLOB,
     PRIMARY KEY("id", "ic")
     );
-    CREATE INDEX "id_v_contact" ON "contact" ( "id", "v" )
+    CREATE INDEX "id_v_contact" ON "contact" ( "id", "v" );
 
 - `id` : id de l'avatar A
 - `ic` : indice de contact de B pour A.
@@ -367,8 +366,9 @@ Un contact *fort* est requis pour partager, un statut, une ardoise, des secrets 
     "st"  INTEGER,
     "ccpub" BLOB,
     "datac"  BLOB,
-    "ardc"  BLOB)
-    PRIMARY KEY ("cch") WITHOUT ROWID;
+    "ardc"  BLOB,
+    PRIMARY KEY ("cch"))
+    WITHOUT ROWID;
     CREATE INDEX "dlv_invitct" ON "invitct" ( "dlv" );
     CREATE INDEX "id_invitct" ON "invitct" ( "id" );
 
@@ -416,13 +416,17 @@ Un parrainage est identifié par le hash du PBKFD2 de la phrase de parrainage po
     "nc" INTEGER,  
     "dlv"  INTEGER,
     "st"  INTEGER,
+    "q1" INTEGER,
+    "q2" INTEGER,
+    "qm1" INTEGER,
+    "qm2" INTEGER,
     "datak"  BLOB,
     "datax"  BLOB,
     "ardc"  BLOB,
     PRIMARY KEY("pph")
     ) WITHOUT ROWID;
     CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" );
-    CREATE INDEX "id_parrain" ON "parrain" ( "id" )
+    CREATE INDEX "id_parrain" ON "parrain" ( "id" );
 
 - `pph` : hash du PBKFD2 de la phrase de parrainage.
 - `id` : id du parrain.
@@ -476,11 +480,11 @@ Une rencontre est identifiée par le hash du PBKFD2 de la phrase de rencontre.
     "dlv" INTEGER,
     "st"  INTEGER,
     "datak" BLOB,
-    "datax" BLOB,
+    "nomcx" BLOB,
     PRIMARY KEY("prh")
     ) WITHOUT ROWID;
-    CREATE INDEX "dlv_rencontre" ON "rencontre" ( "dlv" )
-    CREATE INDEX "id_rencontre" ON "rencontre" ( "id" )
+    CREATE INDEX "dlv_rencontre" ON "rencontre" ( "dlv" );
+    CREATE INDEX "id_rencontre" ON "rencontre" ( "id" );
 
 - `prh` : hash du PBKFD2 de la phrase de rencontre.
 - `id` : id de l'avatar A ayant initié la rencontre.
@@ -517,10 +521,11 @@ Table :
     "lstmg" BLOB,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
-    CREATE INDEX "id_v_groupe" ON "groupe" ( "id", "v" )
+    CREATE INDEX "id_v_groupe" ON "groupe" ( "id", "v" );
 
 - `id` : id du groupe.
 - `v` : 
+- `dds` :
 - `st` : statut : < 0-supprimé - Deux chiffres `x y`
   - `x` : 1-ouvert, 2-fermé, 3-ré-ouverture en vote
   - `y` : 0-en écriture, 1-archivé 
@@ -540,13 +545,13 @@ Table
     "id"  INTEGER,
     "im"	INTEGER,
     "v"		INTEGER,
-    "st"	TEXT,
+    "st"	INTEGER,
     "vote"  INTEGER,
     "dlv"   INTEGER,
     "datag"	BLOB,
     "ardg"  BLOB,
     PRIMARY KEY("id", "im"));
-    CREATE INDEX "id_v_avlab" ON "membre" ( "id", "v" )
+    CREATE INDEX "id_v_membre" ON "membre" ( "id", "v" );
 
 - `id` : id du groupe.
 - `im` : numéro du membre dans le groupe.
@@ -663,9 +668,10 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     "mcs"   BLOB,
     "aps"	BLOB,
     "dups"	BLOB,
-    PRIMARY KEY("ids") WITHOUT ROWID);
-    CREATE INDEX "id_v_secret" ON "secret" ("id", "v")
-    CREATE INDEX "st_secret" ON "secret" ( "st" )
+    PRIMARY KEY("ids")
+    ) WITHOUT ROWID;
+    CREATE INDEX "id_v_secret" ON "secret" ("id", "v");
+    CREATE INDEX "st_secret" ON "secret" ( "st" );
 
 - `ids` : id du secret.
 - `id` : id du groupe ou de l'avatar.
@@ -679,10 +685,10 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
   - `ap` : texte d'aperçu.
   - `st` : 5 bytes donnant :
     - 0:ouvert, 1:restreint, 2:archivé
-    - la taille du texte : 0 pas de texte, 1, 2, ... (log) 
-    - la taille de la pièce jointe : 0 pas de pièce, 1, 2 ... (log)
     - type de la pièce jointe : 0 inconnu, 1, 2 ... selon une liste prédéfinie.
     - version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.
+  - `ttx` : la taille du texte : 0 pas de texte
+  - `tpj` : la taille de la pièce jointe : 0 pas de pièce jointe
   - `r` : référence à un autre secret (du même groupe, couple, avatar).
 - `dups` : id de l'autre exemplaire pour un secret de couple A/B.
 
