@@ -84,8 +84,7 @@ Afin de pouvoir rafraîchir uniquement les cartes de visites des avatars, la pro
 
 ## Tables
 
-- `versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde)  
-- `etat` (singleton) : état courant permanent du serveur  
+- `versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde) et autres singletons (id value)
 - `avgrvq` (id) : volumes et quotas d'un avatar ou groupe  
 - `avrsa` (id) : clé publique d'un avatar
 
@@ -93,19 +92,20 @@ _**Tables aussi persistantes sur le client (IDB)**_
 
 - `compte` (id) : authentification et données d'un compte 
 - `avatar` (id) : données d'un avatar et liste de ses contacts
-- `invitgr` (niv) id : invitation reçue par un avatar à devenir membre d'un groupe
+- `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
 - `contact` (id, nc) : données d'un contact d'un avatar    
-- `invitct` (id) : invitation reçue à lier un contact fort avec un autre avatar  
+- `invitct` (id, ni) : invitation reçue à lier un contact fort avec un autre avatar  
 - `rencontre` (prh) id : communication par A de son nom complet à un avatar B non connu de A dans l'application
 - `parrain` (pph) id : parrainage par un avatar A de la création d'un nouveau compte
 - `groupe` (id) : données du groupe et liste de ses avatars, invités ou ayant été pressentis, un jour à être membre.
 - `membre` (id, im) : données d'un membre du groupe
-- `secret` (ids) id : données d'un secret d'un avatar ou groupe
+- `secret` (id, ns) : données d'un secret d'un avatar ou groupe
 
-## Table `etat` - singleton d'état global du serveur
-Ce singleton est un JSON où le serveur peut stocker des données persistantes à propos de son état global : par exemple les date-heures d'exécution des derniers traitements GC, la dhc du dernier backup de la base...
-
-	  CREATE TABLE "etat" ("data"	BLOB);
+## Singletons id / valeur
+Ils sont identifiés par un numéro de singleton.  
+- Leur valeur est un BLOB, qui peut être un JSON en UTF8.  
+- Le singleton 0 est un JSON libre utilisé pour stocker l'état du serveur (dernière sauvegarde, etc.).  
+- C'est la table `versions` qui les stocke.
 
 ## Table `versions` - CP : `id`
 
@@ -312,28 +312,26 @@ Un *contact fort* permet de partager par **l'ardoise** un court texte entre A et
 - le row `contact` d'un avatar _disparu_ reste pour information historique. La carte de visite du contact n'existe plus. L'utilisateur ne peut demander la suppression ce row d'information historique (`st` passe à < 0) que si c'était un contact simple.
 
 ## Table `invitgr`. Invitation d'un avatar M par un animateur A à un groupe G
-Les invitations restent présentes jusqu'à disparition de l'avatar M : un numéro aléatoire d'invitation `niv` les identifient. 
+Les invitations restent présentes jusqu'à disparition de l'avatar M : un numéro aléatoire d'invitation `ni` les identifient relativement à l'avatar invité. 
 
 Pour un couple avatar / groupe il ne peut y avoir qu'au plus une invitation : ceci est garanti par le row `groupe`.
 
 _Remarque_ : L'invitant peut retrouver en session la liste des invitations en cours qu'il a faites : un membre de G avec son indice de membre comme invitant et un statut `invité`.
 
     CREATE TABLE "invitgr" (
-    "niv" INTEGER,
     "id"  INTEGER,
+    "ni" INTEGER,
     "v"   INTEGER,
     "dlv"	INTEGER,
     "st"  INTEGER,
     "datap" BLOB,
     "datak" BLOB,
     "clek"  BLOB,
-    PRIMARY KEY ("niv")
-    ) WITHOUT ROWID;
+    PRIMARY KEY ("id", "ni"));
     CREATE INDEX "dlv_invitgr" ON "invitgr" ( "dlv" );
-    CREATE INDEX "id_invitgr" ON "invitgr" ( "id" );
 
-- `niv` : numéro d'invitation.
 - `id` : id du membre invité.
+- `ni` : numéro d'invitation.
 - `v` :
 - `dlv` :
 - `st` : statut. Si `st` < 0, c'est une suppression.
@@ -360,20 +358,24 @@ _Remarque_ : L'invitant peut retrouver en session la liste des invitations en co
 Un contact *fort* est requis pour partager, un statut, une ardoise, des secrets et s'échanger des quotas.
 
     CREATE TABLE "invitct" (
-    "cch" INTEGER,
     "id"  INTEGER,
+    "ni" INTEGER,
     "dlv"	INTEGER,
     "st"  INTEGER,
     "ccpub" BLOB,
     "datac"  BLOB,
+<<<<<<< HEAD
     "ardc"  BLOB,
     PRIMARY KEY ("cch"))
     WITHOUT ROWID;
+=======
+    "ardc"  BLOB)
+    PRIMARY KEY ("id", "ni");
+>>>>>>> 69d8d289bfa9082cf83c467b80df3c57da5de531
     CREATE INDEX "dlv_invitct" ON "invitct" ( "dlv" );
-    CREATE INDEX "id_invitct" ON "invitct" ( "id" );
 
-- `cch` : hash de la clé `cc`, sert d'identifiant à l'invitation.
 - `id` : id de B.
+- `niv` : numéro aléatoire d'invitation en complément de id.
 - `dlv` :
 - `st` : 0: annulée, 1: en attente, 2: acceptée, 3: refusée
 - `ccpub` : clé `cc` du contact *fort* A / B, définie par A, cryptée par la clé publique de B.
@@ -551,7 +553,11 @@ Table
     "datag"	BLOB,
     "ardg"  BLOB,
     PRIMARY KEY("id", "im"));
+<<<<<<< HEAD
     CREATE INDEX "id_v_membre" ON "membre" ( "id", "v" );
+=======
+    CREATE INDEX "id_v_membre" ON "membre" ( "id", "v" )
+>>>>>>> 69d8d289bfa9082cf83c467b80df3c57da5de531
 
 - `id` : id du groupe.
 - `im` : numéro du membre dans le groupe.
@@ -562,8 +568,8 @@ Table
 - `vote` : vote de réouverture.
 - `dlv` : date limite de validité de l'invitation.
 - `datag` : données cryptées par la clé du groupe.
-  - `niv` : numéro d'invitation du membre dans `invitgr`. Permet de supprimer sa cle de groupe quand il est résilié et de mettre à jour son statut.
-  - `nomc` : nom complet de l'avatar `nom@rnd`.
+  - `nomc` : nom complet de l'avatar `nom@rnd` (donne la clé d'accès à sa carte de visite)
+  - `niv` : numéro d'invitation du membre dans `invitgr` relativement à son `id` (issu de `nomc`). Permet de supprimer sa cle de groupe (`clegk` dans `invitgr`) quand il est résilié et de mettre à jour son statut.
 	- `idi` : id du membre qui l'a pressenti puis invité.
 	- `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
 - `ardg` : ardoise du membre vis à vis du groupe, texte d'invitation / réponse de l'invité cryptée par la clé du groupe.
@@ -596,7 +602,7 @@ Le GC sur dépassement de `dlv` :
 - le GC gère de l'autre côté `invitgr`.
 
 ## Secrets
-Un secret est identifié par `ids` tiré au hasard sur 5 bytes.
+Un secret est identifié par l'id du propriétaire (avatar ou groupe) et de `ns` complémentaire aléatoire.
 
 La clé de cryptage du secret `cs` est selon le cas :
 - (0) *secret personnel d'un avatar A* : la clé K de l'avatar. `ic` vaut 0.
@@ -659,8 +665,8 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 ## Table `secret` : CP `id`. Secret
 
     CREATE TABLE "secret" (
-    "ids"  INTEGER,
     "id"  INTEGER,
+    "ns"  INTEGER,
     "ic"  INTEGER,
     "v"		INTEGER,
     "st"	INTEGER,
@@ -668,18 +674,22 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     "mcs"   BLOB,
     "aps"	BLOB,
     "dups"	BLOB,
+<<<<<<< HEAD
     PRIMARY KEY("ids")
     ) WITHOUT ROWID;
+=======
+    PRIMARY KEY("id", "ns");
+>>>>>>> 69d8d289bfa9082cf83c467b80df3c57da5de531
     CREATE INDEX "id_v_secret" ON "secret" ("id", "v");
     CREATE INDEX "st_secret" ON "secret" ( "st" );
 
-- `ids` : id du secret.
 - `id` : id du groupe ou de l'avatar.
+- `ns` : numéro du secret.
 - `ic` : indice du contact pour un secret de couple, sinon 0.
 - `v` : 
 - `st` : < 0 pour un secret _supprimé_, numéro de semaine de création pour un _temporaire_, 99999 pour un *permanent*.
 - `txts` : texte complet gzippé crypté par la clé du secret.
-- `mcs` : liste des mots clés.
+- `mcs` : liste des mots clés crypté par la clé du secret.
 - `aps` : données d'aperçu du secret cryptées par la clé du secret.
   - `la` [] : liste des auteurs (identifié par leur indice de membre pour un groupe) ou id du dernier auteur pour un secret de couple.
   - `ap` : texte d'aperçu.
@@ -690,7 +700,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
   - `ttx` : la taille du texte : 0 pas de texte
   - `tpj` : la taille de la pièce jointe : 0 pas de pièce jointe
   - `r` : référence à un autre secret (du même groupe, couple, avatar).
-- `dups` : id de l'autre exemplaire pour un secret de couple A/B.
+- `dups` : couple `[id ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
 
 **Suppression d'un secret :**
 - pour un secret temporaire, `st` est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant `st` si elles elles se synchronise avant `st`, sinon ça sera fait à `st`.
