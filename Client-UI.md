@@ -1,23 +1,33 @@
 # Boîtes à secrets - Client
 
 ## Données en IDB
-En IDB on trouve la réplication telle quelle de sélections selon l'id d'un compte, avatar ou groupe des rows des tables en base :
+En IDB on trouve la réplication de sélections selon l'id d'un compte, avatar ou groupe des rows des tables en base :
 - `compte` : le row du compte. Donne la liste des ids `ida` des avatars du compte et leur nom complet (donc clé).
 - pour chaque `ida`, les rows de clé `ida` des tables :
   - `invitgr` : invitations reçues par `ida` à être membre d'un groupe. L'union donne la **liste des groupes `idg` (id, clé, nom)** des comptes accédés.
   - `avatar` : entête de l'avatar.
-  - `contact` : contacts de `ida`. Donne la **liste de ses contacts** avec leur nom complet (donc clé).
+  - `contact` : contacts de `ida`. Donne la **liste de ses contacts** avec leur nom complet (donc clé) pour les cartes de visite.
   - `invitct` : invitations reçues par `ida` à être contact fort et encore en attente.
   - `rencontre` : rencontres initiées par `ida`.
   - `parrain` : parrainages accordés par `ida`.
   - `secret` : secrets de `ida`.
 - les rows dont la clé `idg` fait partie de la liste des groupes d'un des `ida` :
   - `groupe` : entête du groupe.
-  - `membre` : détails des membres de `idg`.
+  - `membre` : détails des membres de `idg`. Donne la **liste des membres** avec leur nom complet (donc clé) pour les cartes de visite.
   - `secret` : secrets du groupe `idg`.
-- `avatar` (`st cva` seulement) : statut et carte de visite des rows dont la clé `id` est, soit un des contacts d'un des `ida`, soit un des membres des groupes `idg`.
+- `cv` (issue de `avatar`, `st cva` seulement) : statut et carte de visite des rows dont la clé `id` est, soit un des contacts d'un des `ida`, soit un des membres des groupes `idg`.
 
-En IDB les contenus sont l'image en base, donc cryptés.
+Les rows reçus par synchro ou par chargement explicite sur un POST :
+- sont décryptés à réception. 
+  - pour les données des groupes (`groupe membre secret`), la clé du groupe a été obtenu depuis les rows `invitgr` qui sont toujours obtenus / chargés avant.
+  - pour les secrets des contacts, la clé `cc` est obtenue depuis les rows `contact` qui sont obtenus / chargés avant.
+- les objets en mémoire sont donc en clair dès leur réception depuis le serveur.
+
+En IDB les contenus des tables sont formés :
+- d'une clé simple `id` ou `x`, ou d'un couple de clé `id+y`.
+- d'un contenu `data` qui est l'objet en clair sérialisé PUIS crypté par,
+  - la clé K du compte pour tous les rows sauf `compte`,
+  - la clé X issue de la phrase secrète pour **le** row `compte`.
 
 ## Structure en mémoire
 Elle comporte :
