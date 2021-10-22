@@ -284,7 +284,6 @@ Table :
 - `icbc` : pour un contact fort _accepté_, indice de A chez B (communiqué lors de l'acceptation par B) pour mise à jour dédoublée de l'ardoise et du statut, crypté par la clé `cc`.
 - `datak` : information cryptée par la clé K de A.
   - `nomc` : nom complet de l'avatar `nom@rnd`.
-  - `ic` : indice de A chez B (communiqué lors de l'acceptation par B par `icbc`, redondance par facilité)
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _fort_ avec B (en attente ou accepté).
   - `dlv` : date limite de validité de l'invitation à être contact _fort_ ou du parrainage.
   - `pph` : hash du PBKFD2 de la phrase de parrainage.
