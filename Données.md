@@ -560,7 +560,7 @@ Table
 - `dlv` : date limite de validité de l'invitation. N'est significative qu'en statut _invité_.
 - `datag` : données cryptées par la clé du groupe.
   - `nomc` : nom complet de l'avatar `nom@rnd` (donne la clé d'accès à sa carte de visite)
-  - `ni` : numéro d'invitation du membre dans `invitgr` relativement à son `id` (issu de `nomc`). Permet de supprimer sa cle de groupe (`clegk` dans `invitgr`) quand il est résilié et de mettre à jour son statut.
+  - `ni` : numéro d'invitation du membre dans `invitgr` relativement à son `id` (issu de `nomc`). Permet de supprimer son accès au groupe (`st < 0, datap / datak null` dans `invitgr`) quand il est résilié / disparu.
 	- `idi` : id du membre qui l'a pressenti puis invité.
 	- `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
 - `ardg` : ardoise du membre vis à vis du groupe, texte d'invitation / réponse de l'invité cryptée par la clé du groupe.
