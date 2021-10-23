@@ -339,7 +339,7 @@ _Remarque_ : L'invitant peut retrouver en session la liste des invitations en co
 	- `idg` : id du groupe.
   - `cleg` : clé du groupe.
 	- `im` : indice de membre de l'invité dans le groupe.
-- `datak` : même données que `datap` mais cryptées par la clé K du compte de l'avatar, après acceptation.
+- `datak` : même données que `datap` mais cryptées par la clé K du compte de l'invité, après son acceptation.
 
 **Remarques :**
 - tant que l'invitation est en statut _invité_ et que `dlv` n'est pas dépassée, `datap` existe et l'invitation est en attente. 
@@ -366,6 +366,7 @@ Un contact *fort* est requis pour partager, un statut, une ardoise, des secrets 
 
 - `id` : id de B.
 - `ni` : numéro aléatoire d'invitation en complément de `id`.
+- `v`
 - `dlv` : la date limite de validité permettant de purger les rencontres (quels qu'en soient les statuts).
 - `st` : <= 0: annulée, 0: en attente, 1: acceptée, 2: refusée
 - `datap` : données cryptées par la clé publique de B.
