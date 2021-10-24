@@ -591,7 +591,7 @@ Le row `membre` d'un membre subsiste quand il est _résilié_ ou _disparu_ pour 
 Le GC ne gère pas le dépassement de `dlv`.
 
 ## Secrets
-Un secret est identifié par l'id du propriétaire (avatar ou groupe) et de `ns` complémentaire aléatoire.
+Un secret est identifié par l'id du propriétaire (avatar ou groupe) et de `ns` complémentaire aléatoire (pair pour un secret d'avatar, impair pour un secret de groupe).
 
 La clé de cryptage du secret `cs` est selon le cas :
 - (0) *secret personnel d'un avatar A* : la clé K de l'avatar. `ic` vaut 0.
