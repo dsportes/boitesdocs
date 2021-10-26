@@ -2,7 +2,7 @@
 
 ## Données en IDB
 En IDB on trouve la réplication de sélections selon l'id d'un compte, avatar ou groupe des rows des tables en base :
-- `compte` : le row du compte. Donne la liste des ids `ida` des avatars du compte et leur nom complet (donc clé).
+- `compte` : LE row du compte. Donne la liste des ids `ida` des avatars du compte et leur nom complet (donc clé).
 - pour chaque `ida`, les rows de clé `ida` des tables :
   - `invitgr` : invitations reçues par `ida` à être membre d'un groupe. L'union donne la **liste des groupes `idg` (id, clé, nom)** des comptes accédés.
   - `avatar` : entête de l'avatar.
@@ -18,7 +18,7 @@ En IDB on trouve la réplication de sélections selon l'id d'un compte, avatar o
 - `cv` (issue de `avatar`, `st cva` seulement) : statut et carte de visite des rows dont la clé `id` est, soit un des contacts d'un des `ida`, soit un des membres des groupes `idg`.
 
 Les rows reçus par synchro ou par chargement explicite sur un POST :
-- sont décryptés à réception. 
+- sont décryptés à réception et transformés en objets dont tous les champs sont en clair. 
   - pour les données des groupes (`groupe membre secret`), la clé du groupe a été obtenu depuis les rows `invitgr` qui sont toujours obtenus / chargés avant.
   - pour les secrets des contacts, la clé `cc` est obtenue depuis les rows `contact` qui sont obtenus / chargés avant.
 - les objets en mémoire sont donc en clair dès leur réception depuis le serveur.
@@ -30,12 +30,28 @@ En IDB les contenus des tables sont formés :
   - la clé X issue de la phrase secrète pour **le** row `compte`.
 
 ## Structure en mémoire
-Elle comporte :
-- un objet `compte`;
-- une map d'objets `avatars`, la clé étant l'id de chaque avatar du compte en base 64. La valeur est un objet de classe `Avatar` (voir plus loin).
-- une map d'objets `groupes` , la clé étant l'id de chaque groupe en base 64.
-La valeur est un objet de classe `Groupe` (voir plus loin).
-- une map d'objets `cvs`, la clé étant l'id en base 64 de chaque avatar référencé (avatar du compte, contact d'un avatar du compte, membre d'un groupe). La valeur est un objet de classe `Cv` (voir plus loin).
+C'est un _store_ (vuex) de nom `db` :
+
+    {
+    compte: null,
+    avatars: {},
+    contacts: {},
+    invitcts: {},
+    invitgrs: {},
+    groupes: {},
+    membres: {},
+    secrets: {},
+    parrains: {},
+    rencontres: {},
+    cvs: {}
+    }
+
+- `compte` : un objet dont la clé IDB est par convention 1 (et non l'id du compte).
+- `avatars` : une map d'objets, la clé étant l'id de chaque avatar du compte en base 64. La valeur est un objet de classe `Avatar` (voir plus loin).
+- `groupes` : une map d'objets , la clé étant l'id de chaque groupe en base 64. La valeur est un objet de classe `Groupe` (voir plus loin).
+- `cvs` : une map d'objets, la clé étant l'id en base 64 de chaque avatar référencé (avatar du compte, contact d'un avatar du compte, membre d'un groupe). La valeur est un objet de classe `Cv` (voir plus loin).
+- `contacts invitcts invitgrs secrets` : la map comporte un premier niveau par id de l'avatar et pour chaque id une map par l'identifiant complémentaire (ic ni ni ns).
+- `membres secrets` : la map comporte un premier niveau par id du groupe et pour chaque id une map par l'identifiant complémentaire (im ns).
 
 ## Phases d'une session
 ### Phase A d'authentification du compte
