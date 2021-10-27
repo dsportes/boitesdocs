@@ -1,0 +1,385 @@
+<style>
+#content, body {
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%; color: black;
+    font-family: "Ubuntu"; font-size: 1rem; line-height: 1.3;
+    word-wrap: break-word;
+    padding: 1rem; max-width:800px; margin:0 auto;
+    background: white;
+}
+h1,h2,h3,h4,h5,h6 { font-family:"Calibri"; line-height: 1.2; color:#37474F;padding-top:0.2rem;padding-bottom:0.2rem;}
+h1 { font-size:2rem; font-weight:200; margin:2rem -0.5rem 1rem -0.5rem; padding-left:0.5rem; padding-right:0.5rem; border-bottom: 3px solid #37474F; text-align: center;}
+h2 { font-size:1.75rem; font-weight:200; margin:1.75rem -0.5rem 0.75rem -0.5rem; padding-left:0.5rem; padding-right:0.5rem; border-bottom: 1px solid #37474F; }
+h3 { font-size:1.5rem; font-weight:200; margin:1.5rem -0.5rem 0.5rem -0.5rem; padding-left:0.5rem; padding-right:0.5rem; border-bottom: 1px solid #78909C; }
+h4 { font-size:1.4rem; font-weight:200; margin:1.4rem 0 0.5rem 0; padding-left:0; padding-right:0;}
+h5 { font-size:1.3rem; font-weight:200; margin:1.3rem 0 0.5rem 0; padding-left:0; padding-right:0;}
+h6 { font-size:1.2rem; font-weight:200; margin:1.2rem 0 0.5rem 0; padding-left:0; padding-right:0;}
+blockquote, p, table, th, td, ul, ol {
+    font-family: "Ubuntu"; font-size: 1rem; line-height: 1.3; text-justify:inter-word;
+}
+em { font-style: italic; }
+strong { font-weight:bold; }
+blockquote { color:#690c03; margin:1rem 0; padding: 0.2rem 0.5rem; border-left:0.4rem solid #690C03; font-style:italic;}
+code, pre { font-family:'Ubuntu Mono'; color:#06065d !important; padding:0 0.2rem; background: white; }
+table, th, td { border: 1px solid #044c70; border-collapse: collapse; padding:0.5em; }
+p { margin:0.3em 0; }
+ul, ol { padding:0 0 0 2rem; margin-top:0.2rem; margin-bottom:0; }
+ol ol, ul ol { list-style-type: lower-roman; }
+ul ul ol, ul ol ol, ol ul ol, ol ol ol { list-style-type: lower-alpha; }
+hr { height:0.2rem; padding:0; margin:1.2rem 0; background-color:#78909C; border: 0 none; }
+li>p { margin-top:0.5rem; }
+h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
+    </style>
+<h1>Boîtes à secrets - Client</h1>
+<h2>Données en IDB</h2>
+<p>En IDB on trouve la réplication de sélections selon l'id d'un compte, avatar ou groupe des rows des tables en base :</p>
+<ul>
+<li><code>compte</code> : LE row du compte. Donne la liste des ids <code>ida</code> des avatars du compte et leur nom complet (donc clé).</li>
+<li>pour chaque <code>ida</code>, les rows de clé <code>ida</code> des tables :
+<ul>
+<li><code>invitgr</code> : invitations reçues par <code>ida</code> à être membre d'un groupe. L'union donne la <strong>liste des groupes <code>idg</code> (id, clé, nom)</strong> des comptes accédés.</li>
+<li><code>avatar</code> : entête de l'avatar.</li>
+<li><code>contact</code> : contacts de <code>ida</code>. Donne la <strong>liste de ses contacts</strong> avec leur nom complet (donc clé) pour les cartes de visite.</li>
+<li><code>invitct</code> : invitations reçues par <code>ida</code> à être contact fort et encore en attente.</li>
+<li><code>rencontre</code> : rencontres initiées par <code>ida</code>.</li>
+<li><code>parrain</code> : parrainages accordés par <code>ida</code>.</li>
+<li><code>secret</code> : secrets de <code>ida</code>.</li>
+</ul>
+</li>
+<li>les rows dont la clé <code>idg</code> fait partie de la liste des groupes d'un des <code>ida</code> :
+<ul>
+<li><code>groupe</code> : entête du groupe.</li>
+<li><code>membre</code> : détails des membres de <code>idg</code>. Donne la <strong>liste des membres</strong> avec leur nom complet (donc clé) pour les cartes de visite.</li>
+<li><code>secret</code> : secrets du groupe <code>idg</code>.</li>
+</ul>
+</li>
+<li><code>cv</code> (issue de <code>avatar</code>, <code>st cva</code> seulement) : statut et carte de visite des rows dont la clé <code>id</code> est, soit un des contacts d'un des <code>ida</code>, soit un des membres des groupes <code>idg</code>.</li>
+</ul>
+<p>Les rows reçus par synchro ou par chargement explicite sur un POST :</p>
+<ul>
+<li>sont décryptés à réception et transformés en objets dont tous les champs sont en clair.
+<ul>
+<li>pour les données des groupes (<code>groupe membre secret</code>), la clé du groupe a été obtenu depuis les rows <code>invitgr</code> qui sont toujours obtenus / chargés avant.</li>
+<li>pour les secrets des contacts, la clé <code>cc</code> est obtenue depuis les rows <code>contact</code> qui sont obtenus / chargés avant.</li>
+</ul>
+</li>
+<li>les objets en mémoire sont donc en clair dès leur réception depuis le serveur.</li>
+</ul>
+<p>En IDB les contenus des tables sont formés :</p>
+<ul>
+<li>d'une clé simple <code>id</code> ou <code>x</code>, ou d'un couple de clé <code>id+y</code>.</li>
+<li>d'un contenu <code>data</code> qui est l'objet en clair sérialisé PUIS crypté par,
+<ul>
+<li>la clé K du compte pour tous les rows sauf <code>compte</code>,</li>
+<li>la clé X issue de la phrase secrète pour <strong>le</strong> row <code>compte</code>.</li>
+</ul>
+</li>
+</ul>
+<h2>Structure en mémoire</h2>
+<p>C'est un <em>store</em> (vuex) de nom <code>db</code> :</p>
+<pre><code>{
+compte: null,
+avatars: {},
+contacts: {},
+invitcts: {},
+invitgrs: {},
+groupes: {},
+membres: {},
+secrets: {},
+parrains: {},
+rencontres: {},
+cvs: {}
+}
+</code></pre>
+<ul>
+<li><code>compte</code> : un objet dont la clé IDB est par convention 1 (et non l'id du compte).</li>
+<li><code>avatars</code> : une map d'objets, la clé étant l'id de chaque avatar du compte en base 64. La valeur est un objet de classe <code>Avatar</code> (voir plus loin).</li>
+<li><code>groupes</code> : une map d'objets , la clé étant l'id de chaque groupe en base 64. La valeur est un objet de classe <code>Groupe</code> (voir plus loin).</li>
+<li><code>cvs</code> : une map d'objets, la clé étant l'id en base 64 de chaque avatar référencé (avatar du compte, contact d'un avatar du compte, membre d'un groupe). La valeur est un objet de classe <code>Cv</code> (voir plus loin).</li>
+<li><code>contacts invitcts invitgrs secrets</code> : la map comporte un premier niveau par id de l'avatar et pour chaque id une map par l'identifiant complémentaire (ic ni ni ns).</li>
+<li><code>membres secrets</code> : la map comporte un premier niveau par id du groupe et pour chaque id une map par l'identifiant complémentaire (im ns).</li>
+</ul>
+<h2>Phases d'une session</h2>
+<h3>Phase 0 : non connecté - Page Accueil</h3>
+<p>Aucun compte n'est authentifié. Possibilités :</p>
+<ul>
+<li>authentifier un compte existant</li>
+<li>créer un nouveau compte</li>
+</ul>
+<p>En cas de succès, ces deux actions ouvrent la page Synchro (phase 1).</p>
+<p>Aucune session WS.</p>
+<h3>Phase 1 : chargement / synchronisation des données - Page Synchro</h3>
+<p>Les données sont obtenues localement (sauf mode incognito) puis depuis le serveur (sauf mode avions)</p>
+<p>Sauf mode avion, une session WS est en cours:</p>
+<ul>
+<li>la page peut recevoir un appel <code>rupturesession</code> si la session courante est fermée sur erreur (ou volontairement à l'occasion d'une déconnexion explicite).</li>
+<li>les requêtes POST/GET sont interrompues et se terminent au plus vite en exception <code>RUPTURESESSION</code>.</li>
+<li>derrière chaque <code>await</code> les traitements testent l'état de la session et lancent un exception <code>RUPTURESESSION</code> pour se terminer au plus vite.</li>
+</ul>
+<p>En cas de succès du traitement la page Compte est ouverte (phase 2) et selon le cas avec un état <code>modeleactif</code> à vrai ou faux (en cas d'interruption de cette phase par choix de l'utilisateur).</p>
+<h3>Phase 2 : travail - Plusieurs pages</h3>
+<p>L'état <code>modeleactif</code> peut être :</p>
+<ul>
+<li><code>vrai</code> : la page peut lancer des opérations (peu en mode avion) et les notifications sont reçues du serveur (sauf mode avion) et traitées.</li>
+<li><code>faux</code> : la page est uniquement passive, navigation visualisation sans modification de l'état interne du modèle.</li>
+</ul>
+<p>Des navigations sont possibles entre pages de phase 2.</p>
+<p>Les pages gèrent les <code>rupturesession</code> (comme ci-dessus).</p>
+<p>La sortie de ces pages de travail s'effectuent :</p>
+<ul>
+<li>sur demande de déconnexion : retour à la page <code>Accueil</code>,
+<ul>
+<li>explicite (j'ai fini),</li>
+<li>après des erreurs répétitives,</li>
+<li>suite à une <em>rupture de session</em> avec demande de déconnexion.</li>
+</ul>
+</li>
+<li>sur demande de reconnexion sur <em>rupture de session</em> : retour à la page <code>Synchro</code>.</li>
+</ul>
+<h2>Page Accueil : authentification / création d'un compte</h2>
+<p>Soit par donnée de la phrase secrète, soit par création d'un compte : au retour de cette phase le row <code>compte</code> correspondant est connu et en mémoire, le nom de la base IDB est également connu.</p>
+<h2>Page Synchro</h2>
+<p>On peut arriver sur cette page par deux chemins :</p>
+<ul>
+<li>juste après une authentification,</li>
+<li>suite à une reprise de synchronisation : dans ce cas le row compte peut être ancien.</li>
+</ul>
+<p>Le row <code>compte</code> est relu (sauf mode avion) afin d'être certain d'avoir la dernière version.</p>
+<h3>Map <code>versions</code></h3>
+<p>La map <code>versions</code> comporte une entrée par avatar / groupe avec pour valeur une table de  N compteurs de version v :</p>
+<ul>
+<li>pour un avatar 7 compteurs donnant la plus haute version disponible dans le modèle pour chacun des tables liées à l'avatar <code>secret invitegr avatar contact invitct rencontre parrain</code>.</li>
+<li>pour un groupe 3 compteurs donnant la plus haute version disponible dans le modèle pour chacun des tables liées au groupe <code>secret invitegr avatar contact invitct rencontre parrain</code>.</li>
+</ul>
+<p>Par exemple :</p>
+<pre><code>{
+av1 : [436, 512, 434, 418, 517, 718, 932],
+av2 : ... ,
+gr1 : [65, 66, 933],
+...
+}
+</code></pre>
+<p>Cette map permet de savoir que pour remettre à niveau la table <code>contact</code> (la quatrième) de <code>av1</code> il faut demander tous les rows de versions postérieures à 418.</p>
+<p>versions n'est pas sauvegardée en IDB mais reconstruite lors du chargement de iDB en mémoire.</p>
+<h3><code>vcv</code> : numéro de version des cartes de visite</h3>
+<p>La valeur est conservée en IDB depuis la session antérieure et signifie que toutes les cartes de visite de <code>vcv</code> inférieure à cette valeur sont stockées en IDB / modèle. En mode incognito elle n'est pas lue depuis IDB mais mise à 0.</p>
+<p>A la fin complète de l'étape de chargement des cartes de visites, vcv est mise à jour avec la plus haute valeur reçue : toutes les cartes de visite sont en mémoire / IDB jusqu'à cette version. Sauf en mode incognito cette valeur est sauvegardée en IDB à ce moment là.</p>
+<h3><code>dhsyncok dhdebutsync</code></h3>
+<p><code>dhsyncok</code> : donne la date-heure de fin de la dernière synchronisation complète.</p>
+<ul>
+<li>elle est enregistrée en fin de la dernière étape de phase de synchro (sauf en mode avion).</li>
+<li>elle est remise à jour (sauf en mode avion) lors de la réception de chaque notification par WebSocket.</li>
+<li>elle est sauvegardée en IDB (mode synchro).</li>
+</ul>
+<p><code>dhdebutsync</code></p>
+<ul>
+<li>elle est inscrite au début de la phase de synchro et mémorisée en IDB (en mode sync).</li>
+<li>elle est effacée en fin de la phase de synchro (si OK, pas interrompue).</li>
+</ul>
+<p>Si la session du compte est rouverte en mode avion, on sait ainsi si la dernière synchronisation a été interrompue (et quand) et que les données peuvent être inconsistantes.<br>
+Si <code>dhdebutsync</code> n'est pas présente, les données sont cohérentes à la date-heure <code>dhsyncok</code>.</p>
+<p>Le <strong>modèle est passif</strong> si <code>dhdebutsync</code> est présente données partiellement synchronisées).</p>
+<h3>Étape C :<em>chargement de IDB</em> : mode <em>avion</em> et <em>synchronisé</em> seulement</h3>
+<p>Toute la base IDB est lue et inscrite dans le modèle (en mémoire).</p>
+<p>Cette étape peut être interrompue,</p>
+<ul>
+<li>par un incident IDB (ou bug).</li>
+<li>par une rupture de session (sauf mode avion).</li>
+<li>dans les deux cas les choix laissés sont,
+<ul>
+<li>reprise de la phase chargement / synchronisation depuis le début (sans retourner à Accueil pour choisir / authentifier le compte).</li>
+<li>déconnexion du compte, retour à Accueil (phase 0).</li>
+</ul>
+</li>
+</ul>
+<h3>Étape R : <em>remise à niveau</em> : mode <em>synchronisé</em> et <em>incognito</em> seulement</h3>
+<p>Elle consiste à obtenir du serveur les rows des tables mis à jour postérieurement à la version connue en IDB.</p>
+<h4>Sous-étape <em>amorce</em></h4>
+<p>Le décryptage du row <code>compte</code> lors de l'authentification a donné la liste des avatars du compte.</p>
+<p>Envoi de 3 requêtes :</p>
+<ul>
+<li>1 - relecture row <code>compte</code> afin d'être certain d'avoir la dernière version et la bonne liste des avatars. Au retour, nettoyage dans le modèle en mémoire et en IDB (mode synchro) des avatars obsolètes.</li>
+<li>2 - obtention des rows <code>invitgr</code> de ces avatars : le décryptage en session de ces rows donne la liste des groupes (et leur clé de groupe). Au retour, nettoyage dans le modèle en mémoire et en IDB (mode synchro) des groupes obsolètes.</li>
+<li>3 - ouverture avec le serveur d'un contexte de synchronisation comportant :
+<ul>
+<li>le compte avec signature de vie,</li>
+<li>la liste des avatars du compte avec signature,</li>
+<li>la liste des groupes accédés avec signature.</li>
+</ul>
+</li>
+</ul>
+<p>Après cette requête le Web Socket envoie des notifications dès que des rows sont changés en base de données et relatifs à un de ces éléments d'après leur id. Les listes des avatars du compte et des groupes accédés par le compte sont fixées et suivies.</p>
+<h4>Sous-étapes <em>avatar / groupe</em></h4>
+<p>Il y a ensuite autant de sous étapes <em>avatar / groupe</em> dans cette phase que,</p>
+<ul>
+<li>d'avatars du compte cités dans le row compte.</li>
+<li>de groupes accédés cités dans les rows <code>invitgr</code> relatifs à chaque avatar avc.</li>
+</ul>
+<p>Cette étape peut être interrompue,</p>
+<ul>
+<li>par un incident IDB (ou bug).</li>
+<li>par une rupture de session.</li>
+<li>par demande explicite de l'utilisateur (prise en compte à chaque sous-étape)</li>
+<li>dans les deux cas les choix laissés sont,
+<ul>
+<li>reprise de la phase chargement / synchronisation depuis le début (sans retourner à Accueil pour choisir / authentifier le compte).</li>
+<li>déconnexion du compte, retour à Accueil (phase 0).</li>
+</ul>
+</li>
+</ul>
+<h3>Étape CV : <em>synchronisation de cartes de visites</em></h3>
+<p>A la fin de l'étape R on connaît la liste des cartes de visites requises :</p>
+<ul>
+<li>celles des avatars du compte, mais on les a déjà récupérées par principe.</li>
+<li>celles de tous leurs contacts,</li>
+<li>celles des membres des groupes accédés.</li>
+</ul>
+<p>Par ailleurs on a déjà en mémoire lues depuis IDB un certain nombre de cartes de visite dont on sait qu'elles sont toutes connues à la version <code>vcv</code>. On obtient deux listes :</p>
+<ul>
+<li>celles des CV à rafraîchir si elles ont changé après <code>vcv</code>,</li>
+<li>celles à obtenir impérativement.</li>
+</ul>
+<p>Cette requête :</p>
+<ul>
+<li>enregistre dans le contexte de la session sur le serveur la fusion de ces deux listes : les CV seront désormais synchronisées.</li>
+<li>récupère les CV de ces deux listes (après <code>vcv</code> et sans condition de version).</li>
+</ul>
+<p><strong>Enregistrement en une transaction IDB</strong> des cartes de visites mises à jour et suppression des cartes de visite non référencées.</p>
+<p>A cet instant le modèle en mémoire est complet mais n'est pas encore cohérent : des transactions parallèles ont pu effectuer des mises à jour qui sont disponibles dans la queue des notifications du Web Socket.</p>
+<p>Cette étape peut être interrompue,</p>
+<ul>
+<li>par un incident IDB (ou bug).</li>
+<li>par une rupture de session.</li>
+<li>dans les deux cas les choix laissés sont,
+<ul>
+<li>reprise de la phase chargement / synchronisation depuis le début (sans retourner à Accueil pour choisir / authentifier le compte).</li>
+<li>déconnexion du compte, retour à Accueil (phase 0).</li>
+</ul>
+</li>
+</ul>
+<h3>Étape N : <em>traitement des notifications reçues par Web Socket</em></h3>
+<p>Pendant toute le phase de remise à niveau des notifications de mises à jour ont pu être reçues : elles sont traitées.</p>
+<ul>
+<li>prétraitement des cartes de visites : des contacts et des membres ont pu être ajoutés et n'ont pas (en général) de cartes de visites. Celles-ci sont demandées par GET au serveur qui les ajoutent à la liste des cartes à notifier.</li>
+<li>une seule transaction IDB met à jour les rows reçus.</li>
+<li>la nouvelle <code>vcv</code> est connue (retournée par le serveur),</li>
+<li><code>dhsyncok</code> est fixée,</li>
+<li><code>dhdebutsync</code> est effacée,</li>
+<li>cet état est sauvegardée en IDB (en mode synchro).</li>
+</ul>
+<h2>Pages de travail (phase 2)</h2>
+<p>L'utilisateur peut effectuer des actions (si <code>modeleactif</code> est vrai) et naviguer.</p>
+<p>La session évolue selon :</p>
+<ul>
+<li>les actions déclenchées par l'utilisateur qui vont envoyer des requêtes au serveur.</li>
+<li>les notifications reçues du Web Socket comportant les rows mis à jour par les transactions du serveur et intéressant la session.</li>
+</ul>
+<p>Si <code>modeleactif</code> est vrai, l'état interne de la structure en mémoire reflète le dernier état de notification traité : la date-heure <code>dhsyncok</code> et <code>vcv</code> sont mises à jour en modèle mémoire et en IDB.</p>
+<p>Le traitement d'un bloc de notifications peut demander par GET des cartes de visite manquantes (nouveau contact ou nouveau membre)</p>
+<p><em><strong>Remarques :</strong></em></p>
+<ul>
+<li>quand un traitement de notification débute, il récupère tous les blocs de notification reçus et an attente de traitement : les suivants sont accumulés en queue pour le traitement ultérieur.</li>
+<li>quand il n'y a pas eu de traitement de notification pendant 5s, <code>dhsyncok</code> est écrite en IDB avec la date-heure courante.</li>
+</ul>
+<h2><code>localStorage</code> et IDB</h2>
+<p><strong>En mode <em>avion</em></strong> dans le <code>localStorage</code> les clés <code>monorg-hhh</code> donne chacune le numéro de compte <code>ccc</code> associé à la phrase de connexion dont le hash est <code>hhh</code> : <code>monorg-ccc</code> est le nom de la base IDB qui contient les données de la session de ce compte pour l'organisation <code>monorg</code> dans ce browser.</p>
+<p><strong>En mode <em>synchronisé</em></strong>, il se peut que la phrase secrète actuelle enregistrée dans le serveur (dont le hash est <code>hhh</code>) ait changé depuis la dernière session synchronisée exécutée pour ce compte :</p>
+<ul>
+<li>si la clé <code>monorg-hhh</code> n'existe pas : elle est créée avec pour valeur <code>monorg-ccc</code> (le nom de la base pour le compte <code>ccc</code>).</li>
+<li>si la base <code>monorg-ccc</code> n'existe pas elle est créée.</li>
+<li>l'ancienne clé, désormais obsolète, pointe bien vers le même compte mais ne permet plus d'accéder à ce compte, dont la clé K a été ré-encryptée par la nouvelle phrase.</li>
+</ul>
+<h2>Barre de titre</h2>
+<p>A droite :</p>
+<ul>
+<li>icône menu : ouvre le menu</li>
+<li>icône home : provoque le retour à Accueil mais demande confirmation de la déconnexion.</li>
+<li>icône et nom de l'organisation</li>
+</ul>
+<p>A gauche :</p>
+<ul>
+<li>icône donnant le mode <em>synchronisé incognito avion</em> : un clic explique ce que signifient les modes.</li>
+<li>icône donnant la phase :
+<ul>
+<li>pas connecté (carré blanc)</li>
+<li>en synchro (flèches tournantes)</li>
+<li>en travail :
+<ul>
+<li>rond vert : mode actif</li>
+<li>verrou rouge : mode passif (mise à jour interdite).</li>
+</ul>
+</li>
+<li>un clic explique ce que signifie l'état</li>
+</ul>
+</li>
+</ul>
+<h2>Classes</h2>
+<h2>Opérations de mise à jour</h2>
+<p>L'état des consommations d'un compte est une requête spéciale, sans synchro et qui réintègre les quotas des avatars : ça peut se faire à la connexion pour disposer des ressources dans la session (à rafraîchir explicitement donc en cours de session).</p>
+<h4>Connexion et création de compte</h4>
+<p>Créé / retourne les objets compte et de ses avatars. En session, ça met à jour ces objets en IDB, hors de toute synchro qui démarre après la connexion.</p>
+<p>Connexion<br>
+Création d'un compte privilégié + avatar<br>
+Acceptation d'un parrainage de création de compte + avatar -&gt; cext du parrain
+Refus d'un parrainage</p>
+<h4>Compte</h4>
+<p>Enregistrement / maj d'un parrainage -&gt; cext du parrain</p>
+<p>Refus d'une proposition de contact externe -&gt; cext du demandeur
+Refus d'une invitation groupe externe -&gt; cext de l'invitant</p>
+<p>Changement de phrase secrète -&gt; compte
+Maj des mots clés -&gt; compte
+Don de quotas</p>
+<ul>
+<li>à un avatar -&gt; compte C + avatar A2</li>
+<li>à un groupe</li>
+</ul>
+<p>Suppression du compte</p>
+<h4>Avatar</h4>
+<p>Nouvel avatar
+Maj CV
+Connexion, maj de DMA<br>
+Destruction d'un avatar</p>
+<p><em><strong>Proposition de contact interne</strong></em><br>
+Proposition de contact<br>
+Maj message / dlv d'une proposition<br>
+Suppression d'une proposition<br>
+Refus d'une proposition de contact</p>
+<p><em><strong>Proposition de contact externe</strong></em><br>
+Proposition de contact<br>
+Maj message / dlv d'une proposition<br>
+Suppression d'une proposition</p>
+<p><em><strong>Invitation interne à un groupe</strong></em><br>
+Invitation<br>
+Maj message / dlv d'une invitation<br>
+Suppression d'une invitation<br>
+Refus d'invitation</p>
+<p><em><strong>Invitation externe à un groupe</strong></em><br>
+Invitation<br>
+Maj message / dlv d'une invitation<br>
+Suppression d'une invitation</p>
+<h4>Contact</h4>
+<p>Acceptation d'une proposition de contact (création d'un contact)
+Acceptation d'une proposition externe de contact (création d'un contact)</p>
+<p>Maj d'un contact : info, notification, statut<br>
+Disparition d'un contact</p>
+<h4>Groupe</h4>
+<p>Création d'un groupe<br>
+Fermeture d'un groupe<br>
+Vote d'ouverture<br>
+Archivage / désarchivage
+Don de quota</p>
+<p><em><strong>Membre</strong></em><br>
+Acceptation d'une invitation interne (création d'un membre)<br>
+Acceptation d'une invitation externe (création d'un membre)</p>
+<p>Changement de statut<br>
+Maj de info, mots clés
+Résiliation</p>
+<h4>Secret</h4>
+<p>Création d'un secret de groupe<br>
+Création d'un secret de groupe avec cc<br>
+Création d'un secret personnel avec / sans cc</p>
+<p>Maj du texte / pièce jointe<br>
+Maj mots clés
+Permanent groupe<br>
+Permanent cc</p>
+<p>Destruction secret groupe
+Destruction d'une copie</p>

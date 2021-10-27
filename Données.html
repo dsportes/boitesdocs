@@ -1,4 +1,4 @@
-"<style>" 
+<style>
 #content, body {
     -webkit-text-size-adjust: 100%; text-size-adjust: 100%; color: black;
     font-family: "Ubuntu"; font-size: 1rem; line-height: 1.3;
@@ -28,7 +28,7 @@ ul ul ol, ul ol ol, ol ul ol, ol ol ol { list-style-type: lower-alpha; }
 hr { height:0.2rem; padding:0; margin:1.2rem 0; background-color:#78909C; border: 0 none; }
 li>p { margin-top:0.5rem; }
 h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
-    "</style>" 
+    </style>
 <h1>Boîtes à secrets - Modèle de données</h1>
 <h2>Identification des entités</h2>
 <p>Les clés AES et les PBKFD2 font 32 bytes (44 caractères en base64 url).</p>
@@ -45,7 +45,7 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 <p>Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bits (entier intègre en Javascript).</p>
 <h3>Compte</h3>
 <ul>
-<li><code>id</code> : un entier issu de 5 bytes aléatoires.</li>
+<li><code>id</code> : un entier issu de 6 bytes aléatoires.</li>
 <li><code>clé K</code> : 32 bytes aléatoires.</li>
 <li><code>pcb</code> : PBKFD2 de la phrase complète (clé X) - 32 bytes.</li>
 <li><code>dpbh</code> : hashBin (<em>integer</em>) du PBKFD2 du début de la phrase secrète.</li>
@@ -66,16 +66,17 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 <li><code>nom</code> : nom lisible et signifiant, entre 6 et 20 caractères.</li>
 <li><code>rnd</code> : 15 bytes aléatoires, 20 caractères en base 64.</li>
 </ul>
-<p>La <strong>clé de cryptage</strong> de la carte de visite est le SHA du nom complet.</p>
-<p>L'<code>id</code> d'un avatar est le hash (integer) de sa clé.</p>
+<p>La <strong>clé de cryptage</strong> de la carte de visite est le SHA de <code>rnd</code>.</p>
+<p>L'<code>id</code> d'un avatar est le hash (integer) des bytes de <code>rnd</code>.</p>
 <h3>Groupe</h3>
 <ul>
-<li><code>id</code> : un entier issu de 5 bytes aléatoires.</li>
+<li><code>id</code> : un entier issu de 6 bytes aléatoires.</li>
 <li><code>cleg</code> : la clé d'un groupe est formée de 32 bytes aléatoires.</li>
 </ul>
 <h3>Secret</h3>
 <ul>
-<li><code>ids</code> : entier issu de 5 bytes aléatoires.</li>
+<li><code>id</code> : du groupe ou de l'avatar propriétaire</li>
+<li><code>ns</code> : numéro relatif au groupe / avatar, entier issu de 4 bytes aléatoires.</li>
 </ul>
 <h3>Attributs génériques</h3>
 <ul>
@@ -89,7 +90,7 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 </ul>
 </li>
 <li><code>dlv</code> : date limite de validité, en nombre de jours depuis le 1/1/2021.</li>
-<li><code>st</code> : <code>contact, invitgr, membre, groupe, secret</code> : quand <code>st</code> est négatif c'est le numéro de semaine de sa suppression. Les rows ne sont pas supprimés physiquement pendant un certain temps afin de permettre aux mises à jour incrémentales des sessions de détecter les suppressions. Une session pour un compte étant ouverte au moins tous les 18 mois, les <code>st</code> négatifs de plus de 18 mois peuvent être physiquement supprimés.</li>
+<li><code>st</code> : <code>avatar, contact, invitgr, invitct, parrain, membre, groupe, secret</code> : quand <code>st</code> est négatif c'est le numéro de semaine de sa suppression. Les rows ne sont pas supprimés physiquement pendant un certain temps afin de permettre aux mises à jour incrémentales des sessions de détecter les suppressions. Une session pour un compte étant ouverte au moins tous les 18 mois, les <code>st</code> négatifs de plus de 18 mois peuvent être physiquement supprimés.</li>
 </ul>
 <p>Les comptes sont censés avoir au maximum N semaines entre 2 connexions faute de quoi ils sont considérés comme disparus.</p>
 <h3>Signatures des comptes, avatars et groupes (<code>dds</code>)</h3>
@@ -105,25 +106,15 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 <li>pour les groupes : ils n'ont plus d'avatars qui les référencent, purge de leur données.</li>
 <li>pour les avatars :
 <ul>
-<li>mise à jour le statut OK/alerte/disparu.
+<li>mise à jour du statut OK/alerte/disparu.
 <ul>
 <li><em>alerte</em> : <em>l'avatar</em> est resté plusieurs mois sans connexion.</li>
-<li><em>disparu</em> : <em>l'avatar</em> est définitivement considéré comme disparu.</li>
+<li><em>disparu / supprimé</em> : <em>l'avatar</em> est définitivement disparu.</li>
 </ul>
 </li>
 <li>purge / suppression de données pour les disparus.</li>
 </ul>
 </li>
-</ul>
-<p><strong>Remarques</strong></p>
-<ul>
-<li>à la signature d'un avatar, quand <code>dds</code> doit être mise à jour :
-<ul>
-<li>si le statut était <em>OK</em>, <code>v</code> n'est <strong>pas</strong> changé,</li>
-<li>si le statut était <em>alerte</em> (et va donc repasser à <em>OK</em>), <code>v</code> est changée afin que la mise à jour soit propagée dans les stockage off line.</li>
-</ul>
-</li>
-<li>l'état disparu est immuable, un avatar ne <em>renaît</em> jamais, le row <code>avatar</code> est marqué <em>supprimé</em>, les autres propriétés sont mise à null et le row sera physiquement détruit 18 mois après sa suppression.</li>
 </ul>
 <h3>Version des rows</h3>
 <p>Les rows des tables devant être présents sur les clients ont une version, de manière à pouvoir être chargés sur les postes clients de manière incrémentale : la version est donc croissante avec le temps et figure dans tous les rows de ces tables.</p>
@@ -137,8 +128,7 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 <p>Afin de pouvoir rafraîchir uniquement les cartes de visites des avatars, la propriété vcv de avatar donne la version dans la séquence universelle</p>
 <h2>Tables</h2>
 <ul>
-<li><code>versions</code> (id) : table des prochains numéros de versions (actuel et dernière sauvegarde)</li>
-<li><code>etat</code> (singleton) : état courant permanent du serveur</li>
+<li><code>versions</code> (id) : table des prochains numéros de versions (actuel et dernière sauvegarde) et autres singletons (id value)</li>
 <li><code>avgrvq</code> (id) : volumes et quotas d'un avatar ou groupe</li>
 <li><code>avrsa</code> (id) : clé publique d'un avatar</li>
 </ul>
@@ -146,19 +136,22 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 <ul>
 <li><code>compte</code> (id) : authentification et données d'un compte</li>
 <li><code>avatar</code> (id) : données d'un avatar et liste de ses contacts</li>
-<li><code>invitgr</code> (niv) id : invitation reçue par un avatar à devenir membre d'un groupe</li>
+<li><code>invitgr</code> (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe</li>
 <li><code>contact</code> (id, nc) : données d'un contact d'un avatar</li>
-<li><code>invitct</code> (id) : invitation reçue à lier un contact fort avec un autre avatar</li>
+<li><code>invitct</code> (id, ni) : invitation reçue à lier un contact fort avec un autre avatar</li>
 <li><code>rencontre</code> (prh) id : communication par A de son nom complet à un avatar B non connu de A dans l'application</li>
 <li><code>parrain</code> (pph) id : parrainage par un avatar A de la création d'un nouveau compte</li>
 <li><code>groupe</code> (id) : données du groupe et liste de ses avatars, invités ou ayant été pressentis, un jour à être membre.</li>
 <li><code>membre</code> (id, im) : données d'un membre du groupe</li>
-<li><code>secret</code> (ids) id : données d'un secret d'un avatar ou groupe</li>
+<li><code>secret</code> (id, ns) : données d'un secret d'un avatar ou groupe</li>
 </ul>
-<h2>Table <code>etat</code> - singleton d'état global du serveur</h2>
-<p>Ce singleton est un JSON où le serveur peut stocker des données persistantes à propos de son état global : par exemple les date-heures d'exécution des derniers traitements GC, la dhc du dernier backup de la base...</p>
-<pre><code>  CREATE TABLE &quot;etat&quot; (&quot;data&quot;	BLOB);
-</code></pre>
+<h2>Singletons id / valeur</h2>
+<p>Ils sont identifiés par un numéro de singleton.</p>
+<ul>
+<li>Leur valeur est un BLOB, qui peut être un JSON en UTF8.</li>
+<li>Le singleton 0 est un JSON libre utilisé pour stocker l'état du serveur (dernière sauvegarde, etc.).</li>
+<li>C'est la table <code>versions</code> qui les stocke.</li>
+</ul>
 <h2>Table <code>versions</code> - CP : <code>id</code></h2>
 <p>Au lieu d'un compteur par avatar / groupe / compte on a 100 compteurs, un compteur pour plusieurs avatars / groupe (le reste de la division de l'id par 99 + 1). Le compteur 0 est celui de la séquence universelle.</p>
 <p>La colonne <code>v</code> est un array d'entiers.</p>
@@ -168,7 +161,7 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 <p>L'id 0 correspondant à l'état courant et l'id 1 à la dernière sauvegarde.</p>
 <pre><code>CREATE TABLE &quot;versions&quot; (
 &quot;id&quot;  INTEGER,
-&quot;v&quot;  BLOB
+&quot;v&quot;  BLOB,
 PRIMARY KEY(&quot;id&quot;)
 ) WITHOUT ROWID;
 </code></pre>
@@ -211,9 +204,9 @@ Les volumes mensuels sont mis à 0 le premier de chaque mois à minuit. Le cas �
 &quot;v&quot;		INTEGER,
 &quot;dds&quot; INTEGER,
 &quot;dpbh&quot;	INTEGER,
-&quot;pcbsh&quot;	INTEGER,
+&quot;pcbh&quot;	INTEGER,
 &quot;kx&quot;   BLOB,
-&quot;lack&quot;  BLOB,
+&quot;mack&quot;  BLOB,
 &quot;mmck&quot;	BLOB,
 PRIMARY KEY(&quot;id&quot;)
 ) WITHOUT ROWID;
@@ -223,8 +216,8 @@ CREATE UNIQUE INDEX &quot;dpbh_compte&quot; ON &quot;compte&quot; ( &quot;dpbh&q
 <li><code>id</code> : id du compte.</li>
 <li><code>v</code> :</li>
 <li><code>dds</code> : date (jour) de dernière signature.</li>
-<li><code>dpbh</code> : pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.</li>
-<li><code>pcbsh</code> : hash du SHA du PBKFD2 de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de <code>kx</code>.</li>
+<li><code>dpbh</code> : hashBin (53 bits) du PBKFD2 du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.</li>
+<li><code>pcbh</code> : hashBin (53 bits) du PBKFD2 de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de <code>kx</code>.</li>
 <li><code>kx</code> : clé K du compte, crypté par la X (phrase secrète courante).</li>
 <li><code>mmck</code> {} : cryptées par la clé K, map des mots clés déclarés par le compte.
 <ul>
@@ -232,9 +225,9 @@ CREATE UNIQUE INDEX &quot;dpbh_compte&quot; ON &quot;compte&quot; ( &quot;dpbh&q
 <li><em>valeur</em> : libellé du mot clé.</li>
 </ul>
 </li>
-<li><code>lack</code> [] : liste des avatars du compte <code>[nom@rnd, cpriv]</code>, cryptée par la clé K,
+<li><code>mack</code> {} : map des avatars du compte <code>[nom@rnd, cpriv]</code>, cryptée par la clé K
 <ul>
-<li><code>nom@rnd</code> : nom complet.</li>
+<li><code>nomc</code> : <code>nom@rnd</code>, nom complet.</li>
 <li><code>cpriv</code> : clé privée asymétrique.</li>
 </ul>
 </li>
@@ -272,14 +265,13 @@ PRIMARY KEY(&quot;id&quot;)
 &quot;st&quot;  INTEGER,
 &quot;vcv&quot; INTEGER,
 &quot;dds&quot; INTEGER,
-&quot;ad&quot; INTEGER,
 &quot;cva&quot;	BLOB,
 &quot;lctk&quot; BLOB,
 PRIMARY KEY(&quot;id&quot;)
 ) WITHOUT ROWID;
 CREATE INDEX &quot;id_v_avatar&quot; ON &quot;avatar&quot; ( &quot;id&quot;, &quot;v&quot; );
 CREATE INDEX &quot;dds_avatar&quot; ON &quot;avatar&quot; ( &quot;dds&quot; );
-CREATE INDEX &quot;vcv_avatar&quot; ON &quot;avatar&quot; ( &quot;vcv&quot;);
+CREATE INDEX &quot;id_vcv_avatar&quot; ON &quot;avatar&quot; ( &quot;id&quot;, &quot;vcv&quot;);
 </code></pre>
 <ul>
 <li><code>id</code> : id de l'avatar</li>
@@ -289,6 +281,26 @@ CREATE INDEX &quot;vcv_avatar&quot; ON &quot;avatar&quot; ( &quot;vcv&quot;);
 <li><code>dds</code> :</li>
 <li><code>cva</code> : carte de visite de l'avatar cryptée par la clé de l'avatar <code>[photo, info]</code>.</li>
 <li><code>lctk</code> : liste, cryptée par la clé K du compte, des ids des contacts de l'avatar afin de garantir l'unicité de ceux-ci. L'indice d'un contact est celui dans cette liste + 1 (la valeur 0 est réservée).</li>
+</ul>
+<p>Sur GC quotidien sur <code>dds</code> :</p>
+<ul>
+<li>mise à jour du statut <code>st</code> OK/alerte/disparu.
+<ul>
+<li><em>alerte</em> (1): <em>l'avatar</em> est resté plusieurs mois sans connexion.</li>
+<li><em>disparu / supprimé</em> (&lt;0): <em>l'avatar</em> est définitivement disparu.</li>
+</ul>
+</li>
+<li>purge / suppression des données pour les disparus.</li>
+</ul>
+<p><strong>Remarques</strong></p>
+<ul>
+<li>à la signature d'un avatar, quand <code>dds</code> doit être mise à jour :
+<ul>
+<li>si le statut était <em>OK</em>, <code>v</code> n'est <strong>pas</strong> changé,</li>
+<li>si le statut était <em>alerte</em> (et va donc repasser à <em>OK</em>), <code>v</code> est changée afin que la mise à jour soit propagée dans les stockage off line.</li>
+</ul>
+</li>
+<li>l'état disparu est immuable, un avatar ne <em>renaît</em> jamais, le row <code>avatar</code> est marqué <em>supprimé</em>, les autres propriétés sont mise à null et le row sera physiquement détruit 18 mois après sa suppression.</li>
 </ul>
 <h3>Table <code>contact</code> : CP <code>id ic</code>. Contact d'un avatar A</h3>
 <p>Les contacts ont un indice de contact <code>ic</code> attribué en séquence à la création du contact et qui les identifie pour toujours relativement à l'avatar A.<br>
@@ -310,10 +322,9 @@ Un avatar A peut avoir pour contact un avatar B avec deux états successifs poss
 &quot;ardc&quot;	BLOB,
 &quot;icbc&quot;  BLOB
 &quot;datak&quot;	BLOB,
-&quot;rndgk&quot; BLOB,
 PRIMARY KEY(&quot;id&quot;, &quot;ic&quot;)
 );
-CREATE INDEX &quot;id_v_contact&quot; ON &quot;contact&quot; ( &quot;id&quot;, &quot;v&quot; )
+CREATE INDEX &quot;id_v_contact&quot; ON &quot;contact&quot; ( &quot;id&quot;, &quot;v&quot; );
 </code></pre>
 <ul>
 <li><code>id</code> : id de l'avatar A</li>
@@ -366,34 +377,26 @@ CREATE INDEX &quot;id_v_contact&quot; ON &quot;contact&quot; ( &quot;id&quot;, &
 <li>le row <code>contact</code> d'un avatar <em>disparu</em> reste pour information historique. La carte de visite du contact n'existe plus. L'utilisateur ne peut demander la suppression ce row d'information historique (<code>st</code> passe à &lt; 0) que si c'était un contact simple.</li>
 </ul>
 <h2>Table <code>invitgr</code>. Invitation d'un avatar M par un animateur A à un groupe G</h2>
-<p>Les invitations restent présentes jusqu'à disparition de l'avatar M : un numéro aléatoire d'invitation <code>niv</code> les identifient.</p>
+<p>Les invitations restent présentes jusqu'à disparition de l'avatar M : un numéro aléatoire d'invitation <code>ni</code> les identifient relativement à l'avatar invité. C'est <code>invitgr</code> qui permet à une session d'un compte d'obtenir la liste de ses groupes (en tant qu'invité ou actif).</p>
 <p>Pour un couple avatar / groupe il ne peut y avoir qu'au plus une invitation : ceci est garanti par le row <code>groupe</code>.</p>
 <p><em>Remarque</em> : L'invitant peut retrouver en session la liste des invitations en cours qu'il a faites : un membre de G avec son indice de membre comme invitant et un statut <code>invité</code>.</p>
 <pre><code>CREATE TABLE &quot;invitgr&quot; (
-&quot;niv&quot; INTEGER,
 &quot;id&quot;  INTEGER,
+&quot;ni&quot; INTEGER,
 &quot;v&quot;   INTEGER,
 &quot;dlv&quot;	INTEGER,
 &quot;st&quot;  INTEGER,
 &quot;datap&quot; BLOB,
 &quot;datak&quot; BLOB,
-&quot;clek&quot;  BLOB,
-PRIMARY KEY (&quot;niv&quot;)
-) WITHOUT ROWID;
-CREATE INDEX &quot;dlv_invitgr&quot; ON &quot;invitgr&quot; ( &quot;dlv&quot; );
-CREATE INDEX &quot;id_invitgr&quot; ON &quot;invitgr&quot; ( &quot;id&quot; );
+PRIMARY KEY (&quot;id&quot;, &quot;ni&quot;));
+CREATE INDEX &quot;dlv_invitgr&quot; ON &quot;invitgr&quot; ( &quot;dlv&quot;);
 </code></pre>
 <ul>
-<li><code>niv</code> : numéro d'invitation.</li>
 <li><code>id</code> : id du membre invité.</li>
+<li><code>ni</code> : numéro d'invitation.</li>
 <li><code>v</code> :</li>
 <li><code>dlv</code> :</li>
-<li><code>st</code> : statut. Si <code>st</code> &lt; 0, c'est une suppression.
-<ul>
-<li><code>x</code> : 0:annulée, (1:pressenti), 2:invité, 3:ayant accepté, 4:ayant refusé, 5:sans réponse, 8: résilié, 9:disparu.</li>
-<li><code>y</code> : 1:lecteur, 2:auteur, 3:administrateur.</li>
-</ul>
-</li>
+<li><code>st</code> : statut. Si <code>st</code> &lt; 0, c'est une suppression annulation. 0:invité, 1:actif</li>
 <li><code>datap</code> : pour une invitation <em>en cours</em>, crypté par la clé publique du membre invité, référence dans la liste des membres du groupe <code>[idg, cleg, im]</code>.
 <ul>
 <li><code>idg</code> : id du groupe.</li>
@@ -404,59 +407,55 @@ CREATE INDEX &quot;id_invitgr&quot; ON &quot;invitgr&quot; ( &quot;id&quot; );
 </li>
 </ul>
 </li>
-<li><code>datak</code> : crypté par la clé K du compte de l'avatar, après une acceptation :
-<ul>
-<li><code>idg</code> : id du groupe.</li>
-<li><code>im</code> : numéro de membre de l'invité dans le groupe.</li>
-<li><code>info</code> : texte pour le membre à propos du groupe.</li>
-<li><code>mc</code> : liste des mots clés de recherche du groupe pour l'avatar.</li>
-</ul>
-</li>
-<li><code>clegk</code> : clé du groupe cryptée par la clé K après acceptation. Remise à null lors de la résiliation par un animateur (ou du membre lui-même).</li>
+<li><code>datak</code> : même données que <code>datap</code> mais cryptées par la clé K du compte de l'invité, après son acceptation.</li>
 </ul>
 <p><strong>Remarques :</strong></p>
 <ul>
-<li>tant que l'invitation est en statut <em>en cours</em> et que <code>dlv</code> n'est pas dépassée, <code>datap</code> existe et l'invitation est en attente.</li>
-<li>le GC ayant détecté un dépassement de dlv, <em>supprime</em> le row.</li>
-<li>en cas d'acceptation le statut passe à 2, <code>datap</code> est null et <code>datak</code> contient les informations d'accès. <code>dlv</code> est à 99999.</li>
-<li>la clé du groupe est <code>clegk</code> est mise à null sur résiliation. Le groupe, ses membres et ses secrets sont inaccessibles après résiliation (dans <code>datak</code>, <code>idg / im</code> sont inutiles).</li>
+<li>tant que l'invitation est en statut <em>invité</em> et que <code>dlv</code> n'est pas dépassée, <code>datap</code> existe et l'invitation est en attente.</li>
+<li>le GC ayant détecté un dépassement de <code>dlv</code>, <em>supprime</em> le row.</li>
+<li><em>acceptation</em> : le statut passe à 1, <code>datap</code> est null et <code>datak</code> contient les informations d'accès. <code>dlv</code> est à 99999. <code>membre</code> est mis à jour.</li>
+<li><em>refus</em> : le statut passe négatif, <code>datap</code> est null et <code>datak</code> contient les informations d'accès. <code>membre</code> est mis à jour.</li>
+<li><em>résiliation / disparition</em> : <code>datak</code> est mis à null, <code>st</code> &lt; 0. Le groupe, ses membres et ses secrets sont inaccessibles après résiliation.</li>
+<li>Dans ce row seuls changent <code>st</code>, <code>dlv</code>, et la mise à null de <code>datak / datap</code> (immuables) en fonction du statut d'appartenance du membre au groupe : <code>v</code> est nécessaire pour trapper ces changements.</li>
 </ul>
 <h2>Table <code>invitct</code> : CP : <code>id</code>. Invitation en attente reçue par B de A à établir un contact fort</h2>
 <p>Un contact <em>fort</em> est requis pour partager, un statut, une ardoise, des secrets et s'échanger des quotas.</p>
 <pre><code>CREATE TABLE &quot;invitct&quot; (
-&quot;cch&quot; INTEGER,
 &quot;id&quot;  INTEGER,
+&quot;ni&quot; INTEGER,
+&quot;v&quot;   INTEGER,
 &quot;dlv&quot;	INTEGER,
 &quot;st&quot;  INTEGER,
-&quot;ccpub&quot; BLOB,
-&quot;datac&quot;  BLOB,
+&quot;datap&quot; BLOB,
+&quot;datak&quot;  BLOB,
 &quot;ardc&quot;  BLOB)
-PRIMARY KEY (&quot;cch&quot;) WITHOUT ROWID;
+PRIMARY KEY (&quot;id&quot;, &quot;ni&quot;);
 CREATE INDEX &quot;dlv_invitct&quot; ON &quot;invitct&quot; ( &quot;dlv&quot; );
-CREATE INDEX &quot;id_invitct&quot; ON &quot;invitct&quot; ( &quot;id&quot; );
 </code></pre>
 <ul>
-<li><code>cch</code> : hash de la clé <code>cc</code>, sert d'identifiant à l'invitation.</li>
 <li><code>id</code> : id de B.</li>
-<li><code>dlv</code> :</li>
-<li><code>st</code> : 0: annulée, 1: en attente, 2: acceptée, 3: refusée</li>
-<li><code>ccpub</code> : clé <code>cc</code> du contact <em>fort</em> A / B, définie par A, cryptée par la clé publique de B.</li>
-<li><code>datac</code> : données cryptées par la clé <code>cc</code>.
+<li><code>ni</code> : numéro aléatoire d'invitation en complément de <code>id</code>.</li>
+<li><code>v</code></li>
+<li><code>dlv</code> : la date limite de validité permettant de purger les rencontres (quels qu'en soient les statuts).</li>
+<li><code>st</code> : &lt;= 0: annulée, 0: en attente, 1: acceptée, 2: refusée</li>
+<li><code>datap</code> : données cryptées par la clé publique de B.
 <ul>
 <li><code>nom@rnd</code> : nom complet de A.</li>
 <li><code>ic</code> : numéro du contact de A pour B (pour que B puisse écrire le statut et l'ardoise dans <code>contact</code> de A).</li>
+<li><code>cc</code> : clé <code>cc</code> du contact <em>fort</em> A / B, définie par A.</li>
 </ul>
 </li>
-<li><code>ardc</code> : texte de sollicitation écrit par A pour B et/ou réponse de B.</li>
+<li><code>datak</code> : même données que <code>datap</code> mais cryptées par la clé K de B après acceptation ou refus.</li>
+<li><code>ardc</code> : texte de sollicitation écrit par A pour B et/ou réponse de B (après acceptation ou refus).</li>
 </ul>
 <p><strong>En cas d'acceptation</strong>, B peut, soit créer un contact chez lui pour A quand il n'y en a pas encore, soit récupérer celui existant chez lui pour A s'il l'avait déjà en contact simple, et inscrire les données de A comme contact <em>fort</em> chez lui (<code>st cc ardc icbc</code>).</p>
 <ul>
-<li>Chez A il y a mise à jour de <code>st ardc icbc</code> avec le remerciement de B dans <code>ardc</code>. Le statut <code>st</code> du row <code>invitct</code> (de B) est à 2. <code>icbc</code> est le numéro de contact de A chez B et est inscrit chez A pour permettre la mise à jour dupliquée ultérieure du statut et de l'ardoise.</li>
+<li>Chez A il y a mise à jour de <code>st ardc icbc</code> avec le remerciement de B dans <code>ardc</code>. Le statut <code>st</code> du row <code>invitct</code> (de B) est à 1. <code>icbc</code> est le numéro de contact de A chez B et est inscrit chez A pour permettre la mise à jour dupliquée ultérieure du statut et de l'ardoise.</li>
 </ul>
-<p><strong>En cas de refus</strong>, le contact <code>ic</code> chez A reste un contact <em>simple</em>, l'ardoise <code>ardc</code> contient la raison du refus. Le statut <code>st</code> du row <code>invitct</code> (de B) est à 3.</p>
+<p><strong>En cas de refus</strong>, le contact <code>ic</code> chez A reste un contact <em>simple</em>, l'ardoise <code>ardc</code> contient la raison du refus. Le statut <code>st</code> du row <code>invitct</code> (de B) est à 2.</p>
 <p><strong>Si B ne répond pas à temps</strong>, le dépassement de <code>dlv</code> dans <code>contact</code> de A détecte le cas : le contact <code>ic</code> chez A reste un contact <em>simple</em>.</p>
 <p>Dans tous les cas le row <code>invitct</code> (de B) est supprimé par le GC sur la <code>dlv</code>.</p>
-<p>A peut annuler une invitation (par sa clé primaire) avant la réponse de B.</p>
+<p>A peut annuler une invitation (par sa clé primaire) avant la réponse de B (<code>st</code> &lt; 0).</p>
 <p><strong>Quand deux invitations croisées de A pour B et de B pour A sont en cours :</strong>
 A par exemple accepte celle de B (avant que B n'ait accepté celle de A).</p>
 <ul>
@@ -478,21 +477,26 @@ A par exemple accepte celle de B (avant que B n'ait accepté celle de A).</p>
 &quot;nc&quot; INTEGER,  
 &quot;dlv&quot;  INTEGER,
 &quot;st&quot;  INTEGER,
+&quot;q1&quot; INTEGER,
+&quot;q2&quot; INTEGER,
+&quot;qm1&quot; INTEGER,
+&quot;qm2&quot; INTEGER,
 &quot;datak&quot;  BLOB,
 &quot;datax&quot;  BLOB,
 &quot;ardc&quot;  BLOB,
 PRIMARY KEY(&quot;pph&quot;)
 ) WITHOUT ROWID;
 CREATE INDEX &quot;dlv_parrain&quot; ON &quot;parrain&quot; ( &quot;dlv&quot; );
-CREATE INDEX &quot;id_parrain&quot; ON &quot;parrain&quot; ( &quot;id&quot; )
+CREATE INDEX &quot;id_parrain&quot; ON &quot;parrain&quot; ( &quot;id&quot; );
 </code></pre>
 <ul>
 <li><code>pph</code> : hash du PBKFD2 de la phrase de parrainage.</li>
 <li><code>id</code> : id du parrain.</li>
 <li><code>ic</code> : numéro de contact du filleul chez le parrain.</li>
-<li><code>dlv</code> : la date limite de validité permettant de purger les parrainages.</li>
+<li><code>dlv</code> : la date limite de validité permettant de purger les parrainages (quels qu'en soient les statuts).</li>
 <li><code>st</code> : 0: annulé par P, 1: en attente de décision de F, 2: accepté par F, 3: refusé par F</li>
-<li><code>datak</code> : phrase de parrainage cryptée par la clé K du parrain.</li>
+<li><code>q1 q2 qm1 qm2</code> : quotas donnés par P à F en cas d'acceptation.</li>
+<li><code>datak</code> : cryptée par la clé K du parrain, <strong>phrase de parrainage et clé X</strong> (PBKFD2 de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD2 en session du parrain pour qu'il puisse afficher <code>datax</code>.</li>
 <li><code>datax</code> : données de l'invitation cryptées par le PBKFD2 de la phrase de parrainage.
 <ul>
 <li><code>nomp</code> : <code>nom@rnd</code> nom complet de l'avatar P.</li>
@@ -500,7 +504,6 @@ CREATE INDEX &quot;id_parrain&quot; ON &quot;parrain&quot; ( &quot;id&quot; )
 <li><code>cc</code> : clé <code>cc</code> générée par P pour le couple P / F.</li>
 </ul>
 </li>
-<li><code>q1 q2 qm1 qm2</code> : quotas donnés par P à F en cas d'acceptation.</li>
 <li><code>ardc</code> : cryptée par la clé <code>cc</code>, <em>ardoise</em>, texte de sollicitation écrit par A pour B et/ou réponse de B.</li>
 </ul>
 <p><strong>La parrain créé par anticipation un contact <em>fort</em> pour le filleul</strong>  avec un row <code>contact</code>.</p>
@@ -510,14 +513,14 @@ CREATE INDEX &quot;id_parrain&quot; ON &quot;parrain&quot; ( &quot;id&quot; )
 <p><strong>Si le filleul ne fait rien à temps : (<code>st</code> toujours à 1)</strong></p>
 <ul>
 <li>Lors du GC sur la <code>dlv</code>, le row <code>parrain</code> sera supprimé par GC de la <code>dlv</code>.</li>
-<li>Les quotas de P lui sont restitués par le GC.</li>
+<li>Les quotas donnés par le parrain (<code>q1 q2 qm1 qm2</code>) lui sont restitués par le GC qui a l'id du parrain dans <code>id</code>.</li>
 </ul>
 <p><strong>Si le filleul refuse le parrainage :</strong></p>
 <ul>
 <li>Le row dans <code>contact</code> du parrain est marqué avec un <code>st</code> &lt; 0 (supprimé), les autres propriétés sont null).</li>
-<li>L'ardoise du <code>parrain</code> renseigne sur la raison de F (et <code>datax</code> mis à null).</li>
+<li>L'ardoise du <code>parrain</code> renseigne sur la raison de F.</li>
 <li>Le row <code>parrain</code> est immuable et sera purgé par le GC sur <code>dlv</code>.</li>
-<li>Les quotas de P lui sont restitués.</li>
+<li>Les quotas donnés par P lui sont restitués.</li>
 </ul>
 <p><strong>Si le filleul accepte le parrainage :</strong></p>
 <ul>
@@ -525,7 +528,11 @@ CREATE INDEX &quot;id_parrain&quot; ON &quot;parrain&quot; ( &quot;id&quot; )
 <li>L'ardoise des <code>contact</code> de P et de F contient l'ardoise de l'acceptation (<code>ardc</code>).</li>
 <li>Le row <code>parrain</code> est immuable et sera purgé par le GC sur <code>dlv</code>.</li>
 </ul>
-<p><strong>Le parrain peut annuler son row :</strong> son <code>st</code> passe à 0.</p>
+<p><strong>Le parrain peut annuler son row :</strong></p>
+<ul>
+<li>son <code>st</code> passe à 0.</li>
+<li>Les quotas donnés par P lui sont restitués.</li>
+</ul>
 <p>Dans tous les cas le GC sur <code>dlv</code> supprime le row <code>parrain</code>.</p>
 <h2>Table <code>rencontre</code> : CP <code>prh</code>. Rencontre entre les avatars A et B</h2>
 <p>A et B se sont rencontrés dans la <em>vraie</em> vie mais ni l'un ni l'autre n'a les coordonnées de l'autre pour,</p>
@@ -535,7 +542,7 @@ CREATE INDEX &quot;id_parrain&quot; ON &quot;parrain&quot; ( &quot;id&quot; )
 </ul>
 <p>Une rencontre est juste un row qui va permettre à A de transmettre à B son <code>nom@rnd</code> en utilisant une phrase de rencontre convenue entre eux.<br>
 En accédant à cette rencontre B pourra inscrire A comme contact <em>simple</em> : ensuite il pourra normalement l'inviter à un contact <em>fort</em> (ou l'inviter à un groupe).</p>
-<p>Une rencontre est identifiée par le hash du PBKFD2 de la phrase de rencontre.</p>
+<p>Une rencontre est identifiée par le hash de la <strong>clé X (PBKFD2 de la phrase de rencontre)</strong>.</p>
 <pre><code>CREATE TABLE &quot;rencontre&quot; (
 &quot;prh&quot; INTEGER,
 &quot;id&quot; INTEGER,
@@ -543,25 +550,25 @@ En accédant à cette rencontre B pourra inscrire A comme contact <em>simple</em
 &quot;dlv&quot; INTEGER,
 &quot;st&quot;  INTEGER,
 &quot;datak&quot; BLOB,
-&quot;datax&quot; BLOB,
+&quot;nomcx&quot; BLOB,
 PRIMARY KEY(&quot;prh&quot;)
 ) WITHOUT ROWID;
-CREATE INDEX &quot;dlv_rencontre&quot; ON &quot;rencontre&quot; ( &quot;dlv&quot; )
-CREATE INDEX &quot;id_rencontre&quot; ON &quot;rencontre&quot; ( &quot;id&quot; )
+CREATE INDEX &quot;dlv_rencontre&quot; ON &quot;rencontre&quot; ( &quot;dlv&quot; );
+CREATE INDEX &quot;id_v_rencontre&quot; ON &quot;rencontre&quot; ( &quot;id&quot;, &quot;v&quot; );
 </code></pre>
 <ul>
 <li><code>prh</code> : hash du PBKFD2 de la phrase de rencontre.</li>
 <li><code>id</code> : id de l'avatar A ayant initié la rencontre.</li>
 <li><code>v</code> :</li>
-<li><code>dlv</code> : la date limite de validité permettant de purger les rencontres.</li>
-<li><code>st</code> : 0:annulée, 1:en attente, 2:acceptée, 3:refusée</li>
-<li><code>datak</code> : phrase de rencontre cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.</li>
+<li><code>dlv</code> : date limite de validité permettant de purger les rencontres.</li>
+<li><code>st</code> : &lt;= 0:annulée, 1:en attente, 2:acceptée, 3:refusée</li>
+<li><code>datak</code> : <strong>phrase de rencontre et son PBKFD2</strong> (clé X) cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.</li>
 <li><code>nomcx</code> : nom complet de A (pas de B, son nom complet n'est justement pas connu de A) crypté par la clé X.</li>
 </ul>
-<p>Si B accepte la rencontre, il créé un contact simple, <code>st</code> passe à 2.</p>
-<p>Si B refuse la rencontre, <code>st</code> passe à 3.</p>
-<p>Le GC sur <code>dlv</code> détruit le row <code>rencontre</code>.</p>
-<p>A peut annuler la rencontre (remord), <code>st</code> passe à 0.</p>
+<p>Si B accepte la rencontre, il créé un contact simple, <code>st</code> passe à 2 (permet à A d'en suivre l'évolution).</p>
+<p>Si B refuse la rencontre, <code>st</code> passe à 3 (permet à A d'en suivre l'évolution).</p>
+<p>Le GC sur <code>dlv</code> détruit le row <code>rencontre</code> (<code>st</code> &lt; 0, <code>datak / nomcx</code> sont mis à null).</p>
+<p>A peut annuler la rencontre (remord), <code>st</code> passe à &lt; 0.</p>
 <h2>Table <code>groupe</code> : CP: <code>id</code>. Entête et état d'un groupe</h2>
 <p>Un groupe est caractérisé par :</p>
 <ul>
@@ -581,11 +588,12 @@ CREATE INDEX &quot;id_rencontre&quot; ON &quot;rencontre&quot; ( &quot;id&quot; 
 &quot;lstmg&quot; BLOB,
 PRIMARY KEY(&quot;id&quot;)
 ) WITHOUT ROWID;
-CREATE INDEX &quot;id_v_groupe&quot; ON &quot;groupe&quot; ( &quot;id&quot;, &quot;v&quot; )
+CREATE INDEX &quot;id_v_groupe&quot; ON &quot;groupe&quot; ( &quot;id&quot;, &quot;v&quot; );
 </code></pre>
 <ul>
 <li><code>id</code> : id du groupe.</li>
 <li><code>v</code> :</li>
+<li><code>dds</code> :</li>
 <li><code>st</code> : statut : &lt; 0-supprimé - Deux chiffres <code>x y</code>
 <ul>
 <li><code>x</code> : 1-ouvert, 2-fermé, 3-ré-ouverture en vote</li>
@@ -605,13 +613,14 @@ Les données relatives aux membres sont cryptées par la clé du groupe.</p>
 &quot;id&quot;  INTEGER,
 &quot;im&quot;	INTEGER,
 &quot;v&quot;		INTEGER,
-&quot;st&quot;	TEXT,
+&quot;st&quot;	INTEGER,
 &quot;vote&quot;  INTEGER,
 &quot;dlv&quot;   INTEGER,
 &quot;datag&quot;	BLOB,
 &quot;ardg&quot;  BLOB,
+&quot;lmck&quot;  BLOB,
 PRIMARY KEY(&quot;id&quot;, &quot;im&quot;));
-CREATE INDEX &quot;id_v_avlab&quot; ON &quot;membre&quot; ( &quot;id&quot;, &quot;v&quot; )
+CREATE INDEX &quot;id_v_membre&quot; ON &quot;membre&quot; ( &quot;id&quot;, &quot;v&quot; );
 </code></pre>
 <ul>
 <li><code>id</code> : id du groupe.</li>
@@ -619,16 +628,16 @@ CREATE INDEX &quot;id_v_avlab&quot; ON &quot;membre&quot; ( &quot;id&quot;, &quo
 <li><code>v</code> :</li>
 <li><code>st</code> : statut. <code>xy</code> : &lt; 0 signifie supprimé.
 <ul>
-<li><code>x</code> : 0:annulée, (1:pressenti), 2:invité, 3:ayant accepté, 4:ayant refusé, 5:sans réponse, 8: résilié, 9:disparu.</li>
+<li><code>x</code> : 1:pressenti, 2:invité, 3:ayant refusé, 3:actif, 8: résilié, 9:disparu.</li>
 <li><code>y</code> : 0:lecteur, 1:auteur, 2:administrateur.</li>
 </ul>
 </li>
 <li><code>vote</code> : vote de réouverture.</li>
-<li><code>dlv</code> : date limite de validité de l'invitation.</li>
+<li><code>dlv</code> : date limite de validité de l'invitation. N'est significative qu'en statut <em>invité</em>.</li>
 <li><code>datag</code> : données cryptées par la clé du groupe.
 <ul>
-<li><code>niv</code> : numéro d'invitation du membre dans <code>invitgr</code>. Permet de supprimer sa cle de groupe quand il est résilié et de mettre à jour son statut.</li>
-<li><code>nomc</code> : nom complet de l'avatar <code>nom@rnd</code>.
+<li><code>nomc</code> : nom complet de l'avatar <code>nom@rnd</code> (donne la clé d'accès à sa carte de visite)</li>
+<li><code>ni</code> : numéro d'invitation du membre dans <code>invitgr</code> relativement à son <code>id</code> (issu de <code>nomc</code>). Permet de supprimer son accès au groupe (<code>st &lt; 0, datap / datak null</code> dans <code>invitgr</code>) quand il est résilié / disparu.
 <ul>
 <li><code>idi</code> : id du membre qui l'a pressenti puis invité.</li>
 <li><code>q1 q2</code> : balance des quotas donnés / reçus par le membre au groupe.</li>
@@ -637,12 +646,13 @@ CREATE INDEX &quot;id_v_avlab&quot; ON &quot;membre&quot; ( &quot;id&quot;, &quo
 </ul>
 </li>
 <li><code>ardg</code> : ardoise du membre vis à vis du groupe, texte d'invitation / réponse de l'invité cryptée par la clé du groupe.</li>
+<li><code>lmck</code> : liste, cryptée par la clé k du membre, des mots clés de rangement / recherche attribués par le membre quand il est actif.</li>
 </ul>
 <p><strong>Remarques</strong></p>
 <ul>
-<li>les membres de statut <em>invité</em> et <em>ayant accepté</em> peuvent accéder à la liste des membres et à leur <em>ardoise</em> (ils ont la clé du groupe dans leur row <code>invitgr</code>).</li>
-<li>les membres <em>ayant accepté</em> accèdent aux secrets. Les membres invités pourraient aussi en lecture (ils ont la clé). <strong>A revoir</strong>.</li>
-<li>les membres des statuts <em>pressenti, ayant refusé, résilié, disparu</em> n'ont pas / plus la clé du groupe dans <code>clegk</code> de leur row <code>invitgr</code>.</li>
+<li>les membres de statut <em>invité</em> et <em>actif</em> peuvent accéder à la liste des membres et à leur <em>ardoise</em> (ils ont la clé du groupe dans leur row <code>invitgr</code>).</li>
+<li>les membres <em>actif</em> accèdent aux secrets. En terme de cryptographie, les membres invités <em>pourraient</em> aussi en lecture (ils ont la clé) mais le serveur l'interdit.</li>
+<li>les membres des statuts <em>pressenti, ayant refusé, résilié, disparu</em> n'ont pas / plus la clé du groupe dans leur row <code>invitgr</code>.</li>
 </ul>
 <p>Les animateurs peuvent :</p>
 <ul>
@@ -664,14 +674,9 @@ CREATE INDEX &quot;id_v_avlab&quot; ON &quot;membre&quot; ( &quot;id&quot;, &quo
 </ul>
 <p>Un animateur peut lancer quand il veut un nettoyage pour détecter les membres qui auraient disparus <em>et</em> ne seraient plus auteurs d'aucuns secrets.</p>
 <p>Le row <code>membre</code> d'un membre subsiste quand il est <em>résilié</em> ou <em>disparu</em> pour information historique : sa carte de visite reste accessible.</p>
-<p>Le GC sur dépassement de <code>dlv</code> :</p>
-<ul>
-<li>met le statut à 5,</li>
-<li>met la <code>dlv</code> à 99999,</li>
-<li>le GC gère de l'autre côté <code>invitgr</code>.</li>
-</ul>
+<p>Le GC ne gère pas le dépassement de <code>dlv</code>.</p>
 <h2>Secrets</h2>
-<p>Un secret est identifié par <code>ids</code> tiré au hasard sur 5 bytes.</p>
+<p>Un secret est identifié par l'id du propriétaire (avatar ou groupe) et de <code>ns</code> complémentaire aléatoire (pair pour un secret d'avatar, impair pour un secret de groupe).</p>
 <p>La clé de cryptage du secret <code>cs</code> est selon le cas :</p>
 <ul>
 <li>(0) <em>secret personnel d'un avatar A</em> : la clé K de l'avatar. <code>ic</code> vaut 0.</li>
@@ -740,8 +745,8 @@ CREATE INDEX &quot;id_v_avlab&quot; ON &quot;membre&quot; ( &quot;id&quot;, &quo
 <p>Dès que le secret est <em>permanent</em> il est décompté (en plus ou en moins à chaque mise à jour) sur le volume du groupe.</p>
 <h2>Table <code>secret</code> : CP <code>id</code>. Secret</h2>
 <pre><code>CREATE TABLE &quot;secret&quot; (
-&quot;ids&quot;  INTEGER,
 &quot;id&quot;  INTEGER,
+&quot;ns&quot;  INTEGER,
 &quot;ic&quot;  INTEGER,
 &quot;v&quot;		INTEGER,
 &quot;st&quot;	INTEGER,
@@ -749,18 +754,18 @@ CREATE INDEX &quot;id_v_avlab&quot; ON &quot;membre&quot; ( &quot;id&quot;, &quo
 &quot;mcs&quot;   BLOB,
 &quot;aps&quot;	BLOB,
 &quot;dups&quot;	BLOB,
-PRIMARY KEY(&quot;ids&quot;) WITHOUT ROWID);
-CREATE INDEX &quot;id_v_secret&quot; ON &quot;secret&quot; (&quot;id&quot;, &quot;v&quot;)
-CREATE INDEX &quot;st_secret&quot; ON &quot;secret&quot; ( &quot;st&quot; )
+PRIMARY KEY(&quot;id&quot;, &quot;ns&quot;);
+CREATE INDEX &quot;id_v_secret&quot; ON &quot;secret&quot; (&quot;id&quot;, &quot;v&quot;);
+CREATE INDEX &quot;st_secret&quot; ON &quot;secret&quot; ( &quot;st&quot; );
 </code></pre>
 <ul>
-<li><code>ids</code> : id du secret.</li>
 <li><code>id</code> : id du groupe ou de l'avatar.</li>
+<li><code>ns</code> : numéro du secret.</li>
 <li><code>ic</code> : indice du contact pour un secret de couple, sinon 0.</li>
 <li><code>v</code> :</li>
 <li><code>st</code> : &lt; 0 pour un secret <em>supprimé</em>, numéro de semaine de création pour un <em>temporaire</em>, 99999 pour un <em>permanent</em>.</li>
 <li><code>txts</code> : texte complet gzippé crypté par la clé du secret.</li>
-<li><code>mcs</code> : liste des mots clés.</li>
+<li><code>mcs</code> : liste des mots clés crypté par la clé du secret.</li>
 <li><code>aps</code> : données d'aperçu du secret cryptées par la clé du secret.
 <ul>
 <li><code>la</code> [] : liste des auteurs (identifié par leur indice de membre pour un groupe) ou id du dernier auteur pour un secret de couple.</li>
@@ -768,16 +773,16 @@ CREATE INDEX &quot;st_secret&quot; ON &quot;secret&quot; ( &quot;st&quot; )
 <li><code>st</code> : 5 bytes donnant :
 <ul>
 <li>0:ouvert, 1:restreint, 2:archivé</li>
-<li>la taille du texte : 0 pas de texte, 1, 2, ... (log)</li>
-<li>la taille de la pièce jointe : 0 pas de pièce, 1, 2 ... (log)</li>
 <li>type de la pièce jointe : 0 inconnu, 1, 2 ... selon une liste prédéfinie.</li>
 <li>version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.</li>
 </ul>
 </li>
+<li><code>ttx</code> : la taille du texte : 0 pas de texte</li>
+<li><code>tpj</code> : la taille de la pièce jointe : 0 pas de pièce jointe</li>
 <li><code>r</code> : référence à un autre secret (du même groupe, couple, avatar).</li>
 </ul>
 </li>
-<li><code>dups</code> : id de l'autre exemplaire pour un secret de couple A/B.</li>
+<li><code>dups</code> : couple <code>[id ns]</code> crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.</li>
 </ul>
 <p><strong>Suppression d'un secret :</strong></p>
 <ul>
