@@ -170,6 +170,7 @@ Table :
     "kx"   BLOB,
     "mack"  BLOB,
     "mmck"	BLOB,
+    "memok" BLOB,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
     CREATE UNIQUE INDEX "dpbh_compte" ON "compte" ( "dpbh" )
@@ -186,6 +187,7 @@ Table :
 - `mack` {} : map des avatars du compte `[nom@rnd, cpriv]`, cryptée par la clé K
   - `nomc` : `nom@rnd`, nom complet.
   - `cpriv` : clé privée asymétrique.
+- `memok` : texte court libre (crypté par la clé K) vu par le seul titulaire du compte. Le début de la première ligne s'affiche en haut de l'écran.
 
 **Remarques :** 
 - un row `compte` ne peut être modifié que par une transaction du compte (mais peut être purgé par le traitement journalier de détection des disparus).
