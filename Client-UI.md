@@ -103,7 +103,7 @@ Le row `compte` est relu (sauf mode avion) afin d'être certain d'avoir la derni
 ### Map `versions`
 La map `versions` comporte une entrée par avatar / groupe avec pour valeur une table de  N compteurs de version v : 
 - pour un avatar 7 compteurs donnant la plus haute version disponible dans le modèle pour chacun des tables liées à l'avatar `secret invitegr avatar contact invitct rencontre parrain`.
-- pour un groupe 3 compteurs donnant la plus haute version disponible dans le modèle pour chacun des tables liées au groupe `secret invitegr avatar contact invitct rencontre parrain`.
+- pour un groupe 3 compteurs donnant la plus haute version disponible dans le modèle pour chacun des tables liées au groupe `secret groupe membre`.
 
 Par exemple :
 

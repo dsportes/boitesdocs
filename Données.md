@@ -284,6 +284,7 @@ Table :
 - `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar A à l'avatar B (contact _fort_).
 - `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B.
 - `icbc` : pour un contact fort _accepté_, indice de A chez B (communiqué lors de l'acceptation par B) pour mise à jour dédoublée de l'ardoise et du statut, crypté par la clé `cc`.
+- `vsd` : version du schéma de data
 - `datak` : information cryptée par la clé K de A.
   - `nomc` : nom complet de l'avatar `nom@rnd`.
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _fort_ avec B (en attente ou accepté).
@@ -560,6 +561,7 @@ Table
   - `y` : 0:lecteur, 1:auteur, 2:administrateur.
 - `vote` : vote de réouverture.
 - `dlv` : date limite de validité de l'invitation. N'est significative qu'en statut _invité_.
+- `vsd` : version du schéma de data
 - `datag` : données cryptées par la clé du groupe.
   - `nomc` : nom complet de l'avatar `nom@rnd` (donne la clé d'accès à sa carte de visite)
   - `ni` : numéro d'invitation du membre dans `invitgr` relativement à son `id` (issu de `nomc`). Permet de supprimer son accès au groupe (`st < 0, datap / datak null` dans `invitgr`) quand il est résilié / disparu.
@@ -676,6 +678,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `st` : < 0 pour un secret _supprimé_, numéro de semaine de création pour un _temporaire_, 99999 pour un *permanent*.
 - `txts` : texte complet gzippé crypté par la clé du secret.
 - `mcs` : liste des mots clés crypté par la clé du secret.
+- `vsd` : version du schéma de `aps`
 - `aps` : données d'aperçu du secret cryptées par la clé du secret.
   - `la` [] : liste des auteurs (identifié par leur indice de membre pour un groupe) ou id du dernier auteur pour un secret de couple.
   - `ap` : texte d'aperçu.
