@@ -155,7 +155,7 @@ Elle consiste à obtenir du serveur les rows des tables mis à jour postérieure
 Le décryptage du row `compte` lors de l'authentification a donné la liste des avatars du compte.
 
 Envoi de 3 requêtes :
-- 1 - relecture row `compte` afin d'être certain d'avoir la dernière version et la bonne liste des avatars. Au retour, nettoyage dans le modèle en mémoire et en IDB (mode synchro) des avatars obsolètes.
+- 1 - relecture row `compte` en mode synchronisé (la lecture de IDB a pu être longue) afin d'être certain d'avoir la dernière version et la bonne liste des avatars. Au retour, nettoyage éventuel dans le modèle en mémoire et en IDB (mode synchro) des avatars obsolètes.
 - 2 - obtention des rows `invitgr` de ces avatars : le décryptage en session de ces rows donne la liste des groupes (et leur clé de groupe). Au retour, nettoyage dans le modèle en mémoire et en IDB (mode synchro) des groupes obsolètes.
 - 3 - ouverture avec le serveur d'un contexte de synchronisation comportant :
   - le compte avec signature de vie,
