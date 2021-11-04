@@ -173,7 +173,7 @@ Cette étape peut être interrompue,
 - par un incident IDB (ou bug).
 - par une rupture de session.
 - par demande explicite de l'utilisateur (prise en compte à chaque sous-étape)
-- dans les deux cas les choix laissés sont,
+- dans tous les deux cas les choix laissés sont,
   - reprise de la phase chargement / synchronisation depuis le début (sans retourner à Accueil pour choisir / authentifier le compte).
   - déconnexion du compte, retour à Accueil (phase 0).
 
