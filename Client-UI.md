@@ -25,6 +25,7 @@ Les rows reçus par synchro ou par chargement explicite sur un POST :
 
 En IDB les contenus des tables sont formés :
 - d'une clé simple `id` ou `x`, ou d'un couple de clé `id+y`.
+- d'un numéro de version `vs` du schéma de data. Pour chaque objet, data est dé-sérialisé à la lecture, puis si la version actuelle du schéma est supérieure, l'objet est transformé dans le dernier schéma. Il est toujours écrit en IDB selon la version la plus récente.
 - d'un contenu `data` qui est l'objet en clair sérialisé PUIS crypté par,
   - la clé K du compte pour tous les rows sauf `compte`,
   - la clé X issue de la phrase secrète pour **le** row `compte`.
@@ -52,6 +53,149 @@ C'est un _store_ (vuex) de nom `db` :
 - `cvs` : une map d'objets, la clé étant l'id en base 64 de chaque avatar référencé (avatar du compte, contact d'un avatar du compte, membre d'un groupe). La valeur est un objet de classe `Cv` (voir plus loin).
 - `contacts invitcts invitgrs secrets` : la map comporte un premier niveau par id de l'avatar et pour chaque id une map par l'identifiant complémentaire (ic ni ni ns).
 - `membres secrets` : la map comporte un premier niveau par id du groupe et pour chaque id une map par l'identifiant complémentaire (im ns).
+
+## Pages
+### Org : `/`
+Page racine permettant de choisir son organisation.  
+On revient à cette page si dans l'URL on n'indique pas de code organisation ou un code non reconnu.
+
+### Login : `/org`
+Page de connexion à un compte ou de création d'un nouveau compte.
+
+### Synchro : `/org/synchro`
+Dès l'identification d'un compte, cette page s'affiche. Elle ne permet pas d'action mais affiche l'état de chargement / synchronisation du compte.  
+Elle enchaîne, 
+- a) soit sur la page Compte an cas de succès, 
+- b) soit en retour vars la page Login en cas de déconnexion.
+
+### Compte : /org/compte
+Dès que les données du compte sont charhgées, voire partiellement, cette page s'affiche et donne la synthèse du compte, la liste de ses avatars et des groupes auxquels il accède.
+
+Navigations possible :
+- Login : en cas de déconnexion
+- Avatar
+- Groupe
+
+### Avatar : /org/avatar
+Détail d'un avatar du compte.
+
+Navigations possibles :
+- Login : en cas de déconnexion
+- Compte : retour à la synthèse du compte.
+
+### Groupe : /org/groupe
+Détail d'un groupe accédé par le compte.
+
+Navigations possibles :
+- Login : en cas de déconnexion
+- Compte : retour à la synthèse du compte.
+
+### Panneaux latéraux
+#### Menu
+Infos et boutons d'actions (affichage de boîtes de dialogue, etc.)
+
+#### Répertoire des contacts
+Tous les avatars connus en tant que contact ou membre participant aux groupes accédés par le compte.
+
+## Actions et opérations
+### Actions
+Elles n'affectent que l'affichage, la visualisation des données. Elles ne changent pas l'état des données du compte, ni sur IDB ni sur le serveur central.
+
+Elles ne font pas d'accès ni à IDN ni au réseau, sauf les actions spéciales de **ping** :
+- ping du serveur : pas en mode avion.
+- ping DB de la base de de l'organisation sur le serveur : il faut que cette organisation soit connue, pas en mode avion.
+- ping IDB : il faut que le compte soit connu, pas en mode incognito.
+
+### Opérations
+Une opération modifie l'état des données du compte, en mémoire et **sur IDB et/ou le serveur** : il y a donc des opérations sensibles à l'interruption d'accès au serveur, d'autres sensibles à l'indisponibilité de IDB et enfin d'autres sensibles aux deux.
+
+Une opération s'exécute toujours dans le cadre d'une **session**, c'est à dire avec un **compte identifié ou en cours d'identification** (donc pas forcément encore authentifié ni créé).
+- si la session est en mode synchronisé ou incognito, une session WebSocket est ouverte.
+- si la session est en mode synchronisé ou avion, la base IDB est accessible et ouverte.
+
+#### Opérations `UI` _standard_ initiées par UI
+C'est le cas de l'immense majorité des opérations : elles sont interruptibles par l'utilisateur (quand il en a le temps) par appui sur un bouton.
+
+Aucune action ou lancement d'opérations ne peut avoir lieu quand une opération standard est en cours, sauf la demande d'interruption de celle-ci.
+
+Trois événements peuvent interrompre une opération UI :
+- l'avis d'une rupture d'accès au réseau (WebSocket ou sur un accès POST / GET).
+- l'avis d'une impossibilité d'accès à IDB.
+- une demande d'interruption de l'utilisateur.
+
+La détection d'un de ces événements provoque une exception BREAK qui n'est traitée que sur le catch final de l'opération (elle doit être re-propagée telle quelle sans traitement sur les appels internes): dès détection l'opération ne fait rien qu'essayer d'en faire le moins possible - propager l'exception.
+
+Le traitement final du BREAK consiste à dégrader le mode de la session en **Avion** ou **Visio** ou **Incognito** selon les états IDB et NET (s'il ne l'a pas déjà été).
+
+#### Opérations `WS` _WebSocket_ initiées par l'arrivée d'un message sur WebSocket
+Une seule opération de ce type peut se dérouler à un instant donné.
+
+Elles ne sont pas interruptibles, sauf de facto par la rupture de la liaison WebSocket (et une action de déconnexion).
+
+Deux événements peuvent interrompre une opération WS :
+- l'avis d'une rupture d'accès au réseau (WebSocket ou sur un accès POST / GET).
+- l'avis d'une impossibilité d'accès à IDB.
+
+La détection d'un de ces événements provoque une exception BREAK qui n'est traitée que sur le catch final de l'opération (elle doit être re-propagée telle quelle sans traitement sur les appels internes). 
+
+Le traitement final du BREAK consiste à dégrader le mode de la session en **Avion** ou **Visio** selon les états IDB et NET (s'il ne l'a pas déjà été).
+
+#### Opérations avec demandes d'options à l'utilisateur
+Une opération `UI` peut bloquer sur un `await` de demande d'option à l'utilisateur : l'opération est débloquée derrière `await` avec le choix fermé que l'utilisateur a opéré parmi ceux proposés.
+
+## Modes
+### Avion
+- pas d'accès au réseau, pas de session WebSocket.
+- les seules opérations possibles mettent à jour IDB : enregistrement de secrets pour mise à jour différée à la prochaine synchronisation.
+- en cas de perte d'accès à IDB, le mode est dégradé en **Visio**.
+
+### Incognito
+- pas d'accès à IDB, session WebSocket ouverte.
+- les seules opérations impossibles sont celles devant lire / écrire IDB (gestion des secrets à mise à jour différé à la prochaine synchronisation).
+- en cas de perte d'accès au réseau (session WS fermée), le mode est dégradé en **Visio**. 
+
+### Synchronisé
+- accès à IDB, session WebSocket ouverte.
+- toutes opérations possibles.
+- en cas de perte,
+  - d'accès au réseau, le mode est dégradé en mode **Avion**.
+  - d'accès à IDB, le mode est dégradé en mode **Incognito**.
+  - des deux, le mode est dégradé en mode **Visio**.
+
+### Visio : mode dégradé
+- aucun accès, ni à IDB, ni au réseau, pas de session WebSocket.
+- aucune opération possible
+- on ne choisit jamais le mode Visio : il résulte d'une dégradation des trois autres modes.
+
+En cas de tentative de reconnexion d'un compte, celle-ci s'effectue dans le mode initial choisi par l'utilisateur, pas dans le mode _dégradé_.
+
+La session d'un compte comporte donc deux modes :
+- le mode _initial_,
+- le mode _courant_, qui s'il diffère du mode initial, résulte d'une dégradation.
+
+### Dégradation d'un mode
+Elle s'effectue automatiquement. Toutefois l'utilisateur reçoit un avis lui demandant s'il préfère,
+- une déconnexion franche, 
+- tenter une re-connexion,
+- ou rester dans le mode dégradé.
+
+## Session
+Il y a ouverture de session dès qu'il y a une intention d'identification / création d'un compte : c'est une opération qui créé la session (en tout début).
+- la session a une sessionId qui l'identifie (aléatoire sur 6 octets).
+- la session a un compte : mais au début de l'opération créatrice il peut être vide.
+- la session a deux statuts :
+  - IDB : ok ou pas.
+  - NET : ok ou pas.
+- le mode courant de la session est invariant dans sa vie, son mode courant peut évoluer. En mode Visio aucune opération n'est possible.
+
+Une session peut avoir au plus deux opérations en cours : une UI et une WS
+
+Une session est détruite par une action de `deconnexion`.
+
+L'action de `reconnexion` sur une session source recrée une autre session :
+- la session source doit être en statut KO en IDB, NET ou les deux.
+- la nouvelle session a le mode initial de la session source qui est détruite.
+- la nouvelle session a pour compte le compte de la session initiale (donc authentifié).
 
 ## Phases d'une session
 
