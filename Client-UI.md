@@ -59,36 +59,36 @@ C'est un _store_ (vuex) de nom `db` :
 Page racine permettant de choisir son organisation.  
 On revient à cette page si dans l'URL on n'indique pas de code organisation ou un code non reconnu.
 
-### Login : `/org`
+### Login : `/_org_`
 Page de connexion à un compte ou de création d'un nouveau compte.
 
-### Synchro : `/org/synchro`
+### Synchro : `/_org_/synchro`
 Dès l'identification d'un compte, cette page s'affiche. Elle ne permet pas d'action mais affiche l'état de chargement / synchronisation du compte.  
 Elle enchaîne, 
-- a) soit sur la page Compte an cas de succès, 
-- b) soit en retour vars la page Login en cas de déconnexion.
+- a) soit sur la page `Compte` an cas de succès, 
+- b) soit en retour vars la page `Login` en cas de déconnexion.
 
-### Compte : /org/compte
+### Compte : `/_org_/compte`
 Dès que les données du compte sont charhgées, voire partiellement, cette page s'affiche et donne la synthèse du compte, la liste de ses avatars et des groupes auxquels il accède.
 
 Navigations possible :
-- Login : en cas de déconnexion
-- Avatar
-- Groupe
+- `Login` : en cas de déconnexion
+- `Avatar` : vers l'avatar _sélectionné_
+- `Groupe` : vers le groupe _sélectionné_
 
-### Avatar : /org/avatar
+### Avatar : `/_org_/avatar`
 Détail d'un avatar du compte.
 
 Navigations possibles :
-- Login : en cas de déconnexion
-- Compte : retour à la synthèse du compte.
+- `Login` : en cas de déconnexion
+- `Compte` : retour à la synthèse du compte.
 
-### Groupe : /org/groupe
+### Groupe : `/_org_/groupe`
 Détail d'un groupe accédé par le compte.
 
 Navigations possibles :
-- Login : en cas de déconnexion
-- Compte : retour à la synthèse du compte.
+- `Login` : en cas de déconnexion
+- `Compte` : retour à la synthèse du compte.
 
 ### Panneaux latéraux
 #### Menu
@@ -101,10 +101,10 @@ Tous les avatars connus en tant que contact ou membre participant aux groupes ac
 ### Actions
 Elles n'affectent que l'affichage, la visualisation des données. Elles ne changent pas l'état des données du compte, ni sur IDB ni sur le serveur central.
 
-Elles ne font pas d'accès ni à IDN ni au réseau, sauf les actions spéciales de **ping** :
-- ping du serveur : pas en mode avion.
-- ping DB de la base de de l'organisation sur le serveur : il faut que cette organisation soit connue, pas en mode avion.
-- ping IDB : il faut que le compte soit connu, pas en mode incognito.
+Elles ne font pas d'accès ni à IDB ni au réseau, sauf les actions spéciales de **ping** :
+- _ping du serveur_ : pas en mode _avion_.
+- _ping DB de la base de l'organisation sur le serveur_ : il faut que cette organisation soit connue, pas en mode _avion_.
+- _sélectionné_ : il faut que le compte soit identifié, pas en mode _incognito_.
 
 ### Opérations
 Une opération modifie l'état des données du compte, en mémoire et **sur IDB et/ou le serveur** : il y a donc des opérations sensibles à l'interruption d'accès au serveur, d'autres sensibles à l'indisponibilité de IDB et enfin d'autres sensibles aux deux.
@@ -116,7 +116,7 @@ Une opération s'exécute toujours dans le cadre d'une **session**, c'est à dir
 #### Opérations `UI` _standard_ initiées par UI
 C'est le cas de l'immense majorité des opérations : elles sont interruptibles par l'utilisateur (quand il en a le temps) par appui sur un bouton.
 
-Aucune action ou lancement d'opérations ne peut avoir lieu quand une opération standard est en cours, sauf la demande d'interruption de celle-ci.
+Aucune action ou nouveau lancement d'opérations ne peut avoir lieu quand une opération UI est déjà en cours, sauf la demande d'interruption de celle-ci.
 
 Trois événements peuvent interrompre une opération UI :
 - l'avis d'une rupture d'accès au réseau (WebSocket ou sur un accès POST / GET).
@@ -127,10 +127,17 @@ La détection d'un de ces événements provoque une exception BREAK qui n'est tr
 
 Le traitement final du BREAK consiste à dégrader le mode de la session en **Avion** ou **Visio** ou **Incognito** selon les états IDB et NET (s'il ne l'a pas déjà été).
 
+##### Opérations de chargement / synchronisation
+Ces opérations sont les premières à s'exécuter dans une session (et ne s'exécute plus dans la session). Elles ont deux phases :
+- authentification un compte : en cas d'échec c'est la clôture de la session et le retour à la page de Login.
+- chargement des données locales et / ou celles sur le serveur : en cas d'échec / interruption volontaire la session est dégradée.
+
+Il y a donc un moment où les opérations ont un comportement normal vis à vis des interruptions alors qu'avant la seule issue est la déconnexion.
+
 #### Opérations `WS` _WebSocket_ initiées par l'arrivée d'un message sur WebSocket
 Une seule opération de ce type peut se dérouler à un instant donné.
 
-Elles ne sont pas interruptibles, sauf de facto par la rupture de la liaison WebSocket (et une action de déconnexion).
+Elles ne sont pas interruptibles, sauf de facto par la rupture de la liaison WebSocket (voire en conséquence d'une action de déconnexion).
 
 Deux événements peuvent interrompre une opération WS :
 - l'avis d'une rupture d'accès au réseau (WebSocket ou sur un accès POST / GET).
@@ -142,6 +149,13 @@ Le traitement final du BREAK consiste à dégrader le mode de la session en **Av
 
 #### Opérations avec demandes d'options à l'utilisateur
 Une opération `UI` peut bloquer sur un `await` de demande d'option à l'utilisateur : l'opération est débloquée derrière `await` avec le choix fermé que l'utilisateur a opéré parmi ceux proposés.
+
+> In fine les opérations ne sortent jamais en exception.
+
+### Boîtes de dialogue
+Leur affichage est toujours commandée par une variable _vuex_ : dans n'importe quel endroit du code il suffit donc de basculer leur variable d'affichage pour que la boîte apparaisse.
+
+Leur contenu dépend pour l'essentiel de l'état de la session, en partie de son état dans _vuex_.
 
 ## Modes
 ### Avion
