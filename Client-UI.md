@@ -1,4 +1,4 @@
-# Boîtes à secrets - Client
+# Boîtes à secrets - Client / browser
 
 ## Données en IDB
 En IDB on trouve la réplication de sélections selon l'id d'un compte, avatar ou groupe des rows des tables en base :
