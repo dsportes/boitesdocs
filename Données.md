@@ -410,6 +410,7 @@ Un parrainage est identifié par le hash du PBKFD2 de la phrase de parrainage po
     CREATE TABLE "parrain" (
     "pph"  INTEGER,
     "id" INTEGER,
+    "v"   INTEGER,
     "nc" INTEGER,  
     "dlv"  INTEGER,
     "st"  INTEGER,
