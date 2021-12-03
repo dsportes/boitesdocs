@@ -101,6 +101,7 @@ _**Tables aussi persistantes sur le client (IDB)**_
 - `groupe` (id) : données du groupe et liste de ses avatars, invités ou ayant été pressentis, un jour à être membre.
 - `membre` (id, im) : données d'un membre du groupe
 - `secret` (id, ns) : données d'un secret d'un avatar ou groupe
+- `secran` (id, ns, im) : annotation d'un secret de groupe par un membre
 
 ## Singletons id / valeur
 Ils sont identifiés par un numéro de singleton.  
@@ -270,6 +271,7 @@ Table :
     "ardc"	BLOB,
     "icbc"  BLOB
     "datak"	BLOB,
+    "ank"	BLOB,
     PRIMARY KEY("id", "ic")
     );
     CREATE INDEX "id_v_contact" ON "contact" ( "id", "v" );
@@ -284,14 +286,14 @@ Table :
 - `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar A à l'avatar B (contact _fort_).
 - `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B.
 - `icbc` : pour un contact fort _accepté_, indice de A chez B (communiqué lors de l'acceptation par B) pour mise à jour dédoublée de l'ardoise et du statut, crypté par la clé `cc`.
-- `vsd` : version du schéma de data
 - `datak` : information cryptée par la clé K de A.
   - `nomc` : nom complet de l'avatar `nom@rnd`.
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _fort_ avec B (en attente ou accepté).
   - `dlv` : date limite de validité de l'invitation à être contact _fort_ ou du parrainage.
   - `pph` : hash du PBKFD2 de la phrase de parrainage.
-  - `info` : information libre donnée par A à propos du contact.
-  - `mc` : liste des mots clés associés par A au contact.
+- `ank` : annotation cryptée par la clé K du membre
+  - `mc` : mots clés
+  - `txt` : commentaires (personnel) de A sur B
 
 Un contact **fort**,
 - est _accepté_ quand `icbc` est non null.
@@ -548,9 +550,11 @@ Table
     "st"	INTEGER,
     "vote"  INTEGER,
     "dlv"   INTEGER,
+    "q1"   INTEGER,
+    "q2"   INTEGER,
     "datag"	BLOB,
     "ardg"  BLOB,
-    "lmck"  BLOB,
+    "ank"  BLOB,
     PRIMARY KEY("id", "im"));
     CREATE INDEX "id_v_membre" ON "membre" ( "id", "v" );
 
@@ -562,14 +566,15 @@ Table
   - `y` : 0:lecteur, 1:auteur, 2:administrateur.
 - `vote` : vote de réouverture.
 - `dlv` : date limite de validité de l'invitation. N'est significative qu'en statut _invité_.
-- `vsd` : version du schéma de data
+- `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
 - `datag` : données cryptées par la clé du groupe.
   - `nomc` : nom complet de l'avatar `nom@rnd` (donne la clé d'accès à sa carte de visite)
   - `ni` : numéro d'invitation du membre dans `invitgr` relativement à son `id` (issu de `nomc`). Permet de supprimer son accès au groupe (`st < 0, datap / datak null` dans `invitgr`) quand il est résilié / disparu.
 	- `idi` : id du membre qui l'a pressenti puis invité.
-	- `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
 - `ardg` : ardoise du membre vis à vis du groupe, texte d'invitation / réponse de l'invité cryptée par la clé du groupe.
-- `lmck` : liste, cryptée par la clé k du membre, des mots clés de rangement / recherche attribués par le membre quand il est actif.
+- `ank` : annotation cryptée par la clé K du membre
+  - `mc` : mots clés
+  - `txt` : commentaires du membre
 
 **Remarques**
 - les membres de statut _invité_ et _actif_ peuvent accéder à la liste des membres et à leur _ardoise_ (ils ont la clé du groupe dans leur row `invitgr`).
@@ -656,7 +661,7 @@ Par défaut à sa création un secret est *temporaire* :
 
 Dès que le secret est *permanent* il est décompté (en plus ou en moins à chaque mise à jour) sur le volume du groupe.
 
-## Table `secret` : CP `id`. Secret
+## Table `secret` : CP `id ns`. Secret
 
     CREATE TABLE "secret" (
     "id"  INTEGER,
@@ -677,19 +682,17 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `ic` : indice du contact pour un secret de couple, sinon 0.
 - `v` : 
 - `st` : < 0 pour un secret _supprimé_, numéro de semaine de création pour un _temporaire_, 99999 pour un *permanent*.
-- `txts` : texte complet gzippé crypté par la clé du secret.
-- `mcs` : liste des mots clés crypté par la clé du secret.
-- `vsd` : version du schéma de `aps`
-- `aps` : données d'aperçu du secret cryptées par la clé du secret.
+- `ora` : 0:ouvert, 1:restreint, 2:archivé
+- `v1` : volume du texte
+- `v2` : volume de la pièce jointe
+- `txts` : crypté par la clé du secret.
   - `la` [] : liste des auteurs (identifié par leur indice de membre pour un groupe) ou id du dernier auteur pour un secret de couple.
-  - `ap` : texte d'aperçu.
-  - `st` : 5 bytes donnant :
-    - 0:ouvert, 1:restreint, 2:archivé
-    - type de la pièce jointe : 0 inconnu, 1, 2 ... selon une liste prédéfinie.
-    - version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.
-  - `ttx` : la taille du texte : 0 pas de texte
-  - `tpj` : la taille de la pièce jointe : 0 pas de pièce jointe
+  - `gz` : texte gzippé
   - `r` : référence à un autre secret (du même groupe, couple, avatar).
+- `mcs` : liste des mots clés crypté par la clé du secret.
+- `pjs` : pièce jointe cryptées par la clé du secret (null : pas de pièce jointe)
+  - `typ` : type de la pièce jointe : 0 inconnu, 1, 2 ... selon une liste prédéfinie.
+  - `v` : version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.
 - `dups` : couple `[id ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
 
 **Suppression d'un secret :**
@@ -701,7 +704,7 @@ Un secret peut apparaître avec plusieurs mots clés indiquant :
 - des états : _lus, important, à cacher, à relire, favori ..._
 - des éléments de classement fonctionnel : _énergie bio-diversité réchauffement ..._
 
-Le texte d'un mot clé peut contenir en tête un emoji.
+Le texte d'un mot clé peut contenir des emojis.
 
 Les mots clés sont numérotés avec une conversion entre leur numéro et leur texte :
 - 1-49 : pour ceux génériques de l'installation dans la configuration.
@@ -709,14 +712,32 @@ Les mots clés sont numérotés avec une conversion entre leur numéro et leur t
 - 50-255 : pour ceux spécifiques de chaque groupe dans `mc` de son row `groupe` : la map est cryptée par la clé G du groupe.
 
 **Pour un secret d'un avatar**
-- `mcs` est simplement la suite des numéros de mots clés attachés par l'avatar au secret.
+- `mcs` est la suite des numéros de mots clés attachés par l'avatar au secret.
 
 **Pour un secret de couple**
 - le secret étant dédoublé, dans chaque exemplaire `mcs` est la suite des numéros de mots clés attachés par l'avatar au secret.
 
 **Pour un secret de groupe**
-- un mot clé de numéro `mc` pour le membre d'indice `im`, porte par convention le numéro `im*100 + mc`, pour un mot clé `mc` du groupe c'est juste `mc`.
-- chaque membre voit l'union des mots clés fixés pour le groupe avec les siens propres.
+- `mcs` est la suite des numéros de mots clés attachés par un des animateurs du groupe au secret.
+
+## Table `secran` : CP `id, ns, im`. Annotation d'un secret de groupe
+
+    CREATE TABLE "secran" (
+    "id"  INTEGER,
+    "ns"  INTEGER,
+    "im"  INTEGER,
+    "v"		INTEGER,
+    "ank" BLOB,
+    PRIMARY KEY("id", "ns", "im");
+    CREATE INDEX "id_v_secran" ON "secran" ("id", "v", "im");
+
+- `id` : id du groupe.
+- `ns` : numéro du secret.
+- `im` : indice du membre.
+- `v` : 
+- `ank` : annotation cryptée par la clé K du membre
+  - `mc` : mots clés
+  - `txt` : commentaires du membre
 
 # Gestion des disparitions
 Les ouvertures de session *signent* dans les tables `compte avatar groupe`, colonne `dds`, les rows relatifs aux compte, avatars du compte et groupes accédés par le compte.

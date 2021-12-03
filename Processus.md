@@ -1,5 +1,4 @@
-# Boîtes à Secrets - Procédures
-
+# Boîtes à Secrets - Processus et opérations
 
 ## Création d'un nouveau compte, avatar
 
