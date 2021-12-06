@@ -670,7 +670,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     "v"		INTEGER,
     "st"	INTEGER,
     "txts"	BLOB,
-    "mcs"   BLOB,
+    "ans"   BLOB,
     "aps"	BLOB,
     "dups"	BLOB,
     PRIMARY KEY("id", "ns");
@@ -689,7 +689,9 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
   - `la` [] : liste des auteurs (identifié par leur indice de membre pour un groupe) ou id du dernier auteur pour un secret de couple.
   - `gz` : texte gzippé
   - `r` : référence à un autre secret (du même groupe, couple, avatar).
-- `mcs` : liste des mots clés crypté par la clé du secret.
+- `ans` : 
+  - texte d'annotation pour un secret de couple seulement.
+  - liste des mots clés crypté par la clé du secret.
 - `pjs` : pièce jointe cryptées par la clé du secret (null : pas de pièce jointe)
   - `typ` : type de la pièce jointe : 0 inconnu, 1, 2 ... selon une liste prédéfinie.
   - `v` : version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.
