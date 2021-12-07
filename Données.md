@@ -339,20 +339,25 @@ _Remarque_ : L'invitant peut retrouver en session la liste des invitations en co
 - `ni` : numéro d'invitation.
 - `v` :
 - `dlv` :
-- `st` : statut. Si `st` < 0, c'est une suppression annulation. 0:invité, 1:actif
+- `st` : statut. `xy` : < 0 signifie supprimé (redondance de `st` de `membre`)
+  - `x` : 2:invité, 3:actif.
+  - `y` : 0:lecteur, 1:auteur, 2:administrateur.
 - `datap` : pour une invitation _en cours_, crypté par la clé publique du membre invité, référence dans la liste des membres du groupe `[idg, cleg, im]`.
 	- `idg` : id du groupe.
   - `cleg` : clé du groupe.
 	- `im` : indice de membre de l'invité dans le groupe.
 - `datak` : même données que `datap` mais cryptées par la clé K du compte de l'invité, après son acceptation.
+- `ank` : annotation cryptée par la clé K de l'invité
+  - `mc` : mots clés
+  - `txt` : commentaire personnel de l'invité
 
 **Remarques :**
 - tant que l'invitation est en statut _invité_ et que `dlv` n'est pas dépassée, `datap` existe et l'invitation est en attente. 
 - le GC ayant détecté un dépassement de `dlv`, _supprime_ le row.
-- _acceptation_ : le statut passe à 1, `datap` est null et `datak` contient les informations d'accès. `dlv` est à 99999. `membre` est mis à jour.
-- _refus_ : le statut passe négatif, `datap` est null et `datak` contient les informations d'accès. `membre` est mis à jour.
-- _résiliation / disparition_ : `datak` est mis à null, `st` < 0. Le groupe, ses membres et ses secrets sont inaccessibles après résiliation. 
-- Dans ce row seuls changent `st`, `dlv`, et la mise à null de `datak / datap` (immuables) en fonction du statut d'appartenance du membre au groupe : `v` est nécessaire pour trapper ces changements.
+- _acceptation_ : le statut passe à 1, `datap` est null et `datak` contient les informations d'accès. `dlv` est à 99999. `membre` est mis à jour (`st` `ardg`).
+- _refus_ : le statut passe négatif, `datap` `datak` `ank` sont null. `membre` est mis à jour (`st` `ardg`).
+- _résiliation / disparition_ : `datak` et `datak` sont null, `st` < 0. Le groupe, ses membres et ses secrets sont inaccessibles après résiliation. 
+- Dans ce row seuls changent `st` `dlv` `ank`. `datak / datap` sont immuables mais peuvent passer à null en fonction du statut d'appartenance du membre au groupe : `v` est nécessaire pour trapper ces changements.
 
 ## Table `invitct` : CP : `id`. Invitation en attente reçue par B de A à établir un contact fort
 Un contact *fort* est requis pour partager, un statut, une ardoise, des secrets et s'échanger des quotas.
@@ -562,7 +567,7 @@ Table
 - `im` : numéro du membre dans le groupe.
 - `v` :
 - `st` : statut. `xy` : < 0 signifie supprimé.
-  - `x` : 1:pressenti, 2:invité, 3:ayant refusé, 3:actif, 8: résilié, 9:disparu.
+  - `x` : 1:pressenti, 2:invité, 3:ayant refusé, 3:actif, 8: résilié.
   - `y` : 0:lecteur, 1:auteur, 2:administrateur.
 - `vote` : vote de réouverture.
 - `dlv` : date limite de validité de l'invitation. N'est significative qu'en statut _invité_.
@@ -570,16 +575,14 @@ Table
 - `datag` : données cryptées par la clé du groupe.
   - `nomc` : nom complet de l'avatar `nom@rnd` (donne la clé d'accès à sa carte de visite)
   - `ni` : numéro d'invitation du membre dans `invitgr` relativement à son `id` (issu de `nomc`). Permet de supprimer son accès au groupe (`st < 0, datap / datak null` dans `invitgr`) quand il est résilié / disparu.
-	- `idi` : id du membre qui l'a pressenti puis invité.
-- `ardg` : ardoise du membre vis à vis du groupe, texte d'invitation / réponse de l'invité cryptée par la clé du groupe.
-- `ank` : annotation cryptée par la clé K du membre
-  - `mc` : mots clés
-  - `txt` : commentaires du membre
+	- `idi` : id du premier membre qui l'a pressenti / invité.
+- `ardg` : ardoise du membre vis à vis du groupe. Contient le texte d'invitation puis la réponse de l'invité cryptée par la clé du groupe. Ensuite l'ardoise peut être écrite par le membre (actif) et les animateurs.
 
 **Remarques**
 - les membres de statut _invité_ et _actif_ peuvent accéder à la liste des membres et à leur _ardoise_ (ils ont la clé du groupe dans leur row `invitgr`).
 - les membres _actif_ accèdent aux secrets. En terme de cryptographie, les membres invités _pourraient_ aussi en lecture (ils ont la clé) mais le serveur l'interdit.
 - les membres des statuts _pressenti, ayant refusé, résilié, disparu_ n'ont pas / plus la clé du groupe dans leur row `invitgr`.
+- un membre résilié peut être réinvité et conserve le même numéro d'invitation `ni`.
 
 Les animateurs peuvent :
 - inviter d'autres avatars à rejoindre la liste.
