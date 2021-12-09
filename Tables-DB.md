@@ -14,4 +14,3 @@ _**Tables aussi persistantes sur le client (IDB)**_
 - `groupe` (id) : données du groupe et liste de ses avatars, invités ou ayant été pressentis, un jour à être membre.
 - `membre` (id, im) : données d'un membre du groupe
 - `secret` (id, ns) : données d'un secret d'un avatar ou groupe
-- `secran` (id, ns, im) : annotation d'un secret de groupe par un membre

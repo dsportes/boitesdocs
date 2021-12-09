@@ -101,7 +101,6 @@ _**Tables aussi persistantes sur le client (IDB)**_
 - `groupe` (id) : données du groupe et liste de ses avatars, invités ou ayant été pressentis, un jour à être membre.
 - `membre` (id, im) : données d'un membre du groupe
 - `secret` (id, ns) : données d'un secret d'un avatar ou groupe
-- `secran` (id, ns, im) : annotation d'un secret de groupe par un membre
 
 ## Singletons id / valeur
 Ils sont identifiés par un numéro de singleton.  
@@ -332,6 +331,7 @@ _Remarque_ : L'invitant peut retrouver en session la liste des invitations en co
     "st"  INTEGER,
     "datap" BLOB,
     "datak" BLOB,
+    "ank" BLOB,
     PRIMARY KEY ("id", "ni"));
     CREATE INDEX "dlv_invitgr" ON "invitgr" ( "dlv");
 
@@ -673,8 +673,8 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     "v"		INTEGER,
     "st"	INTEGER,
     "txts"	BLOB,
-    "ans"   BLOB,
-    "aps"	BLOB,
+    "mcs"   BLOB,
+    "pj"	INTEGER,
     "dups"	BLOB,
     PRIMARY KEY("id", "ns");
     CREATE INDEX "id_v_secret" ON "secret" ("id", "v");
@@ -689,20 +689,27 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `v1` : volume du texte
 - `v2` : volume de la pièce jointe
 - `txts` : crypté par la clé du secret.
-  - `la` [] : liste des auteurs (identifié par leur indice de membre pour un groupe) ou id du dernier auteur pour un secret de couple.
+  - `la` [] : liste des auteurs (pour un secret de couple ou de groupe).
   - `gz` : texte gzippé
-  - `r` : référence à un autre secret (du même groupe, couple, avatar).
-- `ans` : 
-  - texte d'annotation pour un secret de couple seulement.
-  - liste des mots clés crypté par la clé du secret.
-- `pjs` : pièce jointe cryptées par la clé du secret (null : pas de pièce jointe)
-  - `typ` : type de la pièce jointe : 0 inconnu, 1, 2 ... selon une liste prédéfinie.
-  - `v` : version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.
-- `dups` : couple `[id ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
+  - `ref` : référence à un autre secret.
+- `mcs` : liste des mots clés crypté par la clé du secret.
+- `pj` : pièce jointe cryptées par la clé du secret (0 : pas de pièce jointe) : `tttvvv`
+  - `ttt` : type de la pièce jointe : 0 inconnu, 1, 2 ... selon une liste prédéfinie.
+  - `vvv` : version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.
+- `dups` : couple `[id, ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
 
 **Suppression d'un secret :**
 - pour un secret temporaire, `st` est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant `st` si elles elles se synchronise avant `st`, sinon ça sera fait à `st`.
 - pour un secret permanent, `st` est en négatif au numero de semaine courante + 18 mois.
+
+**Référence à un autre secret**
+- **Secret personnel** : `[id, ns]` cette référence peut pointer n'importe quel message : ainsi un un secret personnel peut _commenter_ un secret de groupe par exemple et lui attribuer des mots clés indirectement. 
+- **Secret de couple** : `[id1, ns1, id2, ns2]` cette référence désigne un autre secret du couple, lequel secret a en pratique deux ids, une pour chaque avatar du couple.
+- **Secret de groupe** : `[ns]` cette référence désigne un autre secret du même groupe.
+
+En session, un secret peut faire apparaître tous les secrets qui le référence.
+
+Pour un secret de couple la référence ne peut pointer qu'un secret 
 
 ### Mots clés
 Un secret peut apparaître avec plusieurs mots clés indiquant :
@@ -712,9 +719,9 @@ Un secret peut apparaître avec plusieurs mots clés indiquant :
 Le texte d'un mot clé peut contenir des emojis.
 
 Les mots clés sont numérotés avec une conversion entre leur numéro et leur texte :
-- 1-49 : pour ceux génériques de l'installation dans la configuration.
-- 50-255 : pour ceux spécifiques de chaque compte dans `mc` du row `compte` de son avatar : la map est cryptée par la clé K du compte.
-- 50-255 : pour ceux spécifiques de chaque groupe dans `mc` de son row `groupe` : la map est cryptée par la clé G du groupe.
+- 200-255 : pour ceux déclarés par l'organisation à l'installation dans la configuration.
+- 1-99 : pour ceux spécifiques de chaque compte dans `mc` du row `compte` de son avatar : la map est cryptée par la clé K du compte.
+- 100-199 : pour ceux spécifiques de chaque groupe dans `mc` de son row `groupe` : la map est cryptée par la clé G du groupe.
 
 **Pour un secret d'un avatar**
 - `mcs` est la suite des numéros de mots clés attachés par l'avatar au secret.
@@ -724,25 +731,6 @@ Les mots clés sont numérotés avec une conversion entre leur numéro et leur t
 
 **Pour un secret de groupe**
 - `mcs` est la suite des numéros de mots clés attachés par un des animateurs du groupe au secret.
-
-## Table `secran` : CP `id, ns, im`. Annotation d'un secret de groupe
-
-    CREATE TABLE "secran" (
-    "id"  INTEGER,
-    "ns"  INTEGER,
-    "im"  INTEGER,
-    "v"		INTEGER,
-    "ank" BLOB,
-    PRIMARY KEY("id", "ns", "im");
-    CREATE INDEX "id_v_secran" ON "secran" ("id", "v", "im");
-
-- `id` : id du groupe.
-- `ns` : numéro du secret.
-- `im` : indice du membre.
-- `v` : 
-- `ank` : annotation cryptée par la clé K du membre
-  - `mc` : mots clés
-  - `txt` : commentaires du membre
 
 # Gestion des disparitions
 Les ouvertures de session *signent* dans les tables `compte avatar groupe`, colonne `dds`, les rows relatifs aux compte, avatars du compte et groupes accédés par le compte.
