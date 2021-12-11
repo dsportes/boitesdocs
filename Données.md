@@ -28,18 +28,22 @@ Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bi
 - n'est jamais transmise au serveur en clair.
 - les données cryptées par K, ne sont lisibles dans le serveur que quand elles ont été transmises aussi en clair dans une opération. 
 
-### Avatar
-Le **nom complet** d'un avatar est un string de la forme `[nom@rnd]`
+### Nom complet d'un avatar ou d'un groupe
+Le **nom complet** d'un avatar ou d'un groupe est un string de la forme `[nom@rnd]`
 - `nom` : nom lisible et signifiant, entre 6 et 20 caractères.
 - `rnd` : 15 bytes aléatoires, 20 caractères en base 64.
 
+Dans le nom, les caractères `< > : " / \ | ? *` et ceux dont le code est inférieur à 32 (donc de 0 à 31) sont interdits afin de permettre d'utiliser le nom complet comme nom de fichier.
+
+### Avatar
 La **clé de cryptage** de la carte de visite est le SHA de `rnd`.
 
 L'`id` d'un avatar est le hash (integer) des bytes de `rnd`.
 
 ### Groupe
-- `id` : un entier issu de 6 bytes aléatoires.
-- `cleg` : la clé d'un groupe est formée de 32 bytes aléatoires.
+La **clé de cryptage** du groupe (carte de visite et secrets) est le SHA de `rnd`.
+
+L'`id` d'un groupe est le hash (integer) des bytes de `rnd`.
 
 ### Secret
 - `id` : du groupe ou de l'avatar propriétaire
@@ -343,8 +347,7 @@ _Remarque_ : L'invitant peut retrouver en session la liste des invitations en co
   - `x` : 2:invité, 3:actif.
   - `y` : 0:lecteur, 1:auteur, 2:administrateur.
 - `datap` : pour une invitation _en cours_, crypté par la clé publique du membre invité, référence dans la liste des membres du groupe `[idg, cleg, im]`.
-	- `idg` : id du groupe.
-  - `cleg` : clé du groupe.
+	- `nomc` : nom complet du groupe.
 	- `im` : indice de membre de l'invité dans le groupe.
 - `datak` : même données que `datap` mais cryptées par la clé K du compte de l'invité, après son acceptation.
 - `ank` : annotation cryptée par la clé K de l'invité
@@ -674,7 +677,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     "st"	INTEGER,
     "txts"	BLOB,
     "mcs"   BLOB,
-    "pj"	INTEGER,
+    "mpjs"	BLOB,
     "dups"	BLOB,
     PRIMARY KEY("id", "ns");
     CREATE INDEX "id_v_secret" ON "secret" ("id", "v");
@@ -693,9 +696,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
   - `gz` : texte gzippé
   - `ref` : référence à un autre secret.
 - `mcs` : liste des mots clés crypté par la clé du secret.
-- `pj` : pièce jointe cryptées par la clé du secret (0 : pas de pièce jointe) : `tttvvv`
-  - `ttt` : type de la pièce jointe : 0 inconnu, 1, 2 ... selon une liste prédéfinie.
-  - `vvv` : version de la pièce jointe afin que l'upload de la version suivante n'écrase pas la précédente.
+- `mpjs` : sérialisation de la map des pièces jointes { nom: [version, volume] }.
 - `dups` : couple `[id, ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
 
 **Suppression d'un secret :**
@@ -710,6 +711,21 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 En session, un secret peut faire apparaître tous les secrets qui le référence.
 
 Pour un secret de couple la référence ne peut pointer qu'un secret 
+
+### Pièces jointes
+Les `nom` des pièces jointes (comme un nom de fichier) sont relatifs au secret et cryptés par la clé du secret. En base64 ils sont les clés de la map.  
+- L'extension du nom (décrypté) donne son type mime pour affichage dans un browser.
+- La valeur est le couple `[version, volume]`:
+  - version (1, 2 ...) : chaque nouvelle version est incrémentée de 1 afin de pouvoir faire un upload indépendant de la transaction d'enregistrement elle-même.
+  - volume : taille de la pièce jointe cryptée.
+
+L'identification d'une pièce jointe sur un support externe est : `org/idga/nom#version`
+- `org` : organisation
+- `idga` : id de l'avatar ou du groupe
+- `nom` : en base64 URL nom de la pièce jointe crypté par la clé du secret.
+- `version` : numéro de version
+
+Le contenu de la pièce jointe est crypté par la clé du secret.
 
 ### Mots clés
 Un secret peut apparaître avec plusieurs mots clés indiquant :
