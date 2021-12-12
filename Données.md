@@ -152,6 +152,7 @@ Table :
     "v2"	INTEGER,
     "vm1"	INTEGER,
     "vm2"	INTEGER,
+    "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
 
@@ -175,6 +176,7 @@ Table :
     "mack"  BLOB,
     "mmck"	BLOB,
     "memok" BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
     CREATE UNIQUE INDEX "dpbh_compte" ON "compte" ( "dpbh" )
@@ -192,6 +194,7 @@ Table :
   - `nomc` : `nom@rnd`, nom complet.
   - `cpriv` : clé privée asymétrique.
 - `memok` : texte court libre (crypté par la clé K) vu par le seul titulaire du compte. Le début de la première ligne s'affiche en haut de l'écran.
+- `vsh`
 
 **Remarques :** 
 - un row `compte` ne peut être modifié que par une transaction du compte (mais peut être purgé par le traitement journalier de détection des disparus).
@@ -206,11 +209,13 @@ Table :
     CREATE TABLE "avrsa" (
     "id"	INTEGER,
     "clepub"	BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
 	
 - `id` : id de l'avatar.
-- `clepub` : clé publique. 
+- `clepub` : clé publique.
+- `vsh`
 
 ### Table `avatar` : CP `id`. Données d'un avatar
 Chaque avatar a un row dans cette table :
@@ -228,6 +233,7 @@ Table :
     "dds" INTEGER,
     "cva"	BLOB,
     "lctk" BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
     CREATE INDEX "id_v_avatar" ON "avatar" ( "id", "v" );
@@ -241,6 +247,7 @@ Table :
 - `dds` :
 - `cva` : carte de visite de l'avatar cryptée par la clé de l'avatar `[photo, info]`.
 - `lctk` : liste, cryptée par la clé K du compte, des ids des contacts de l'avatar afin de garantir l'unicité de ceux-ci. L'indice d'un contact est celui dans cette liste + 1 (la valeur 0 est réservée).
+- `vsh`
 
 Sur GC quotidien sur `dds` : 
 - mise à jour du statut `st` OK/alerte/disparu.
@@ -275,6 +282,7 @@ Table :
     "icbc"  BLOB
     "datak"	BLOB,
     "ank"	BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY("id", "ic")
     );
     CREATE INDEX "id_v_contact" ON "contact" ( "id", "v" );
@@ -297,6 +305,7 @@ Table :
 - `ank` : annotation cryptée par la clé K du membre
   - `mc` : mots clés
   - `txt` : commentaires (personnel) de A sur B
+- `vsh`
 
 Un contact **fort**,
 - est _accepté_ quand `icbc` est non null.
@@ -336,6 +345,7 @@ _Remarque_ : L'invitant peut retrouver en session la liste des invitations en co
     "datap" BLOB,
     "datak" BLOB,
     "ank" BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY ("id", "ni"));
     CREATE INDEX "dlv_invitgr" ON "invitgr" ( "dlv");
 
@@ -353,6 +363,7 @@ _Remarque_ : L'invitant peut retrouver en session la liste des invitations en co
 - `ank` : annotation cryptée par la clé K de l'invité
   - `mc` : mots clés
   - `txt` : commentaire personnel de l'invité
+- `vsh`
 
 **Remarques :**
 - tant que l'invitation est en statut _invité_ et que `dlv` n'est pas dépassée, `datap` existe et l'invitation est en attente. 
@@ -374,6 +385,7 @@ Un contact *fort* est requis pour partager, un statut, une ardoise, des secrets 
     "datap" BLOB,
     "datak"  BLOB,
     "ardc"  BLOB)
+    "vsh"	INTEGER,
     PRIMARY KEY ("id", "ni");
     CREATE INDEX "dlv_invitct" ON "invitct" ( "dlv" );
 
@@ -388,6 +400,7 @@ Un contact *fort* est requis pour partager, un statut, une ardoise, des secrets 
   - `cc` : clé `cc` du contact *fort* A / B, définie par A.
 - `datak` : même données que `datap` mais cryptées par la clé K de B après acceptation ou refus.
 - `ardc` : texte de sollicitation écrit par A pour B et/ou réponse de B (après acceptation ou refus).
+- `vsh`
 
 **En cas d'acceptation**, B peut, soit créer un contact chez lui pour A quand il n'y en a pas encore, soit récupérer celui existant chez lui pour A s'il l'avait déjà en contact simple, et inscrire les données de A comme contact *fort* chez lui (`st cc ardc icbc`). 
 - Chez A il y a mise à jour de `st ardc icbc` avec le remerciement de B dans `ardc`. Le statut `st` du row `invitct` (de B) est à 1. `icbc` est le numéro de contact de A chez B et est inscrit chez A pour permettre la mise à jour dupliquée ultérieure du statut et de l'ardoise.
@@ -431,6 +444,7 @@ Un parrainage est identifié par le hash du PBKFD2 de la phrase de parrainage po
     "datak"  BLOB,
     "datax"  BLOB,
     "ardc"  BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY("pph")
     ) WITHOUT ROWID;
     CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" );
@@ -438,6 +452,7 @@ Un parrainage est identifié par le hash du PBKFD2 de la phrase de parrainage po
 
 - `pph` : hash du PBKFD2 de la phrase de parrainage.
 - `id` : id du parrain.
+- `v`
 - `ic` : numéro de contact du filleul chez le parrain.
 - `dlv` : la date limite de validité permettant de purger les parrainages (quels qu'en soient les statuts).
 - `st` : 0: annulé par P, 1: en attente de décision de F, 2: accepté par F, 3: refusé par F
@@ -448,6 +463,7 @@ Un parrainage est identifié par le hash du PBKFD2 de la phrase de parrainage po
   - `nomf` : `nom@rnd` : nom complet du filleul F (donné par P).
   - `cc` : clé `cc` générée par P pour le couple P / F.
 - `ardc` : cryptée par la clé `cc`, *ardoise*, texte de sollicitation écrit par A pour B et/ou réponse de B.
+- `vsh`
 
 **La parrain créé par anticipation un contact *fort* pour le filleul**  avec un row `contact`. 
 - Les quotas de P sont prélevés à ce moment. 
@@ -491,6 +507,7 @@ Une rencontre est identifiée par le hash de la **clé X (PBKFD2 de la phrase de
     "st"  INTEGER,
     "datak" BLOB,
     "nomcx" BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY("prh")
     ) WITHOUT ROWID;
     CREATE INDEX "dlv_rencontre" ON "rencontre" ( "dlv" );
@@ -503,6 +520,7 @@ Une rencontre est identifiée par le hash de la **clé X (PBKFD2 de la phrase de
 - `st` : <= 0:annulée, 1:en attente, 2:acceptée, 3:refusée
 - `datak` : **phrase de rencontre et son PBKFD2** (clé X) cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.
 - `nomcx` : nom complet de A (pas de B, son nom complet n'est justement pas connu de A) crypté par la clé X.
+- `vsh`
 
 Si B accepte la rencontre, il créé un contact simple, `st` passe à 2 (permet à A d'en suivre l'évolution).
 
@@ -529,6 +547,7 @@ Table :
     "cvg"  BLOB,
     "mcg"   BLOB,
     "lstmg" BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
     CREATE INDEX "id_v_groupe" ON "groupe" ( "id", "v" );
@@ -542,6 +561,7 @@ Table :
 - `cvg` : carte de visite du groupe `[photo, info]` cryptée par la clé G du groupe.
 - `mcg` : liste des mots clés définis pour le groupe cryptée par la clé du groupe cryptée par la clé G du groupe.
 - `lstmg` : liste des ids des membres du groupe.
+- `vsh`
 
 **L'indice d'un membre**, quel que soit son statut, est son index + 1 dans cette liste et n'y est présent qu'une et une seule fois. Ce row permet un contrôle d'unicité d'attribution de cet indice (ajout à la fin) afin de prémunir contre des inscriptions possiblement parallèles.
 
@@ -562,7 +582,7 @@ Table
     "q2"   INTEGER,
     "datag"	BLOB,
     "ardg"  BLOB,
-    "ank"  BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY("id", "im"));
     CREATE INDEX "id_v_membre" ON "membre" ( "id", "v" );
 
@@ -580,6 +600,7 @@ Table
   - `ni` : numéro d'invitation du membre dans `invitgr` relativement à son `id` (issu de `nomc`). Permet de supprimer son accès au groupe (`st < 0, datap / datak null` dans `invitgr`) quand il est résilié / disparu.
 	- `idi` : id du premier membre qui l'a pressenti / invité.
 - `ardg` : ardoise du membre vis à vis du groupe. Contient le texte d'invitation puis la réponse de l'invité cryptée par la clé du groupe. Ensuite l'ardoise peut être écrite par le membre (actif) et les animateurs.
+- `vsh`
 
 **Remarques**
 - les membres de statut _invité_ et _actif_ peuvent accéder à la liste des membres et à leur _ardoise_ (ils ont la clé du groupe dans leur row `invitgr`).
@@ -675,10 +696,14 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     "ic"  INTEGER,
     "v"		INTEGER,
     "st"	INTEGER,
+    "ora"	INTEGER,
+    "v1"	INTEGER,
+    "v2"	INTEGER,
     "txts"	BLOB,
     "mcs"   BLOB,
     "mpjs"	BLOB,
     "dups"	BLOB,
+    "vsh"	INTEGER,
     PRIMARY KEY("id", "ns");
     CREATE INDEX "id_v_secret" ON "secret" ("id", "v");
     CREATE INDEX "st_secret" ON "secret" ( "st" );
@@ -698,6 +723,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `mcs` : liste des mots clés crypté par la clé du secret.
 - `mpjs` : sérialisation de la map des pièces jointes { nom: [version, volume] }.
 - `dups` : couple `[id, ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
+- `vsh`
 
 **Suppression d'un secret :**
 - pour un secret temporaire, `st` est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant `st` si elles elles se synchronise avant `st`, sinon ça sera fait à `st`.
