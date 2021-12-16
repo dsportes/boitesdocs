@@ -712,7 +712,10 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `ns` : numéro du secret.
 - `ic` : indice du contact pour un secret de couple, sinon 0.
 - `v` : 
-- `st` : < 0 pour un secret _supprimé_, numéro de semaine de création pour un _temporaire_, 99999 pour un *permanent*.
+- `st` : 
+  - < 0 pour un secret _supprimé_.
+  - 99999 pour un *permanent*.
+  - `dlv` pour un _temporaire_.
 - `ora` : 0:ouvert, 1:restreint, 2:archivé
 - `v1` : volume du texte
 - `v2` : volume de la pièce jointe
