@@ -661,23 +661,31 @@ La liste des auteurs d'un secret donne les derniers auteurs,
 - dans l'ordre de modification, le plus récent en tête,
 - sans doublon.
 
-Un secret créé par A partagé avec personne peut être mis à jour :
+**Un secret personnel** créé par A partagé avec personne peut être mis à jour :
 - par A si le statut du secret est *ouvert* ou *restreint*.
 - par personne si le statut du secret est *archivé*.
-- le seul auteur qui apparaît dans la liste des auteurs successifs du secret est A.
 
-Un secret créé par A partagé avec B (contact *fort* de A) peut être mis à jour :
+**Un secret de couple** créé par A partagé avec B (contact *fort* de A) peut être mis à jour :
 - par A si le statut du secret est *ouvert* ou *restreint*.
 - par B si statut est *ouvert*.
 - par personne si le statut du secret est *archivé*.
-- les seuls auteurs qui peuvent apparaître dans la liste des auteurs successifs du secret sont A et B.
+- indices relatifs de A et B : par convention désigne celui de A et B ayant l'id la plus basse, 1 désigne l'autre. La _liste des auteurs_ peut être : `[0] [1] [0,1] [1,0]`, simplement abrégée par un entier de 0 à 3.
 
-Un compte peut faire une requête retournant la liste des avatars ayant accès à un des secrets partagés de ses avatars et disposer de la liste des auteurs qui devraient tous lui être connus (dans un groupe et / ou en tant que contact).
+**Un secret de groupe** créé par un animateur ne peut être modifié que par des auteurs et animateurs :
+- chacun est repéré par son im (indice de membre de 1 à 255).
+- si le statut est 
+  - *ouvert* tout animateur ou auteur peut le mettre à jour.
+  - *restreint* par le dernier membre l'ayant modifié, mais un animateur peut changer le statut.
+  - *archivé* par personne, mais un animateur peut changer le statut.
+- la liste des auteurs est une suite des indices des auteurs successifs. Quand un auteur modifie le texte,
+  - il est enlevé de la liste s'il y était,
+  - il est placé en tête de la liste.
 
 ### Secret temporaire et permanent
 Par défaut à sa création un secret est *temporaire* :
-- son `st` contient le *numéro de semaine de création* indiquant que S semaines plus tard il sera automatiquement détruit.
-- un avatar Ai qui le partage peut le déclarer *permanent*, le secret ne sera plus détruit automatiquement :
+- son `st` contient la *date limite de validité* indiquant qu'il sera automatiquement détruit à cette échéance.
+- un secret temporaire peut être prolongé, tout en restant temporaire.
+- un avatar Ai qui le partage peut le déclarer *permanent*, le secret ne sera plus détruit automatiquement et par convention son `st` est égal à `99999`:
   - l'avatar propriétaire pour un secret personnel.
   - les deux avatars pour un secret de couple.
   - un des animateurs pour un secret de groupe.
@@ -720,17 +728,17 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `v1` : volume du texte
 - `v2` : volume de la pièce jointe
 - `txts` : crypté par la clé du secret.
-  - `la` [] : liste des auteurs (pour un secret de couple ou de groupe).
+  - `dh` : date-heure de dernière modification du texte
+  - `la` : liste des auteurs (pour un secret de couple ou de groupe).
   - `gz` : texte gzippé
   - `ref` : référence à un autre secret.
 - `mcs` : liste des mots clés crypté par la clé du secret.
-- `mpjs` : sérialisation de la map des pièces jointes { nom: [version, volume] }.
+- `mpjs` : sérialisation de la map des pièces jointes.
 - `dups` : couple `[id, ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
 - `vsh`
 
 **Suppression d'un secret :**
-- pour un secret temporaire, `st` est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant `st` si elles elles se synchronise avant `st`, sinon ça sera fait à `st`.
-- pour un secret permanent, `st` est en négatif au numero de semaine courante + 18 mois.
+`st` est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant `st` si elles elles se synchronise avant `st`, sinon ça sera fait à `st`.
 
 **Référence à un autre secret**
 - **Secret personnel** : `[id, ns]` cette référence peut pointer n'importe quel message : ainsi un un secret personnel peut _commenter_ un secret de groupe par exemple et lui attribuer des mots clés indirectement. 
@@ -739,43 +747,94 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 
 En session, un secret peut faire apparaître tous les secrets qui le référence.
 
-Pour un secret de couple la référence ne peut pointer qu'un secret 
-
 ### Pièces jointes
-Les `nom` des pièces jointes (comme un nom de fichier) sont relatifs au secret et cryptés par la clé du secret. En base64 ils sont les clés de la map.  
-- L'extension du nom (décrypté) donne son type mime pour affichage dans un browser.
-- La valeur est le couple `[version, volume]`:
-  - version (1, 2 ...) : chaque nouvelle version est incrémentée de 1 afin de pouvoir faire un upload indépendant de la transaction d'enregistrement elle-même.
-  - volume : taille de la pièce jointe cryptée.
+Une pièce jointe est identifiée par : `nom.ext/dh`
+- le `nom.ext` d'une pièce jointe est un nom de fichier, qui indique donc son type MIME par `ext`, d'où un certain nombre de caractères interdits (dont le `/`).
+- `dh` est la date-heure d'écriture UTC (en secondes) : `YYYY-MM-JJ hh:mm:ss`
+sont relatifs au secret et cryptés par la clé du secret. En base64 ils sont les clés de la map.
 
-L'identification d'une pièce jointe sur un support externe est : `org/idga/nom#version`
-- `org` : organisation
-- `idga` : id de l'avatar ou du groupe
-- `nom` : en base64 URL nom de la pièce jointe crypté par la clé du secret.
-- `version` : numéro de version
+**Map des pièces jointes :**
+- _clé_ : hash (court) de nom.ext en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
+- _valeur_ : `[idc, taille]`
+  - `idc` : id complète de la pièce jointe, cryptée par la clé du secret et en base64 URL.
+  - `taille` : en bytes.
 
-Le contenu de la pièce jointe est crypté par la clé du secret.
+**Identifiant de stockage :** `org/sid@sid2/cle@idc`  
+- `org` : code de l'organisation.
+- `sid` : id du secret en base64 URL.
+- `sid2` : ns du secret en base64 URL.
+- `cle` : hash court en base64 URL de nom.ext
+- `idc` : id complète de la pièce jointe, cryptée par la clé du secret et en base64 URL.
 
-### Mots clés
-Un secret peut apparaître avec plusieurs mots clés indiquant :
-- des états : _lus, important, à cacher, à relire, favori ..._
-- des éléments de classement fonctionnel : _énergie bio-diversité réchauffement ..._
+_Une nouvelle version_ d'une pièce jointe est stockée sur support externe **avant** d'être enregistrée dans son secret.
+- _l'ancienne version_ est supprimée du support externe **après** enregistrement dans le secret.
+- les versions crées par anticipation et non validées dans un secret comme celles qui n'ont pas été supprimées après validation du secret, peuvent être retrouvées par un traitement périodique de purge qui peut s'exécuter en ignorant les noms et date-heures des fichiers scannés.
 
-Le texte d'un mot clé peut contenir des emojis.
+> Le contenu d'une pièce jointe sur stockage externe est crypté par la clé du secret.
 
-Les mots clés sont numérotés avec une conversion entre leur numéro et leur texte :
-- 200-255 : pour ceux déclarés par l'organisation à l'installation dans la configuration.
-- 1-99 : pour ceux spécifiques de chaque compte dans `mc` du row `compte` de son avatar : la map est cryptée par la clé K du compte.
-- 100-199 : pour ceux spécifiques de chaque groupe dans `mc` de son row `groupe` : la map est cryptée par la clé G du groupe.
+## Mots clés, principes et gestion
 
-**Pour un secret d'un avatar**
-- `mcs` est la suite des numéros de mots clés attachés par l'avatar au secret.
+Les mots clés sont utilisés pour :
+- filtrer / caractériser à l'affichage les **contacts** d'un compte.
+- filtrer / caractériser à l'affichage les **groupes** accédés par un compte.
+- filtrer / caractériser à l'affichage les **secrets**, personnels, partagés avec un contact ou d'un groupe.
 
-**Pour un secret de couple**
-- le secret étant dédoublé, dans chaque exemplaire `mcs` est la suite des numéros de mots clés attachés par l'avatar au secret.
+### Mots clés : index, catégorie, nom
+Un mot clé a un **index** et un **nom** :
+- **l'index** (représenté sur un octet) identifie le mot clé et qui l'a défini :
+  - un index de 1 à 99 est un mot clé personnel d'un compte.
+  - un index de 100 à 199 est un mot clé défini pour un groupe.
+  - un index de 200 à 255 est un mot clé défini par l'organisation et enregistré dans sa configuration (donc peu modifiable).
+- **le nom** est un texte unique dans l'ensemble des mots clés du définissant : deux mots clés d'un compte, d'un groupe ou de l'organisation ne peuvent pas avoir un même nom. 
+  - le nom est court et peut contenir des caractères émojis en particulier comme premier caractère.
+  - l'affichage _réduit_ ne montre que le premier caractère si c'est un émoji, sinon les deux premiers.
 
-**Pour un secret de groupe**
-- `mcs` est la suite des numéros de mots clés attachés par un des animateurs du groupe au secret.
+#### Catégories de mots clés
+Afin de faciliter leur attribution, un mot clé a une _catégorie_ qui permet de les regrouper par finalité :
+- la catégorie est un mot court commençant par une majuscule : par exemple _Statut_, _Thème_, _Projet_, _Section_
+- la catégorie ne fait pas partie du nom : elle est donnée à la définition / mise à jour du mot clé mais est externe.
+- il n'y a pas de catégories prédéfinies.
+- la catégorie sert pour sélectionner des mots clés à attacher à son objet et à l'affichage pour choisir plus facilement un mot clé pour filtre selon leur usage / signification.
+
+#### Liste de mots clés
+C'est la liste de leurs index, pas de leurs noms : il est ainsi possible de corriger le nom d'un mot clé et toutes ses références s'afficheront avec le nouveau nom rectifié.
+- un index n'est présent qu'une fois.
+- l'ordre n'a pas d'importance.
+- les mots clés d'index 1 à 99 sont toujours ceux du compte qui les regardent. 
+- ceux d'index de 200 à 255 sont toujours ceux de l'organisation.
+- ceux d'index de 100 à 199 ne peuvent être attachés qu'à un secret de groupe, leur signification est interprétée vis à vis du groupe détenteur du secret.
+
+> Remarque : deux mots clé d'un compte et d'un groupe peuvent porter le même nom (voire d'ailleurs un mot clé de l'organisation). L'origine du mot clé est distinguée à l'affichage en lisant son code.
+
+#### Mots clés _obsolètes_
+Un mot clé _obsolète_ est un mot clé sans catégorie :
+- son attribution est interdite : quand une liste de mots clés est éditée, les mots clés obsolètes sont effacés.
+- la suppression définitive d'un mot clé ne s'opère que sur un mot clé obsolète. Une recherche permettra de lister où il apparaît avant de décider.
+
+### Présence des listes de mots clés
+- sur un **contact** d'un avatar du compte : la liste est accompagnée d'un court texte de commentaire.
+- sur **l'invitation** à un groupe d'un des avatars du compte : la liste est accompagnée d'un court texte de commentaire.
+- sur un **secret**. La propriété mc contient un objet de structure différente selon le type de secret.
+
+**Secret personnel**  
+`mc` est un vecteur d'index de secrets. Les index sont ceux du compte et de l'organisation.
+
+**Secret de couple**
+`mc` est le couple `[vi, info]`
+- `vi` : vecteur d'index de secrets. Les index sont ceux du compte et de l'organisation.
+- `info` : texte de commentaire de A à propos du texte commun à A et B. Le texte est crypté par la clé K du compte A.
+
+**Secret de groupe**
+`mc` est une map :
+- _clé_ : im, indice du membre dans le groupe. Par convention 0 désigne le groupe lui-même.
+- _valeur_ : vecteur d'index de secrets. Les index sont ceux personnels du membre, ceux du groupe, ceux de l'organisation.
+
+A l'affichage un membre du groupe peut voir ce que chaque membre à indiquer comme mots clés. Mais, les index personnels des autres (de 1 à 99) étant ininterprétables ne sont pas affichés.
+
+Pour utilisation pour filtrer une liste de secrets dans un groupe :
+- si le compte a lui-même donné une liste de mots clés, c'est celle-ci qui est prise, sans considérer les mots clés du groupe.
+- sinon ce sont les mots clés du groupe.
+- ainsi le groupe peut avoir indiqué que le secret est _nouveau_ et _important_, mais si le compte A a indiqué que le secret est _lu_ et _sans intérêt_ c'est ceci qui sera utilisé pour filtrer les listes.
 
 # Gestion des disparitions
 Les ouvertures de session *signent* dans les tables `compte avatar groupe`, colonne `dds`, les rows relatifs aux compte, avatars du compte et groupes accédés par le compte.
