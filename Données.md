@@ -718,9 +718,10 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 
 - `id` : id du groupe ou de l'avatar.
 - `ns` : numéro du secret.
+- `nr` : numéro du secret de référence à propos duquel ce secret se rapporte. Si b est à propos de a, c pourra être à propos de a (pas de b).
 - `ic` : indice du contact pour un secret de couple, sinon 0.
-- `v` : 
-- `st` : 
+- `v` :
+- `st` :
   - < 0 pour un secret _supprimé_.
   - 99999 pour un *permanent*.
   - `dlv` pour un _temporaire_.
@@ -728,36 +729,30 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `v1` : volume du texte
 - `v2` : volume de la pièce jointe
 - `txts` : crypté par la clé du secret.
-  - `dh` : date-heure de dernière modification du texte
-  - `la` : liste des auteurs (pour un secret de couple ou de groupe).
-  - `gz` : texte gzippé
-  - `ref` : référence à un autre secret.
+  - `d` : date-heure de dernière modification du texte
+  - `l` : liste des auteurs (pour un secret de couple ou de groupe).
+  - `t` : texte gzippé ou non
 - `mcs` : liste des mots clés crypté par la clé du secret.
 - `mpjs` : sérialisation de la map des pièces jointes.
-- `dups` : couple `[id, ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
+- `dups` : triplet `[id, ns, nr]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
 - `vsh`
 
 **Suppression d'un secret :**
 `st` est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant `st` si elles elles se synchronise avant `st`, sinon ça sera fait à `st`.
 
 **Référence à un autre secret**
-- **Secret personnel** : `[id, ns]` cette référence peut pointer n'importe quel message : ainsi un un secret personnel peut _commenter_ un secret de groupe par exemple et lui attribuer des mots clés indirectement. 
-- **Secret de couple** : `[id1, ns1, id2, ns2]` cette référence désigne un autre secret du couple, lequel secret a en pratique deux ids, une pour chaque avatar du couple.
-- **Secret de groupe** : `[ns]` cette référence désigne un autre secret du même groupe.
-
-En session, un secret peut faire apparaître tous les secrets qui le référence.
+C'est un secret de même origine (personnel, du même couple ou du même groupe : en session, les secrets _à propos_ d'un même secret peuvent ainsi être regroupés.
 
 ### Pièces jointes
 Une pièce jointe est identifiée par : `nom.ext/dh`
 - le `nom.ext` d'une pièce jointe est un nom de fichier, qui indique donc son type MIME par `ext`, d'où un certain nombre de caractères interdits (dont le `/`).
-- `dh` est la date-heure d'écriture UTC (en secondes) : `YYYY-MM-JJ hh:mm:ss`
-sont relatifs au secret et cryptés par la clé du secret. En base64 ils sont les clés de la map.
+- `dh` est la date-heure d'écriture UTC (en secondes) : `YYYY-MM-JJThh:mm:ss`.
 
 **Map des pièces jointes :**
 - _clé_ : hash (court) de nom.ext en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
 - _valeur_ : `[idc, taille]`
   - `idc` : id complète de la pièce jointe, cryptée par la clé du secret et en base64 URL.
-  - `taille` : en bytes.
+  - `taille` : en bytes. Par convention une taille négative indique que la pièce jointe a été gzippée.
 
 **Identifiant de stockage :** `org/sid@sid2/cle@idc`  
 - `org` : code de l'organisation.
