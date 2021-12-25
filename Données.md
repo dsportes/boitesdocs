@@ -669,7 +669,12 @@ La liste des auteurs d'un secret donne les derniers auteurs,
 - par A si le statut du secret est *ouvert* ou *restreint*.
 - par B si statut est *ouvert*.
 - par personne si le statut du secret est *archivé*.
-- indices relatifs de A et B : par convention désigne celui de A et B ayant l'id la plus basse, 1 désigne l'autre. La _liste des auteurs_ peut être : `[0] [1] [0,1] [1,0]`, simplement abrégée par un entier de 0 à 3.
+- indices relatifs de A et B : par convention 
+  - 1: désigne celui de A et B ayant l'id la plus basse, 
+  - 0: désigne l'autre. 
+- Successions possibles : 0:0 1:1 2:01 3:10
+  - quand 0 écrit : 0->0 1->2 2->2 3->2
+  - quand 1 écrit : 0->3 1->1 2->3 3->3
 
 **Un secret de groupe** créé par un animateur ne peut être modifié que par des auteurs et animateurs :
 - chacun est repéré par son im (indice de membre de 1 à 255).
@@ -701,6 +706,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     CREATE TABLE "secret" (
     "id"  INTEGER,
     "ns"  INTEGER,
+    "nr"  INTEGER,
     "ic"  INTEGER,
     "v"		INTEGER,
     "st"	INTEGER,
@@ -728,13 +734,13 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `ora` : 0:ouvert, 1:restreint, 2:archivé
 - `v1` : volume du texte
 - `v2` : volume de la pièce jointe
+- `mcs` : vecteur des index de mots clés ou sérialisation de la map des mots clés pour un secret de groupe.
 - `txts` : crypté par la clé du secret.
   - `d` : date-heure de dernière modification du texte
   - `l` : liste des auteurs (pour un secret de couple ou de groupe).
   - `t` : texte gzippé ou non
-- `mcs` : liste des mots clés crypté par la clé du secret.
 - `mpjs` : sérialisation de la map des pièces jointes.
-- `dups` : triplet `[id, ns, nr]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
+- `dups` : couple `[id, ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
 - `vsh`
 
 **Suppression d'un secret :**
@@ -749,9 +755,9 @@ Une pièce jointe est identifiée par : `nom.ext/dh`
 - `dh` est la date-heure d'écriture UTC (en secondes) : `YYYY-MM-JJThh:mm:ss`.
 
 **Map des pièces jointes :**
-- _clé_ : hash (court) de nom.ext en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
+- _clé_ : hash (court) de `nom.ext` en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
 - _valeur_ : `[idc, taille]`
-  - `idc` : id complète de la pièce jointe, cryptée par la clé du secret et en base64 URL.
+  - `idc` : id complète de la pièce jointe (`nom.ext/dh`), cryptée par la clé du secret et en base64 URL.
   - `taille` : en bytes. Par convention une taille négative indique que la pièce jointe a été gzippée.
 
 **Identifiant de stockage :** `org/sid@sid2/cle@idc`  
@@ -812,12 +818,10 @@ Un mot clé _obsolète_ est un mot clé sans catégorie :
 - sur un **secret**. La propriété mc contient un objet de structure différente selon le type de secret.
 
 **Secret personnel**  
-`mc` est un vecteur d'index de secrets. Les index sont ceux du compte et de l'organisation.
+`mc` est un vecteur d'index de mots clés. Les index sont ceux du compte et de l'organisation.
 
 **Secret de couple**
-`mc` est le couple `[vi, info]`
-- `vi` : vecteur d'index de secrets. Les index sont ceux du compte et de l'organisation.
-- `info` : texte de commentaire de A à propos du texte commun à A et B. Le texte est crypté par la clé K du compte A.
+`mc` est le vecteur d'index de mots clés. Les index sont ceux du compte et de l'organisation.
 
 **Secret de groupe**
 `mc` est une map :
