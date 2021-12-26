@@ -717,6 +717,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     "mcs"   BLOB,
     "mpjs"	BLOB,
     "dups"	BLOB,
+    "refs"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id", "ns");
     CREATE INDEX "id_v_secret" ON "secret" ("id", "v");
