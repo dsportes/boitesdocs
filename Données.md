@@ -2,7 +2,7 @@
 
 ## Identification des entités
 
-Les clés AES et les PBKFD2 font 32 bytes (44 caractères en base64 url).
+Les clés AES et les PBKFD font 32 bytes (44 caractères en base64 url).
 
 Le hash des string en *integer* est un entier sur 53 bits (intègre en Javascript):
 - 15 chiffres décimaux.
@@ -15,13 +15,13 @@ Le hash des string en *BigInt* est un 64 bits (sans signe, toujours positif) :
 Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bits (entier intègre en Javascript).
 
 ### Compte
-- `id` : un entier issu de 6 bytes aléatoires.  
+- `id` : un entier (intègre en Javascript) issu de 6 bytes aléatoires.  
 - `clé K` : 32 bytes aléatoires.  
-- `pcb` : PBKFD2 de la phrase complète (clé X) - 32 bytes.  
-- `dpbh` : hashBin (_integer_) du PBKFD2 du début de la phrase secrète.
+- `pcb` : PBKFD de la phrase complète (clé X) - 32 bytes.  
+- `dpbh` : hashBin (_integer_) du PBKFD du début de la phrase secrète.
 
 **La phrase secrète d'un compte reste dans le cerveau du titulaire.**
-- sa transformée par PBKFD2 dès la saisie donne une clé AES X qui ne sort jamais de la session cliente et n'est jamais stockée de manière permanente.
+- sa transformée par PBKFD dès la saisie donne une clé AES X qui ne sort jamais de la session cliente et n'est jamais stockée de manière permanente.
 
 **La clé K d'un compte**,
 - n'est stockée en session comme en serveur que sous forme cryptée par X.
@@ -31,19 +31,20 @@ Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bi
 ### Nom complet d'un avatar ou d'un groupe
 Le **nom complet** d'un avatar ou d'un groupe est un string de la forme `[nom@rnd]`
 - `nom` : nom lisible et signifiant, entre 6 et 20 caractères.
-- `rnd` : 15 bytes aléatoires, 20 caractères en base 64.
+- `rnd` : 27 bytes aléatoires, 36 caractères en base 64. 
+- A l'écran le nom est affiché sous la forme `nom@abgh` ou `ab` sont les deux premiers caractères de l'id en base64 et `gh` les deux derniers.
 
-Dans le nom, les caractères `< > : " / \ | ? *` et ceux dont le code est inférieur à 32 (donc de 0 à 31) sont interdits afin de permettre d'utiliser le nom complet comme nom de fichier.
+**Dans les noms,** les caractères `< > : " / \ | ? *` et ceux dont le code est inférieur à 32 (donc de 0 à 31) sont interdits afin de permettre d'utiliser le nom complet comme nom de fichier.
 
 ### Avatar
 La **clé de cryptage** de la carte de visite est le SHA de `rnd`.
 
-L'`id` d'un avatar est le hash (integer) des bytes de `rnd`.
+L'`id` d'un avatar est le hash (integer) des bytes de `rnd`, 6 bytes, soit 8 base64.
 
 ### Groupe
 La **clé de cryptage** du groupe (carte de visite et secrets) est le SHA de `rnd`.
 
-L'`id` d'un groupe est le hash (integer) des bytes de `rnd`.
+L'`id` d'un groupe est le hash (integer) des bytes de `rnd`, 6 bytes, soit 8 base64.
 
 ### Secret
 - `id` : du groupe ou de l'avatar propriétaire
@@ -98,7 +99,7 @@ _**Tables aussi persistantes sur le client (IDB)**_
 - `compte` (id) : authentification et données d'un compte 
 - `avatar` (id) : données d'un avatar et liste de ses contacts
 - `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
-- `contact` (id, nc) : données d'un contact d'un avatar    
+- `contact` (id, ic) : données d'un contact d'un avatar    
 - `invitct` (id, ni) : invitation reçue à lier un contact fort avec un autre avatar  
 - `rencontre` (prh) id : communication par A de son nom complet à un avatar B non connu de A dans l'application
 - `parrain` (pph) id : parrainage par un avatar A de la création d'un nouveau compte
@@ -161,8 +162,8 @@ Les volumes mensuels sont mis à 0 le premier de chaque mois à minuit. Le cas �
 
 ## Table : `compte` CP `id`. Authentification et données d'un compte
 _Phrase secrète_ : une ligne 1 de 16 caractères au moins et une ligne 2 de 16 caractères au moins.  
-`pcb` : PBKFD2 de la phrase complète (clé X) - 32 bytes.  
-`dpbh` : hashBin (53 bits) du PBKFD2 du début de la phrase secrète (32 bytes).
+`pcb` : PBKFD de la phrase complète (clé X) - 32 bytes.  
+`dpbh` : hashBin (53 bits) du PBKFD du début de la phrase secrète (32 bytes).
 
 Table :
 
@@ -184,14 +185,14 @@ Table :
 - `id` : id du compte.
 - `v` : 
 - `dds` : date (jour) de dernière signature.
-- `dpbh` : hashBin (53 bits) du PBKFD2 du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
-- `pcbh` : hashBin (53 bits) du PBKFD2 de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
+- `dpbh` : hashBin (53 bits) du PBKFD du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
+- `pcbh` : hashBin (53 bits) du PBKFD de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
 - `kx` : clé K du compte, crypté par la X (phrase secrète courante).
 - `mmck` {} : cryptées par la clé K, map des mots clés déclarés par le compte.
   - *clé* : id du mot clé de 1 à 99.
   - *valeur* : libellé du mot clé.
-- `mack` {} : map des avatars du compte `[nom@rnd, cpriv]`, cryptée par la clé K
-  - `nomc` : `nom@rnd`, nom complet.
+- `mack` {} : map des avatars du compte cryptée par la clé K. Clé: id, valeur: `[nom, rnd, cpriv]`
+  - `nom rnd` : nom complet.
   - `cpriv` : clé privée asymétrique.
 - `memok` : texte court libre (crypté par la clé K) vu par le seul titulaire du compte. Le début de la première ligne s'affiche en haut de l'écran.
 - `vsh`
@@ -233,6 +234,7 @@ Table :
     "dds" INTEGER,
     "cva"	BLOB,
     "lctk" BLOB,
+    "lgrk" BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
@@ -246,8 +248,11 @@ Table :
 - `vcv` : version de la carte de visite (séquence 0).
 - `dds` :
 - `cva` : carte de visite de l'avatar cryptée par la clé de l'avatar `[photo, info]`.
-- `lctk` : liste, cryptée par la clé K du compte, des ids des contacts de l'avatar afin de garantir l'unicité de ceux-ci. L'indice d'un contact est celui dans cette liste + 1 (la valeur 0 est réservée).
+- `lctk` : liste, cryptée par la clé K du compte, des couples `[id, ic]` des contacts de l'avatar afin de garantir l'unicité de ceux-ci.
+- `lgrk` : liste, cryptée par la clé K du compte, des couples `[idg, im]` des groupes / indice membre de l'avatar afin de garantir l'unicité de ceux-ci.
 - `vsh`
+
+La lecture de avatar permet d'obtenir les deux listes de ses contacts et des groupes dont il est membre.
 
 Sur GC quotidien sur `dds` : 
 - mise à jour du statut `st` OK/alerte/disparu.
@@ -291,7 +296,7 @@ Table :
 - `ic` : indice de contact de B pour A.
 - `v` : 
 - `st` : statut entier de 3 chiffres, `x y z` : **les valeurs < 0 indiquent un row supprimé (les champs après sont null)**.
-  - `x` : 0: contact présumé actif, 1:disparu
+  - `x` : 0: contact présumé actif, 2:disparu
   - `y` : A accepte 1 (ou non 0) les partages de B.
   - `z` : B accepte 1 (ou non 0) les partages de A.
 - `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar A à l'avatar B (contact _fort_).
@@ -299,29 +304,28 @@ Table :
 - `icbc` : pour un contact fort _accepté_, indice de A chez B (communiqué lors de l'acceptation par B) pour mise à jour dédoublée de l'ardoise et du statut, crypté par la clé `cc`.
 - `datak` : information cryptée par la clé K de A.
   - `nomc` : nom complet de l'avatar `nom@rnd`.
-  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _fort_ avec B (en attente ou accepté).
+  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _fort_ avec B (en attente ou accepté). Le hash de `cc` est **le numéro d'invitation** `ni` retrouvé en clé de invitct correspondant.
   - `dlv` : date limite de validité de l'invitation à être contact _fort_ ou du parrainage.
-  - `pph` : hash du PBKFD2 de la phrase de parrainage.
+  - `pph` : hash du PBKFD de la phrase de parrainage.
 - `ank` : annotation cryptée par la clé K du membre
   - `mc` : mots clés
   - `txt` : commentaires (personnel) de A sur B
 - `vsh`
 
 Un contact **fort**,
-- est _accepté_ quand `icbc` est non null.
-- est _refusé_ quand `icbc` est null et `ardc` ne l'est pas (raison du refus).
-- en _attente d'acceptation_ quand `dlv` n'est pas dépassée : l'invitation peut être accédée étant identifiée par le hash de `cc`, typiquement pour être annulée ou corrigée.
-- est _sans réponse_ quand `dlv` est dépassée.
+- est encore en _attente d'acceptation_ quand `icbc` et `ardc` sont null et `dlv` n'est pas dépassée : l'invitation peut être accédée étant identifiée par le hash de `cc` pour être annulée.
+- est _accepté_ quand `icbc` est non null. `ardc` contient le message de remerciement. `dlv` sans signification.
+- est _refusé_ quand `icbc` est null et `ardc` ne l'est pas (raison du refus de B).
+- est _sans réponse_ quand `icbc` et `ardc` sont null et `dlv` est dépassée.
 
 **Un parrainage,**
-- _en attente_ : `icbc` est null, `dlv` n'est pas dépassée, `pph` permet d'accéder au parrainage.
-- _accepté_ : `icbc` non null. `ardc` contient le message de remerciement.  `dlv` et `phh` sans signification.
-- _refusé_ : le row `contact` est supprimé. Il faut / fallait lire la raison du refus dans le row `parrain`.
+- est encore _en attente d'acceptation_ quand `icbc` et `ardc` sont null et `dlv` n'est pas dépassée : `pph` permet d'accéder au parrainage pour le supprimer.
+- _accepté refusé sans réponse_, comme contact **fort**.
 
 Un contact est **supprimé** (`st` < 0) :
-- soit après refus d'un parrainage ou dépassement de sa `dlv`.
+- soit après refus d'un parrainage après dépassement de sa `dlv`.
 - soit pour un contact simple quand l'avatar l'a jugé explicitement _obsolète_.
-- les autres colonnes `ardc icbc datak` sont null.
+- les autres colonnes `ardc icbc datak ank` sont null.
 
 Un *contact fort* permet de partager par **l'ardoise** un court texte entre A et B pour justifier d'un changement de statut ou n'importe quoi d'autre : en particulier quand A n'accepte pas le partage de secrets avec B par exemple, c'est le seul moyen de passer une courte information mutuelle qui n'encombre pas leurs volumes respectifs.
 
@@ -329,51 +333,7 @@ Un *contact fort* permet de partager par **l'ardoise** un court texte entre A et
 - un contact invité à devenir _fort_ mais avec une réponse de refus (ou dépassement de la `dlv`), reste un contact _simple_.
 - le row `contact` d'un avatar _disparu_ reste pour information historique. La carte de visite du contact n'existe plus. L'utilisateur ne peut demander la suppression ce row d'information historique (`st` passe à < 0) que si c'était un contact simple.
 
-## Table `invitgr`. Invitation d'un avatar M par un animateur A à un groupe G
-Les invitations restent présentes jusqu'à disparition de l'avatar M : un numéro aléatoire d'invitation `ni` les identifient relativement à l'avatar invité. C'est `invitgr` qui permet à une session d'un compte d'obtenir la liste de ses groupes (en tant qu'invité ou actif).
-
-Pour un couple avatar / groupe il ne peut y avoir qu'au plus une invitation : ceci est garanti par le row `groupe`.
-
-_Remarque_ : L'invitant peut retrouver en session la liste des invitations en cours qu'il a faites : un membre de G avec son indice de membre comme invitant et un statut `invité`.
-
-    CREATE TABLE "invitgr" (
-    "id"  INTEGER,
-    "ni" INTEGER,
-    "v"   INTEGER,
-    "dlv"	INTEGER,
-    "st"  INTEGER,
-    "datap" BLOB,
-    "datak" BLOB,
-    "ank" BLOB,
-    "vsh"	INTEGER,
-    PRIMARY KEY ("id", "ni"));
-    CREATE INDEX "dlv_invitgr" ON "invitgr" ( "dlv");
-
-- `id` : id du membre invité.
-- `ni` : numéro d'invitation.
-- `v` :
-- `dlv` :
-- `st` : statut. `xy` : < 0 signifie supprimé (redondance de `st` de `membre`)
-  - `x` : 2:invité, 3:actif.
-  - `y` : 0:lecteur, 1:auteur, 2:administrateur.
-- `datap` : pour une invitation _en cours_, crypté par la clé publique du membre invité, référence dans la liste des membres du groupe `[idg, cleg, im]`.
-	- `nomc` : nom complet du groupe.
-	- `im` : indice de membre de l'invité dans le groupe.
-- `datak` : même données que `datap` mais cryptées par la clé K du compte de l'invité, après son acceptation.
-- `ank` : annotation cryptée par la clé K de l'invité
-  - `mc` : mots clés
-  - `txt` : commentaire personnel de l'invité
-- `vsh`
-
-**Remarques :**
-- tant que l'invitation est en statut _invité_ et que `dlv` n'est pas dépassée, `datap` existe et l'invitation est en attente. 
-- le GC ayant détecté un dépassement de `dlv`, _supprime_ le row.
-- _acceptation_ : le statut passe à 1, `datap` est null et `datak` contient les informations d'accès. `dlv` est à 99999. `membre` est mis à jour (`st` `ardg`).
-- _refus_ : le statut passe négatif, `datap` `datak` `ank` sont null. `membre` est mis à jour (`st` `ardg`).
-- _résiliation / disparition_ : `datak` et `datak` sont null, `st` < 0. Le groupe, ses membres et ses secrets sont inaccessibles après résiliation. 
-- Dans ce row seuls changent `st` `dlv` `ank`. `datak / datap` sont immuables mais peuvent passer à null en fonction du statut d'appartenance du membre au groupe : `v` est nécessaire pour trapper ces changements.
-
-## Table `invitct` : CP : `id`. Invitation en attente reçue par B de A à établir un contact fort
+## Table `invitct` : CP : `id`. Invitation en attente reçue par A de B à établir un contact fort
 Un contact *fort* est requis pour partager, un statut, une ardoise, des secrets et s'échanger des quotas.
 
     CREATE TABLE "invitct" (
@@ -383,35 +343,31 @@ Un contact *fort* est requis pour partager, un statut, une ardoise, des secrets 
     "dlv"	INTEGER,
     "st"  INTEGER,
     "datap" BLOB,
-    "datak"  BLOB,
-    "ardc"  BLOB)
     "vsh"	INTEGER,
     PRIMARY KEY ("id", "ni");
     CREATE INDEX "dlv_invitct" ON "invitct" ( "dlv" );
 
-- `id` : id de B.
-- `ni` : numéro aléatoire d'invitation en complément de `id`.
+- `id` : id de A.
+- `ni` : numéro aléatoire d'invitation en complément de `id` (généré par B).
 - `v`
 - `dlv` : la date limite de validité permettant de purger les rencontres (quels qu'en soient les statuts).
-- `st` : <= 0: annulée, 0: en attente, 1: acceptée, 2: refusée
+- `st` : <= 0: annulée, 0: en attente
 - `datap` : données cryptées par la clé publique de B.
-	- `nom@rnd` : nom complet de A.
-	- `ic` : numéro du contact de A pour B (pour que B puisse écrire le statut et l'ardoise dans `contact` de A). 
-  - `cc` : clé `cc` du contact *fort* A / B, définie par A.
-- `datak` : même données que `datap` mais cryptées par la clé K de B après acceptation ou refus.
-- `ardc` : texte de sollicitation écrit par A pour B et/ou réponse de B (après acceptation ou refus).
+	- `nom@rnd` : nom complet de B.
+	- `ic` : index de A dans la liste des contacts de B (pour que A puisse écrire le statut et l'ardoise dans `contact` de B). 
+  - `cc` : clé `cc` du contact *fort* A / B, définie par B.
 - `vsh`
 
-**En cas d'acceptation**, B peut, soit créer un contact chez lui pour A quand il n'y en a pas encore, soit récupérer celui existant chez lui pour A s'il l'avait déjà en contact simple, et inscrire les données de A comme contact *fort* chez lui (`st cc ardc icbc`). 
-- Chez A il y a mise à jour de `st ardc icbc` avec le remerciement de B dans `ardc`. Le statut `st` du row `invitct` (de B) est à 1. `icbc` est le numéro de contact de A chez B et est inscrit chez A pour permettre la mise à jour dupliquée ultérieure du statut et de l'ardoise.
+**En cas d'acceptation par A**, A peut, soit créer un contact chez lui pour B quand il n'y en a pas encore, soit récupérer celui existant chez lui pour B s'il l'avait déjà en contact simple, et inscrire les données de B comme contact *fort* chez lui (`st cc ardc icbc`). 
+- Dans le contact de A pour B, mise à jour de `st ardc icbc` avec le remerciement de A dans `ardc`. `invitct` est supprimé mais A a désormais B dans ses contacts.
 
-**En cas de refus**, le contact `ic` chez A reste un contact _simple_, l'ardoise `ardc` contient la raison du refus. Le statut `st` du row `invitct` (de B) est à 2. 
+**En cas de refus par A**, le contact `ic` de A chez B reste un contact _simple_, l'ardoise `ardc` contient la raison du refus. Le statut `st` du row contact de A chez B est 2 (refusé) et l'ardoise donne la raison donnée par A. `invitct` de A est détruit. 
 
-**Si B ne répond pas à temps**, le dépassement de `dlv` dans `contact` de A détecte le cas : le contact `ic` chez A reste un contact _simple_. 
+**Si A ne répond pas à temps**, le dépassement de `dlv` dans `contact` de B détecte le cas : le contact `ic` de A chez B reste un contact _simple_. 
 
-Dans tous les cas le row `invitct` (de B) est supprimé par le GC sur la `dlv`.
+Dans tous les cas le row `invitct` de A est supprimé par le GC sur la `dlv`.
 
-A peut annuler une invitation (par sa clé primaire) avant la réponse de B (`st` < 0).
+B peut annuler une invitation (par sa clé primaire) avant la réponse de A (`st` < 0).
 
 **Quand deux invitations croisées de A pour B et de B pour A sont en cours :**
 A par exemple accepte celle de B (avant que B n'ait accepté celle de A).
@@ -428,7 +384,7 @@ Comme il va y avoir un don de quotas du *parrain* vers son *filleul*, ces deux-l
 
 Le parrain fixe l'avatar filleul (mais pas son compte), donc son nom : le contact _fort_ est préétabli dans `contact` de P. Le filleul établira le sien lors de son acceptation du parrainage.
 
-Un parrainage est identifié par le hash du PBKFD2 de la phrase de parrainage pour être retrouvée par le filleul.
+Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pour être retrouvée par le filleul.
 
     CREATE TABLE "parrain" (
     "pph"  INTEGER,
@@ -450,41 +406,39 @@ Un parrainage est identifié par le hash du PBKFD2 de la phrase de parrainage po
     CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" );
     CREATE INDEX "id_parrain" ON "parrain" ( "id" );
 
-- `pph` : hash du PBKFD2 de la phrase de parrainage.
+- `pph` : hash du PBKFD de la phrase de parrainage.
 - `id` : id du parrain.
 - `v`
-- `ic` : numéro de contact du filleul chez le parrain.
 - `dlv` : la date limite de validité permettant de purger les parrainages (quels qu'en soient les statuts).
-- `st` : 0: annulé par P, 1: en attente de décision de F, 2: accepté par F, 3: refusé par F
+- `st` : <0: annulé par P, 0: en attente de décision de F
 - `q1 q2 qm1 qm2` : quotas donnés par P à F en cas d'acceptation.
-- `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD2 de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD2 en session du parrain pour qu'il puisse afficher `datax`.
-- `datax` : données de l'invitation cryptées par le PBKFD2 de la phrase de parrainage.
+- `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
+- `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
   - `nomp` : `nom@rnd` nom complet de l'avatar P.
   - `nomf` : `nom@rnd` : nom complet du filleul F (donné par P).
   - `cc` : clé `cc` générée par P pour le couple P / F.
-- `ardc` : cryptée par la clé `cc`, *ardoise*, texte de sollicitation écrit par A pour B et/ou réponse de B.
+  - `ic` : numéro de contact du filleul chez le parrain.
 - `vsh`
 
 **La parrain créé par anticipation un contact *fort* pour le filleul**  avec un row `contact`. 
 - Les quotas de P sont prélevés à ce moment. 
 
-**Si le filleul ne fait rien à temps : (`st` toujours à 1)** 
+**Si le filleul ne fait rien à temps : (`st` toujours à 0)** 
 - Lors du GC sur la `dlv`, le row `parrain` sera supprimé par GC de la `dlv`. 
 - Les quotas donnés par le parrain (`q1 q2 qm1 qm2`) lui sont restitués par le GC qui a l'id du parrain dans `id`.
 
 **Si le filleul refuse le parrainage :** 
-- Le row dans `contact` du parrain est marqué avec un `st` < 0 (supprimé), les autres propriétés sont null). 
-- L'ardoise du `parrain` renseigne sur la raison de F. 
-- Le row `parrain` est immuable et sera purgé par le GC sur `dlv`. 
+- Le row dans `contact` du parrain, son `icbc` y est null mais son ardoise `ardc` indique la raison du refus. 
+- Le row `parrain` est supprimé. 
 - Les quotas donnés par P lui sont restitués.
 
 **Si le filleul accepte le parrainage :** 
 - Le filleul crée son compte et son premier avatar (dont il a reçu `nom@rnd` et l'indice de P) et créé un contact fort avec P. 
 - L'ardoise des `contact` de P et de F contient l'ardoise de l'acceptation (`ardc`).
-- Le row `parrain` est immuable et sera purgé par le GC sur `dlv`. 
+- Le row `parrain` est supprimé. 
 
 **Le parrain peut annuler son row :** 
-- son `st` passe à 0.
+- son `st` passe à <0.
 - Les quotas donnés par P lui sont restitués.
 
 Dans tous les cas le GC sur `dlv` supprime le row `parrain`.
@@ -497,7 +451,7 @@ A et B se sont rencontrés dans la *vraie* vie mais ni l'un ni l'autre n'a les c
 Une rencontre est juste un row qui va permettre à A de transmettre à B son `nom@rnd` en utilisant une phrase de rencontre convenue entre eux.  
 En accédant à cette rencontre B pourra inscrire A comme contact *simple* : ensuite il pourra normalement l'inviter à un contact *fort* (ou l'inviter à un groupe).
 
-Une rencontre est identifiée par le hash de la **clé X (PBKFD2 de la phrase de rencontre)**.
+Une rencontre est identifiée par le hash de la **clé X (PBKFD de la phrase de rencontre)**.
 
     CREATE TABLE "rencontre" (
     "prh" INTEGER,
@@ -513,18 +467,18 @@ Une rencontre est identifiée par le hash de la **clé X (PBKFD2 de la phrase de
     CREATE INDEX "dlv_rencontre" ON "rencontre" ( "dlv" );
     CREATE INDEX "id_v_rencontre" ON "rencontre" ( "id", "v" );
 
-- `prh` : hash du PBKFD2 de la phrase de rencontre.
+- `prh` : hash du PBKFD de la phrase de rencontre.
 - `id` : id de l'avatar A ayant initié la rencontre.
 - `v` :
 - `dlv` : date limite de validité permettant de purger les rencontres.
-- `st` : <= 0:annulée, 1:en attente, 2:acceptée, 3:refusée
-- `datak` : **phrase de rencontre et son PBKFD2** (clé X) cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.
+- `st` : < 0:annulée, 0:en attente, 1:contact simple récupéré par B, 2:contact refusé
+- `datak` : **phrase de rencontre et son PBKFD** (clé X) cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.
 - `nomcx` : nom complet de A (pas de B, son nom complet n'est justement pas connu de A) crypté par la clé X.
 - `vsh`
 
-Si B accepte la rencontre, il créé un contact simple, `st` passe à 2 (permet à A d'en suivre l'évolution).
+Si B accepte la rencontre, il créé un contact simple, `st` passe à 2 (permet à A d'en suivre l'évolution ???).
 
-Si B refuse la rencontre, `st` passe à 3 (permet à A d'en suivre l'évolution).
+Si B refuse la rencontre, `st` passe à 2 (permet à A d'en suivre l'évolution ???).
 
 Le GC sur `dlv` détruit le row `rencontre` (`st` < 0, `datak / nomcx` sont mis à null).
 
@@ -546,7 +500,7 @@ Table :
     "st"  INTEGER,
     "cvg"  BLOB,
     "mcg"   BLOB,
-    "lstmg" BLOB,
+    "lmbg" BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
@@ -560,10 +514,49 @@ Table :
   - `y` : 0-en écriture, 1-archivé 
 - `cvg` : carte de visite du groupe `[photo, info]` cryptée par la clé G du groupe.
 - `mcg` : liste des mots clés définis pour le groupe cryptée par la clé du groupe cryptée par la clé G du groupe.
-- `lstmg` : liste des ids des membres du groupe.
+- `lmbg` : liste des couples `[id, im]` des membres (possiblement seulement pressentis / invités) du groupe.
 - `vsh`
 
-**L'indice d'un membre**, quel que soit son statut, est son index + 1 dans cette liste et n'y est présent qu'une et une seule fois. Ce row permet un contrôle d'unicité d'attribution de cet indice (ajout à la fin) afin de prémunir contre des inscriptions possiblement parallèles.
+**L'indice d'un membre** (2 bytes), quel que soit son statut, est repris dans cette liste et n'y est présent qu'une et une seule fois. Ce row permet un contrôle d'unicité d'attribution de cet indice afin de prémunir contre des inscriptions possiblement parallèles.
+
+## Table `invitgr`. Invitation d'un avatar M par un animateur A à un groupe G
+Les invitations restent présentes jusqu'à disparition de l'avatar M : un numéro aléatoire d'invitation `ni` les identifient relativement à l'avatar invité. C'est `invitgr` qui permet à une session d'un compte d'obtenir la liste de ses groupes (en tant qu'invité ou actif).
+
+Pour un couple avatar / groupe il ne peut y avoir qu'au plus une invitation : ceci est garanti par le row `groupe`.
+
+_Remarque_ : L'invitant peut retrouver en session la liste des invitations en cours qu'il a faites : un membre de G avec son indice de membre comme invitant et un statut `invité`.
+
+    CREATE TABLE "invitgr" (
+    "id"  INTEGER,
+    "ni" INTEGER,
+    "v"   INTEGER,
+    "dlv"	INTEGER,
+    "st"  INTEGER,
+    "datap" BLOB,
+    "vsh"	INTEGER,
+    PRIMARY KEY ("id", "ni"));
+    CREATE INDEX "dlv_invitgr" ON "invitgr" ( "dlv");
+
+- `id` : id du membre invité.
+- `ni` : numéro d'invitation.
+- `v` :
+- `dlv` :
+- `st` : statut.  < 0 signifie supprimé. 0: invité.
+- `datap` : crypté par la clé publique du membre invité, référence dans la liste des membres du groupe `[nomcg, im]`.
+	- `nomcg` : nom complet du groupe (donne sa clé).
+	- `im` : indice de membre de l'invité dans le groupe.
+  - `p` : 0:lecteur, 1:auteur, 2:administrateur.
+- `vsh`
+
+**L'acceptation d'une invitation inscrit le couple `[idg, im]` dans la liste des groupes de l'avatar `lgrk`.**
+
+**Remarques :**
+- tant que l'invitation est en statut _invité_ et que `dlv` n'est pas dépassée, `datap` existe et l'invitation est en attente. 
+- le GC ayant détecté un dépassement de `dlv`, _supprime_ le row.
+- _acceptation_ : le statut passe à 1, `datap` est null et `datak` contient les informations d'accès. `dlv` est à 99999. `membre` est mis à jour (`st` `ardg`).
+- _refus_ : le statut passe négatif, `datap` `datak` `ank` sont null. `membre` est mis à jour (`st` `ardg`).
+- _résiliation / disparition_ : `datak` et `datak` sont null, `st` < 0. Le groupe, ses membres et ses secrets sont inaccessibles après résiliation. 
+- Dans ce row seuls changent `st` `dlv` `ank`. `datak / datap` sont immuables mais peuvent passer à null en fonction du statut d'appartenance du membre au groupe : `v` est nécessaire pour trapper ces changements.
 
 ## Table `membre` : CP `id nm`. Membre d'un groupe
 Chaque membre d'un groupe a une entrée pour le groupe identifiée par son indice de membre `im`.   
@@ -580,6 +573,7 @@ Table
     "dlv"   INTEGER,
     "q1"   INTEGER,
     "q2"   INTEGER,
+    "datak" BLOB,
     "datag"	BLOB,
     "ardg"  BLOB,
     "vsh"	INTEGER,
@@ -589,15 +583,19 @@ Table
 - `id` : id du groupe.
 - `im` : numéro du membre dans le groupe.
 - `v` :
-- `st` : statut. `xy` : < 0 signifie supprimé.
-  - `x` : 1:pressenti, 2:invité, 3:ayant refusé, 3:actif, 8: résilié.
-  - `y` : 0:lecteur, 1:auteur, 2:administrateur.
+- `st` : statut. `xp` : < 0 signifie supprimé.
+  - `x` : 1:pressenti, 2:invité, 3:ayant refusé, 3:actif (invitation acceptée), 8: résilié.
+  - `p` : 0:lecteur, 1:auteur, 2:administrateur.
 - `vote` : vote de réouverture.
-- `dlv` : date limite de validité de l'invitation. N'est significative qu'en statut _invité_.
 - `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
+- `datak` : données cryptées par la clé K du membre.
+  - `nomcg` : nom complet du groupe (donne sa clé).
+  - `info` : commentaire du membre à propos du groupe.
+  - `mc` : mots clés du membre à propos du groupe.
 - `datag` : données cryptées par la clé du groupe.
   - `nomc` : nom complet de l'avatar `nom@rnd` (donne la clé d'accès à sa carte de visite)
-  - `ni` : numéro d'invitation du membre dans `invitgr` relativement à son `id` (issu de `nomc`). Permet de supprimer son accès au groupe (`st < 0, datap / datak null` dans `invitgr`) quand il est résilié / disparu.
+  - `ni` : numéro d'invitation du membre dans `invitgr` relativement à son `id`. Permet de supprimer supprimer l'invitation.
+  - `dlv` : date limite de validité de l'invitation. N'est significative qu'en statut _invité_.
 	- `idi` : id du premier membre qui l'a pressenti / invité.
 - `ardg` : ardoise du membre vis à vis du groupe. Contient le texte d'invitation puis la réponse de l'invité cryptée par la clé du groupe. Ensuite l'ardoise peut être écrite par le membre (actif) et les animateurs.
 - `vsh`
@@ -605,8 +603,8 @@ Table
 **Remarques**
 - les membres de statut _invité_ et _actif_ peuvent accéder à la liste des membres et à leur _ardoise_ (ils ont la clé du groupe dans leur row `invitgr`).
 - les membres _actif_ accèdent aux secrets. En terme de cryptographie, les membres invités _pourraient_ aussi en lecture (ils ont la clé) mais le serveur l'interdit.
-- les membres des statuts _pressenti, ayant refusé, résilié, disparu_ n'ont pas / plus la clé du groupe dans leur row `invitgr`.
-- un membre résilié peut être réinvité et conserve le même numéro d'invitation `ni`.
+- les membres des statuts _pressenti, ayant refusé, résilié, disparu_ n'ont pas / plus la clé du groupe `datak`.
+- un membre résilié peut être réinvité, le numéro d'invitation `ni` sera tiré au sort à nouveau .
 
 Les animateurs peuvent :
 - inviter d'autres avatars à rejoindre la liste.
