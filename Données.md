@@ -289,7 +289,8 @@ Table :
     "ardc"	BLOB,
     "icbc"  BLOB
     "datak"	BLOB,
-    "ank"	BLOB,
+    "mc"  BLOB,
+    "infok"	BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id", "ic")
     );
@@ -310,9 +311,8 @@ Table :
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _fort_ avec B (en attente ou accepté). Le hash de `cc` est **le numéro d'invitation** `ni` retrouvé en clé de invitct correspondant.
   - `dlv` : date limite de validité de l'invitation à être contact _fort_ ou du parrainage.
   - `pph` : hash du PBKFD de la phrase de parrainage.
-- `ank` : annotation cryptée par la clé K du membre
-  - `mc` : mots clés
-  - `txt` : commentaires (personnel) de A sur B
+- `mc` : mots clés à propos du contact.
+- `infok` : commentaire à propos du contact crypté par la clé K du membre.
 - `vsh`
 
 Un contact **fort**,
@@ -415,8 +415,8 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
 - `q1 q2 qm1 qm2` : quotas donnés par P à F en cas d'acceptation.
 - `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
 - `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
-  - `nomp` : `[nom, rnd]` nom complet de l'avatar P.
-  - `nomf` : `[nom, rnd]` : nom complet du filleul F (donné par P).
+  - `nomp, rndp` : nom complet de l'avatar P.
+  - `nomf, rndf` : nom complet du filleul F (donné par P).
   - `cc` : clé `cc` générée par P pour le couple P / F.
   - `ic` : numéro de contact du filleul chez le parrain.
 - `vsh`
@@ -574,7 +574,8 @@ Table
     "dlv"   INTEGER,
     "q1"   INTEGER,
     "q2"   INTEGER,
-    "datak" BLOB,
+    "mc"  BLOB,
+    "infok" BLOB,
     "datag"	BLOB,
     "ardg"  BLOB,
     "vsh"	INTEGER,
@@ -589,9 +590,8 @@ Table
   - `p` : 0:lecteur, 1:auteur, 2:administrateur.
 - `vote` : vote de réouverture.
 - `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
-- `datak` : données cryptées par la clé K du membre.
-  - `info` : commentaire du membre à propos du groupe.
-  - `mc` : mots clés du membre à propos du groupe.
+- `mc` : mots clés du membre à propos du groupe.
+- `infok` : commentaire du membre à propos du groupe crypté par la clé K du membre.
 - `datag` : données cryptées par la clé du groupe.
   - `nom, rnd` : nom complet de l'avatar.
   - `ni` : numéro d'invitation du membre dans `invitgr`. Permet de supprimer supprimer l'invitation et d'effacer le groupe dans son avatar (`lmbk`).
@@ -671,12 +671,6 @@ La liste des auteurs d'un secret donne les derniers auteurs,
 - par A si le statut du secret est *ouvert* ou *restreint*.
 - par B si statut est *ouvert*.
 - par personne si le statut du secret est *archivé*.
-- indices relatifs de A et B : par convention 
-  - 1: désigne celui de A et B ayant l'id la plus basse, 
-  - 0: désigne l'autre. 
-- Successions possibles : 0:0 1:1 2:01 3:10
-  - quand 0 écrit : 0->0 1->2 2->2 3->2
-  - quand 1 écrit : 0->3 1->1 2->3 3->3
 
 **Un secret de groupe** créé par un animateur ne peut être modifié que par des auteurs et animateurs :
 - chacun est repéré par son im (indice de membre de 1 à 255).
@@ -684,7 +678,7 @@ La liste des auteurs d'un secret donne les derniers auteurs,
   - *ouvert* tout animateur ou auteur peut le mettre à jour.
   - *restreint* par le dernier membre l'ayant modifié, mais un animateur peut changer le statut.
   - *archivé* par personne, mais un animateur peut changer le statut.
-- la liste des auteurs est une suite des indices des auteurs successifs. Quand un auteur modifie le texte,
+- la liste des auteurs est une suite des ids des auteurs successifs. Quand un auteur modifie le texte,
   - il est enlevé de la liste s'il y était,
   - il est placé en tête de la liste.
 
@@ -714,7 +708,7 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     "ora" INTEGER,
     "v1"  INTEGER,
     "v2"  INTEGER,
-    "mcs"   BLOB,
+    "mc"   BLOB,
     "txts"  BLOB,
     "mpjs"  BLOB,
     "dups"  BLOB,
@@ -726,7 +720,6 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 
 - `id` : id du groupe ou de l'avatar.
 - `ns` : numéro du secret.
-- `nr` : numéro du secret de référence à propos duquel ce secret se rapporte. Si b est à propos de a, c pourra être à propos de a (pas de b).
 - `ic` : indice du contact pour un secret de couple, sinon 0.
 - `v` :
 - `st` :
@@ -736,7 +729,11 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `ora` : 0:ouvert, 1:restreint, 2:archivé
 - `v1` : volume du texte
 - `v2` : volume de la pièce jointe
-- `mcs` : vecteur des index de mots clés ou sérialisation de la map des mots clés pour un secret de groupe.
+- `mc` : 
+  - secret personnel ou de couple : vecteur des index de mots clés.
+  - secret de groupe : map sérialisée,
+    - _clé_ : `im` de l'auteur (0 pour les mots clés du groupe),
+    - _valeur_ : vecteur des index des mots clés attribués par le membre.
 - `txts` : crypté par la clé du secret.
   - `d` : date-heure de dernière modification du texte
   - `l` : liste des auteurs (pour un secret de couple ou de groupe).
