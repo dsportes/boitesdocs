@@ -303,7 +303,7 @@ Table :
 - `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B.
 - `icbc` : pour un contact fort _accepté_, indice de A chez B (communiqué lors de l'acceptation par B) pour mise à jour dédoublée de l'ardoise et du statut, crypté par la clé `cc`.
 - `datak` : information cryptée par la clé K de A.
-  - `nomc` : nom complet de l'avatar `nom@rnd`.
+  - `nomc` : nom complet de l'avatar `[nom, rnd]`.
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _fort_ avec B (en attente ou accepté). Le hash de `cc` est **le numéro d'invitation** `ni` retrouvé en clé de invitct correspondant.
   - `dlv` : date limite de validité de l'invitation à être contact _fort_ ou du parrainage.
   - `pph` : hash du PBKFD de la phrase de parrainage.
@@ -353,7 +353,7 @@ Un contact *fort* est requis pour partager, un statut, une ardoise, des secrets 
 - `dlv` : la date limite de validité permettant de purger les rencontres (quels qu'en soient les statuts).
 - `st` : <= 0: annulée, 0: en attente
 - `datap` : données cryptées par la clé publique de B.
-	- `nom@rnd` : nom complet de B.
+	- `nomc` : `[nom, rnd]` nom complet de B.
 	- `ic` : index de A dans la liste des contacts de B (pour que A puisse écrire le statut et l'ardoise dans `contact` de B). 
   - `cc` : clé `cc` du contact *fort* A / B, définie par B.
 - `vsh`
@@ -390,7 +390,6 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
     "pph"  INTEGER,
     "id" INTEGER,
     "v"   INTEGER,
-    "nc" INTEGER,  
     "dlv"  INTEGER,
     "st"  INTEGER,
     "q1" INTEGER,
@@ -399,7 +398,6 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
     "qm2" INTEGER,
     "datak"  BLOB,
     "datax"  BLOB,
-    "ardc"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("pph")
     ) WITHOUT ROWID;
@@ -414,8 +412,8 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
 - `q1 q2 qm1 qm2` : quotas donnés par P à F en cas d'acceptation.
 - `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
 - `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
-  - `nomp` : `nom@rnd` nom complet de l'avatar P.
-  - `nomf` : `nom@rnd` : nom complet du filleul F (donné par P).
+  - `nomp` : `[nom, rnd]` nom complet de l'avatar P.
+  - `nomf` : `[nom, rnd]` : nom complet du filleul F (donné par P).
   - `cc` : clé `cc` générée par P pour le couple P / F.
   - `ic` : numéro de contact du filleul chez le parrain.
 - `vsh`
@@ -473,7 +471,7 @@ Une rencontre est identifiée par le hash de la **clé X (PBKFD de la phrase de 
 - `dlv` : date limite de validité permettant de purger les rencontres.
 - `st` : < 0:annulée, 0:en attente, 1:contact simple récupéré par B, 2:contact refusé
 - `datak` : **phrase de rencontre et son PBKFD** (clé X) cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.
-- `nomcx` : nom complet de A (pas de B, son nom complet n'est justement pas connu de A) crypté par la clé X.
+- `nomcx` : nom complet `[nom, rnd]` de A (pas de B, son nom complet n'est justement pas connu de A) crypté par la clé X.
 - `vsh`
 
 Si B accepte la rencontre, il créé un contact simple, `st` passe à 2 (permet à A d'en suivre l'évolution ???).
@@ -542,8 +540,8 @@ _Remarque_ : L'invitant peut retrouver en session la liste des invitations en co
 - `v` :
 - `dlv` :
 - `st` : statut.  < 0 signifie supprimé. 0: invité.
-- `datap` : crypté par la clé publique du membre invité, référence dans la liste des membres du groupe `[nomcg, im]`.
-	- `nomcg` : nom complet du groupe (donne sa clé).
+- `datap` : crypté par la clé publique du membre invité, référence dans la liste des membres du groupe `[nomcg, im, p]`.
+	- `nomcg` : nom complet `[nom, rnd]` du groupe (donne sa clé).
 	- `im` : indice de membre de l'invité dans le groupe.
   - `p` : 0:lecteur, 1:auteur, 2:administrateur.
 - `vsh`
@@ -589,11 +587,11 @@ Table
 - `vote` : vote de réouverture.
 - `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
 - `datak` : données cryptées par la clé K du membre.
-  - `nomcg` : nom complet du groupe (donne sa clé).
+  - `nomcg` : nom complet `[nom, rnd]` du groupe (donne sa clé).
   - `info` : commentaire du membre à propos du groupe.
   - `mc` : mots clés du membre à propos du groupe.
 - `datag` : données cryptées par la clé du groupe.
-  - `nomc` : nom complet de l'avatar `nom@rnd` (donne la clé d'accès à sa carte de visite)
+  - `nomc` : nom complet de l'avatar `[no, rnd]` (donne la clé d'accès à sa carte de visite)
   - `ni` : numéro d'invitation du membre dans `invitgr` relativement à son `id`. Permet de supprimer supprimer l'invitation.
   - `dlv` : date limite de validité de l'invitation. N'est significative qu'en statut _invité_.
 	- `idi` : id du premier membre qui l'a pressenti / invité.
@@ -704,19 +702,18 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
     CREATE TABLE "secret" (
     "id"  INTEGER,
     "ns"  INTEGER,
-    "nr"  INTEGER,
     "ic"  INTEGER,
-    "v"		INTEGER,
-    "st"	INTEGER,
-    "ora"	INTEGER,
-    "v1"	INTEGER,
-    "v2"	INTEGER,
-    "txts"	BLOB,
+    "v" INTEGER,
+    "st"  INTEGER,
+    "ora" INTEGER,
+    "v1"  INTEGER,
+    "v2"  INTEGER,
     "mcs"   BLOB,
-    "mpjs"	BLOB,
-    "dups"	BLOB,
+    "txts"  BLOB,
+    "mpjs"  BLOB,
+    "dups"  BLOB,
     "refs"  BLOB,
-    "vsh"	INTEGER,
+    "vsh" INTEGER,
     PRIMARY KEY("id", "ns");
     CREATE INDEX "id_v_secret" ON "secret" ("id", "v");
     CREATE INDEX "st_secret" ON "secret" ( "st" );
@@ -740,13 +737,23 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
   - `t` : texte gzippé ou non
 - `mpjs` : sérialisation de la map des pièces jointes.
 - `dups` : couple `[id, ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
+- `refs` : référence vers un autre secret cryptée par la clé du secret.
 - `vsh`
 
 **Suppression d'un secret :**
 `st` est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant `st` si elles elles se synchronise avant `st`, sinon ça sera fait à `st`.
 
 **Référence à un autre secret**
-C'est un secret de même origine (personnel, du même couple ou du même groupe : en session, les secrets _à propos_ d'un même secret peuvent ainsi être regroupés.
+- la référence est immuable, donnée à la création. Elle permet de définir des secrets liés entre eux, se rapportant au même sujet.
+- un secret _premier_ n'a pas de ref. Les secrets seconds ont le premier pour référence.
+- **le secret premier est de groupe**. Les secrets seconds peuvent être 
+  - soit du même groupe. Leur référence est de la forme `[nsg]`
+  - soit des secrets personnels d'un avatar. Leur référence est de la forme `[idg, nsg]`
+- **le secret premier est de couple**. Les secrets seconds peuvent être 
+  - soit du même couple. Leur référence est de la forme `[ns1, ns2]`
+  - soit des secrets personnels d'un avatar. Leur référence est de la forme `[idc, nsc]`, référence vers le secret du couple correspondant à l'avatar qui le référence.
+- **le secret premier est personnel**. Les secrets seconds ne peuvent être 
+  que des secrets personnels du même avatar. Leur référence est de la forme `[nsp]`.
 
 ### Pièces jointes
 Une pièce jointe est identifiée par : `nom.ext/dh`
