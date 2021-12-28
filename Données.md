@@ -250,9 +250,9 @@ Table :
 - `cva` : carte de visite de l'avatar cryptée par la clé de l'avatar `[photo, info]`.
 - `lctk` : liste, cryptée par la clé K du compte, des couples `[id, ic]` des contacts de l'avatar afin de garantir l'unicité de ceux-ci.
 - `lgrk` : map :
-  - _clé_ : ni, numéro d'invitation (aléatoire 4 bytes) obtenue sur invitgr.
-  - _valeur_ : cryptée par la clé K du compte du triplet `[nom, rnd, im]` reçu sur invitgr et inscrit à l'acceptation de l'invitation.
-  - une entrée est effacée par la résiliation du membre au groupe (ce qui lui empêche de continuer à utiliser la clé du groupe).
+  - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue sur invitgr.
+  - _valeur_ : cryptée par la clé K du compte du triplet `[nom, rnd, im]` reçu sur `invitgr` et inscrit à l'acceptation de l'invitation.
+  - une entrée est effacée par la résiliation du membre au groupe, sur refus de l'invitation et dépassement de la `dlv` (ce qui lui empêche de continuer à utiliser la clé du groupe).
 - `vsh`
 
 La lecture de avatar permet d'obtenir les deux listes de ses contacts et des groupes dont il est membre.
@@ -515,7 +515,7 @@ Table :
   - `y` : 0-en écriture, 1-archivé 
 - `cvg` : carte de visite du groupe `[photo, info]` cryptée par la clé G du groupe.
 - `mcg` : liste des mots clés définis pour le groupe cryptée par la clé du groupe cryptée par la clé G du groupe.
-- `lmbg` : liste des couples `[idm, im]` des membres (possiblement seulement pressentis / invités) du groupe.
+- `lmbg` : liste des ids des membres (possiblement seulement pressentis / invités) du groupe. L'indice dans la liste est leur `im`.
 - `vsh`
 
 **L'indice d'un membre** (2 bytes), quel que soit son statut, est repris dans cette liste et n'y est présent qu'une et une seule fois. Ce row permet un contrôle d'unicité d'attribution de cet indice afin de prémunir contre des inscriptions possiblement parallèles.
@@ -546,6 +546,7 @@ _Remarque_ : L'invitant peut retrouver en session la liste des invitations en co
 - `datap` : crypté par la clé publique du membre invité.
 	- `nom rnd` : nom complet du groupe (donne sa clé).
 	- `im` : indice de membre de l'invité dans le groupe.
+  - `idi` : id du membre invitant.
   - `p` : 0:lecteur, 1:auteur, 2:administrateur.
 - `vsh`
 
