@@ -5,6 +5,7 @@
 _**Tables aussi persistantes sur le client (IDB)**_
 
 - `compte` (id) : authentification et données d'un compte 
+- `prefs` (id) : données et préférences d'un compte 
 - `avatar` (id) : données d'un avatar et liste de ses contacts
 - `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
 - `contact` (id, nc) : données d'un contact d'un avatar    

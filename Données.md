@@ -96,7 +96,8 @@ Afin de pouvoir rafraîchir uniquement les cartes de visites des avatars, la pro
 
 _**Tables aussi persistantes sur le client (IDB)**_
 
-- `compte` (id) : authentification et données d'un compte 
+- `compte` (id) : authentification et liste des avatars d'un compte 
+- `prefs` (id) : données et préférences d'un compte 
 - `avatar` (id) : données d'un avatar et liste de ses contacts
 - `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
 - `contact` (id, ic) : données d'un contact d'un avatar    
@@ -160,7 +161,7 @@ Table :
 **Opération mensuelle**  
 Les volumes mensuels sont mis à 0 le premier de chaque mois à minuit. Le cas échéant l'occasion de sortir des statistiques sur un fichier `xls`. 
 
-## Table : `compte` CP `id`. Authentification et données d'un compte
+## Table : `compte` CP `id`. Authentification d'un compte
 _Phrase secrète_ : une ligne 1 de 16 caractères au moins et une ligne 2 de 16 caractères au moins.  
 `pcb` : PBKFD de la phrase complète (clé X) - 32 bytes.  
 `dpbh` : hashBin (53 bits) du PBKFD du début de la phrase secrète (32 bytes).
@@ -175,8 +176,6 @@ Table :
     "pcbh"	INTEGER,
     "kx"   BLOB,
     "mack"  BLOB,
-    "mmck"	BLOB,
-    "memok" BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
@@ -188,19 +187,44 @@ Table :
 - `dpbh` : hashBin (53 bits) du PBKFD du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbh` : hashBin (53 bits) du PBKFD de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
 - `kx` : clé K du compte, crypté par la X (phrase secrète courante).
-- `mmck` {} : cryptées par la clé K, map des mots clés déclarés par le compte.
-  - *clé* : id du mot clé de 1 à 99.
-  - *valeur* : libellé du mot clé.
 - `mack` {} : map des avatars du compte cryptée par la clé K. Clé: id, valeur: `[nom, rnd, cpriv]`
   - `nom rnd` : nom complet.
   - `cpriv` : clé privée asymétrique.
-- `memok` : texte court libre (crypté par la clé K) vu par le seul titulaire du compte. Le début de la première ligne s'affiche en haut de l'écran.
+première ligne s'affiche en haut de l'écran.
 - `vsh`
 
 **Remarques :** 
 - un row `compte` ne peut être modifié que par une transaction du compte (mais peut être purgé par le traitement journalier de détection des disparus).
 - il est synchronisé lorsqu'il y a plusieurs sessions ouvertes en parallèle sur le même compte depuis plusieurs sessions de browsers.
 - chaque mise à jour vérifie que `v` actuellement en base est bien celle à partir de laquelle l'édition a été faite pour éviter les mises à jour parallèles intempestives.
+- le row `compte` change très rarement : à l'occasion de l'ajout / suppression d'un avatar et d'un changment de phrase secréte.
+
+## Table : `prefs` CP `id`. Préférences et données d'un compte
+Afin que le row compte qui donne la liste des avatars ne soit mis à jour que rarement, les données et préférences associées au compte sont mémorisées dans une autre table :
+- chaque type de données porte un code court :
+  - `mp` : mémo personnel du titulaire du compte.
+  - `mc` : mots clés du compte.
+  - `fs` : filtres des secrets.
+- le row est juste un couple `[id, map]` où map est la sérialisation d'une map ayant :
+  - une entrée pour chacun des codes courts ci-dessus : la map est donc extensible sans modification du serveur.
+  - pour valeur la sérialisation cryptée par la clé K du compte de l'objet Javascript en donnant le contenu.
+- le row est chargé lors de l'identification du compte, conjointement avec le row compte.
+- une mise à jour ne correspond qu'à un seul code court afin de réduire le risque d'écrasements entre sessions parallèles/
+
+Table :
+
+    CREATE TABLE "compte" (
+    "id"	INTEGER,
+    "v"		INTEGER,
+    "mapk" BLOB,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id")
+    ) WITHOUT ROWID;
+	
+- `id` : id du compte.
+- `v` :
+- `mapk` {} : map des préférences.
+- `vsh`
 
 ## Table `avrsa` : CP `id`. Clé publique RSA des avatars
 Cette table donne la clé RSA (publique) obtenue à la création de l'avatar : elle permet d'inviter un avatar à être contact fort ou à devenir membre d'un groupe.
