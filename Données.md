@@ -784,15 +784,16 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
   que des secrets personnels du même avatar. Leur référence est de la forme `[nsp]`.
 
 ### Pièces jointes
-Une pièce jointe est identifiée par : `nom.ext/dh`
-- le `nom.ext` d'une pièce jointe est un nom de fichier, qui indique donc son type MIME par `ext`, d'où un certain nombre de caractères interdits (dont le `/`).
-- `dh` est la date-heure d'écriture UTC (en secondes) : `YYYY-MM-JJThh:mm:ss`.
+Une pièce jointe est identifiée par : `nom.ext/type/dh`
+- le `nom.ext` d'une pièce jointe est un nom de fichier, d'où un certain nombre de caractères interdits (dont le `/`). Quand le texte a été gzippé par l'application, le nom est `nom.ext.gz`.
+- `type` est le MIME type du fichier d'origine.
+- `dh` est la date-heure d'enregistrement de la pièce jointe.
 
 **Map des pièces jointes :**
 - _clé_ : hash (court) de `nom.ext` en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
 - _valeur_ : `[idc, taille]`
-  - `idc` : id complète de la pièce jointe (`nom.ext/dh`), cryptée par la clé du secret et en base64 URL.
-  - `taille` : en bytes. Par convention une taille négative indique que la pièce jointe a été gzippée.
+  - `idc` : id complète de la pièce jointe (`nom.ext|type|dh`), cryptée par la clé du secret et en base64 URL.
+  - `taille` : en bytes, avant gzip éventuel.
 
 **Identifiant de stockage :** `org/sid@sid2/cle@idc`  
 - `org` : code de l'organisation.
