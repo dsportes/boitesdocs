@@ -1,6 +1,6 @@
 # Boîtes à secrets - Modèle de données
 
-## Identification des entités
+## Identification des objets
 
 Les clés AES et les PBKFD font 32 bytes (44 caractères en base64 url).
 
