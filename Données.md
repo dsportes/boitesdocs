@@ -268,7 +268,12 @@ Table :
 
 - `id` : id de l'avatar
 - `v` :
-- `st` : si négatif, l'avatar est supprimé / disparu (les autres colonnes sont à null). 0:OK, 1:alerte
+- `st` : 
+  - négatif : l'avatar est supprimé / disparu (les autres colonnes sont à null). 
+  - 0 : OK
+  - N : alerte.
+    - 1 : détecté par le GC, _l'avatar_ est resté plusieurs mois sans connexion.
+    - J : auto-détruit le jour J: c'est un délai de remord. Quand un compte détruit un de ses avatars, il a N jours depuis la date courante pour se rétracter et le réactiver.
 - `vcv` : version de la carte de visite (séquence 0).
 - `dds` :
 - `cva` : carte de visite de l'avatar cryptée par la clé de l'avatar `[photo, info]`.
@@ -425,6 +430,8 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
     "qm2" INTEGER,
     "datak"  BLOB,
     "datax"  BLOB,
+    "ardc"  BLOB,
+    "ardfc"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("pph")
     ) WITHOUT ROWID;
@@ -435,7 +442,10 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
 - `id` : id du parrain.
 - `v`
 - `dlv` : la date limite de validité permettant de purger les parrainages (quels qu'en soient les statuts).
-- `st` : <0: annulé par P, 0: en attente de décision de F
+- `st` : < 0: supprimé, 
+  - 0: en attente de décision de F
+  - 1 : accepté
+  - 2 : refusé
 - `q1 q2 qm1 qm2` : quotas donnés par P à F en cas d'acceptation.
 - `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
 - `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
@@ -443,7 +453,14 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
   - `nomf, rndf` : nom complet du filleul F (donné par P).
   - `cc` : clé `cc` générée par P pour le couple P / F.
   - `ic` : numéro de contact du filleul chez le parrain.
+- `ardc` : ardoise (cryptée par la clé `cc`). 
+  - du parrain, mot de bienvenue écrit par le parrain (cryptée par la clé `cc`).
+  - du filleul, explication du refus par le filleul (cryptée par la clé `cc`) quand il décline l'offre. Quand il accepte, ceci est inscrit sur l'ardoise de leur contact afin de ne pas disparaître.
 - `vsh`
+
+Après création les seuls champs pouvant changer, avant acceptation ou refus explicite, sont :
+- `q1 q2 qm1 qm2` : que le parrain peut ajuster.
+- `ardc` : permettant un dialogue simplifié entre parrain et filleul.
 
 **La parrain créé par anticipation un contact *fort* pour le filleul**  avec un row `contact`. 
 - Les quotas de P sont prélevés à ce moment. 
@@ -453,17 +470,17 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
 - Les quotas donnés par le parrain (`q1 q2 qm1 qm2`) lui sont restitués par le GC qui a l'id du parrain dans `id`.
 
 **Si le filleul refuse le parrainage :** 
-- Le row dans `contact` du parrain, son `icbc` y est null mais son ardoise `ardc` indique la raison du refus. 
-- Le row `parrain` est supprimé. 
+- Le row dans `contact` du parrain a un `st` à 2. 
+- Le row `parrain` est supprimable à l'expiration de la `dlv`. 
 - Les quotas donnés par P lui sont restitués.
 
 **Si le filleul accepte le parrainage :** 
 - Le filleul crée son compte et son premier avatar (dont il a reçu `nom@rnd` et l'indice de P) et créé un contact fort avec P. 
 - L'ardoise des `contact` de P et de F contient l'ardoise de l'acceptation (`ardc`).
-- Le row `parrain` est supprimé. 
+- Le row `parrain` a son `st` à 1 et est supprimable à l'expiration de la `dlv`. 
 
-**Le parrain peut annuler son row :** 
-- son `st` passe à <0.
+**Le parrain peut annuler son row avant acceptation / refus :** 
+- son `st` passe à < 0.
 - Les quotas donnés par P lui sont restitués.
 
 Dans tous les cas le GC sur `dlv` supprime le row `parrain`.
@@ -523,6 +540,7 @@ Table :
     "v"   INTEGER,
     "dds" INTEGER,
     "st"  INTEGER,
+    "stxy"  INTEGER,
     "cvg"  BLOB,
     "mcg"   BLOB,
     "lmbg" BLOB,
@@ -534,7 +552,13 @@ Table :
 - `id` : id du groupe.
 - `v` :
 - `dds` :
-- `st` : statut : < 0-supprimé - Deux chiffres `x y`
+- `st` : statut
+  - négatif : l'avatar est supprimé / disparu (les autres colonnes sont à null). 
+  - 0 : OK
+  - N : alerte.
+    - 1 : détecté par le GC, _l'avatar_ est resté plusieurs mois sans connexion.
+    - J : auto-détruit le jour J: c'est un délai de remord. Quand un compte détruit un de ses avatars, il a N jours depuis la date courante pour se rétracter et le réactiver.
+- `stxy` : Deux chiffres `x y`
   - `x` : 1-ouvert, 2-fermé, 3-ré-ouverture en vote
   - `y` : 0-en écriture, 1-archivé 
 - `cvg` : carte de visite du groupe `[photo, info]` cryptée par la clé G du groupe.
@@ -542,7 +566,7 @@ Table :
 - `lmbg` : liste des ids des membres (possiblement seulement pressentis / invités) du groupe. L'indice dans la liste est leur `im`.
 - `vsh`
 
-**L'indice d'un membre** (2 bytes), quel que soit son statut, est repris dans cette liste et n'y est présent qu'une et une seule fois. Ce row permet un contrôle d'unicité d'attribution de cet indice afin de prémunir contre des inscriptions possiblement parallèles.
+**L'indice d'un membre** (de 1 à 255), quel que soit son statut, est repris dans cette liste et n'y est présent qu'une et une seule fois. Ce row permet un contrôle d'unicité d'attribution de cet indice afin de prémunir contre des inscriptions possiblement parallèles.
 
 ## Table `invitgr`. Invitation d'un avatar M par un animateur A à un groupe G
 Les invitations restent présentes jusqu'à disparition de l'avatar M : un numéro aléatoire d'invitation `ni` les identifient relativement à l'avatar invité. C'est `invitgr` qui permet à une session d'un compte d'obtenir la liste de ses groupes (en tant qu'invité ou actif).
@@ -673,39 +697,36 @@ Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est 
 
 *Le texte complet d'un secret* n'existe que lorsque le texte fait plus de 140 caractères : il est stocké gzippé.
 
-Un secret peut avoir une pièce jointe,
-- de taille limitée à quelques dizaines de Mo,
-- ayant un type MIME,
-- à chaque fois qu'une pièce jointe est changée elle a une version différente afin qu'à tout instant une pièce jointe puisse être lisible même durant son remplacement (son cryptage et son stockage peuvent prendre du temps).
-
-### Mise à jour d'un secret
-Le statut d'un secret peut être :
-- *ouvert* : tous les avatars accédant possibles peuvent le mettre à jour et modifier son statut.
-- *restreint* : seul le dernier auteur peut le mettre à jour et modifier son statut.
-- *archivé* : personne ne peut le modifier, ni modifier son statut.
-
-La liste des auteurs d'un secret donne les derniers auteurs,
+**La liste des auteurs d'un secret donne les derniers auteurs:**
 - dans l'ordre de modification, le plus récent en tête,
 - sans doublon.
 
-**Un secret personnel** créé par A partagé avec personne peut être mis à jour :
-- par A si le statut du secret est *ouvert* ou *restreint*.
-- par personne si le statut du secret est *archivé*.
+### Pièces jointes
+Un secret _peut_ avoir plusieurs pièces jointes, chacune identifiée par : `nom.ext|type|dh`.
+- le `nom.ext` d'une pièce jointe est un nom de fichier, d'où un certain nombre de caractères interdits (dont le `/`). Pour un secret donné,ce nom est identifiant.
+- `type` est le MIME type du fichier d'origine.
+- `dh` est la date-heure d'enregistrement de la pièce jointe (pas de création ou dernière modification de son fichier d'origine).
+- un signe `$` à la fin indique que le contenu est gzippé en stockage.
+- le volume de la pièce jointe est le volume NON gzippé. Seuls les fichiers de types `text/...` sont gzippés.
 
-**Un secret de couple** créé par A partagé avec B (contact *fort* de A) peut être mis à jour :
-- par A si le statut du secret est *ouvert* ou *restreint*.
-- par B si statut est *ouvert*.
-- par personne si le statut du secret est *archivé*.
+Une pièce jointe d'un nom donné peut être mise à jour / remplacée : le nouveau texte peut avoir un type différent et aura par principe une date-heure différente.
 
-**Un secret de groupe** créé par un animateur ne peut être modifié que par des auteurs et animateurs :
-- chacun est repéré par son im (indice de membre de 1 à 255).
-- si le statut est 
-  - *ouvert* tout animateur ou auteur peut le mettre à jour.
-  - *restreint* par le dernier membre l'ayant modifié, mais un animateur peut changer le statut.
-  - *archivé* par personne, mais un animateur peut changer le statut.
-- la liste des auteurs est une suite des ids des auteurs successifs. Quand un auteur modifie le texte,
-  - il est enlevé de la liste s'il y était,
-  - il est placé en tête de la liste.
+> **Le contenu d'une pièce jointe sur stockage externe est crypté par la clé du secret.**
+
+
+### Mise à jour d'un secret
+Le statut d'un secret peut être :
+- `0` : *ouvert* : tous les avatars accédant possibles peuvent le mettre à jour et modifier son statut. Pour un groupe cependant le membre doit être auteur ou animateur.
+- *restreint* : seul l'avatar cité 
+- `0 < N < 1000` : *restreint / exclusif*. Secret dont l'écriture est restreinte au membre d'un groupe dont l'indice dans le groupe est N. Pour un secret de couple : N:1 désigne celui des deux contacts de couples ayant l'id le plus bas, 2 désigne l'autre.
+- *archivé* : personne ne peut le modifier.
+  - `1000`: ce statut peut être changé,
+    - pour un secret personnel par l'avatar lui-même.
+    - pour un couple par n'importe lequel des contacts du couple.
+    - pour un groupe par un animateur (à condition que le groupe lui-même ne soit pas archivé).
+  - `1..N` : ce statut peut être changé,
+    - pour un couple par celui 1 ou 2 du couple..
+    - pour un groupe par un animateur (à condition que le groupe lui-même ne soit pas archivé) et par le membre d'indice N.
 
 ### Secret temporaire et permanent
 Par défaut à sa création un secret est *temporaire* :
@@ -721,6 +742,16 @@ Par défaut à sa création un secret est *temporaire* :
 - le décompte intervient à chaque modification en plus dans le mois de l'auteur.
 
 Dès que le secret est *permanent* il est décompté (en plus ou en moins à chaque mise à jour) sur le volume du groupe.
+- quand le secret passe *permanent*, il est compté en plus en volume permanent et en moins en volume temporaire.
+- c'est l'inverse quand il repasse de *permanent* à *temporaire*.
+
+### Secrets voisins
+Les secrets peuvent être regroupés par *voisinage* autour d'un secret de référence : ceci permet de voir ensemble facilement les secrets parlant d'un même sujet précis ou correspondant à une conversation.
+- **un secret voisin d'un secret de référence** contient sa référence (id et numéro de secret) ; celle-ci est immuable, donnée à la création.
+- **un secret de référence n'a pas lui-même de référence** : ce sont ses voisins qui le référenceront.
+- si B est un secret voisin de A (référençant A), on peut créer C voisin de B mais en fait C portera la référence de A (pas de B).
+- rien n'empêche ainsi indirectement de rajouter des voisins à un secret disparu.
+- un avatar peut ainsi avoir des secrets voisins d'un secret de référence auquel il ne peut pas accéder (et qui peut-être n'existe plus), la grande famille des voisins peut ainsi s'étendre loin. 
 
 ## Table `secret` : CP `id ns`. Secret
 
@@ -749,9 +780,13 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
 - `v` :
 - `st` :
   - < 0 pour un secret _supprimé_.
-  - 99999 pour un *permanent*.
+  - `99999` pour un *permanent*.
   - `dlv` pour un _temporaire_.
-- `ora` : 0:ouvert, 1:restreint, 2:archivé
+- `ora` : 
+  - `0`: secret sans restriction d'écriture.
+  - `0 < N < 1000` : secret dont l'écriture est restreinte au membre d'un groupe dont im est N. Pour un secret de couple : N:1 désigne celui des deux contacts de couples ayant l'id le plus bas, 2 désigne l'autre.
+  - `1000`: secret interdit d'écriture à tous.
+  - `1..N` : secret interdit d'écriture à tous mais le membre d'indice N (le contact 1 ou 2) peut changer cet indicateur.
 - `v1` : volume du texte
 - `v2` : volume de la pièce jointe
 - `mc` : 
@@ -765,34 +800,16 @@ Dès que le secret est *permanent* il est décompté (en plus ou en moins à cha
   - `t` : texte gzippé ou non
 - `mpjs` : sérialisation de la map des pièces jointes.
 - `dups` : couple `[id, ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
-- `refs` : référence vers un autre secret cryptée par la clé du secret.
+- `refs` : couple `[id, ns]` crypté par la clé du secret référençant un autre secret (référence de voisinage qui par principe, lui, n'aura pas de `refs`).
 - `vsh`
 
 **Suppression d'un secret :**
 `st` est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant `st` si elles elles se synchronise avant `st`, sinon ça sera fait à `st`.
 
-**Référence à un autre secret**
-- la référence est immuable, donnée à la création. Elle permet de définir des secrets liés entre eux, se rapportant au même sujet.
-- un secret _premier_ n'a pas de ref. Les secrets seconds ont le premier pour référence.
-- **le secret premier est de groupe**. Les secrets seconds peuvent être 
-  - soit du même groupe. Leur référence est de la forme `[nsg]`
-  - soit des secrets personnels d'un avatar. Leur référence est de la forme `[idg, nsg]`
-- **le secret premier est de couple**. Les secrets seconds peuvent être 
-  - soit du même couple. Leur référence est de la forme `[ns1, ns2]`
-  - soit des secrets personnels d'un avatar. Leur référence est de la forme `[idc, nsc]`, référence vers le secret du couple correspondant à l'avatar qui le référence.
-- **le secret premier est personnel**. Les secrets seconds ne peuvent être 
-  que des secrets personnels du même avatar. Leur référence est de la forme `[nsp]`.
-
-### Pièces jointes
-Une pièce jointe est identifiée par : `nom.ext/type/dh`
-- le `nom.ext` d'une pièce jointe est un nom de fichier, d'où un certain nombre de caractères interdits (dont le `/`). Quand le texte a été gzippé par l'application, le nom est `nom.ext.gz`.
-- `type` est le MIME type du fichier d'origine.
-- `dh` est la date-heure d'enregistrement de la pièce jointe.
-
 **Map des pièces jointes :**
 - _clé_ : hash (court) de `nom.ext` en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
 - _valeur_ : `[idc, taille]`
-  - `idc` : id complète de la pièce jointe (`nom.ext|type|dh`), cryptée par la clé du secret et en base64 URL.
+  - `idc` : id complète de la pièce jointe (`nom.ext|type|dh$`), cryptée par la clé du secret et en base64 URL.
   - `taille` : en bytes, avant gzip éventuel.
 
 **Identifiant de stockage :** `org/sid@sid2/cle@idc`  
@@ -802,11 +819,11 @@ Une pièce jointe est identifiée par : `nom.ext/type/dh`
 - `cle` : hash court en base64 URL de nom.ext
 - `idc` : id complète de la pièce jointe, cryptée par la clé du secret et en base64 URL.
 
+En imaginant un stockage sur file system, il y a un répertoire par secret : dans ce répertoire pour une valeur donnée de cle@ il n'y a qu'un fichier. Le suffixe idc permet de gérer les états intermédiaires lors d'un changement de version).
+
 _Une nouvelle version_ d'une pièce jointe est stockée sur support externe **avant** d'être enregistrée dans son secret.
 - _l'ancienne version_ est supprimée du support externe **après** enregistrement dans le secret.
-- les versions crées par anticipation et non validées dans un secret comme celles qui n'ont pas été supprimées après validation du secret, peuvent être retrouvées par un traitement périodique de purge qui peut s'exécuter en ignorant les noms et date-heures des fichiers scannés.
-
-> Le contenu d'une pièce jointe sur stockage externe est crypté par la clé du secret.
+- les versions crées par anticipation et non validées dans un secret comme celles qui n'ont pas été supprimées après validation du secret, peuvent être retrouvées par un traitement périodique de purge qui peut s'exécuter en ignorant les noms et date-heures réelles des fichiers scannés.
 
 ## Mots clés, principes et gestion
 
