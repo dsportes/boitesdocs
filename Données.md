@@ -257,7 +257,6 @@ Table :
     "vcv" INTEGER,
     "dds" INTEGER,
     "cva"	BLOB,
-    "lctk" BLOB,
     "lgrk" BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -277,7 +276,6 @@ Table :
 - `vcv` : version de la carte de visite (séquence 0).
 - `dds` :
 - `cva` : carte de visite de l'avatar cryptée par la clé de l'avatar `[photo, info]`.
-- `lctk` : liste, cryptée par la clé K du compte, des couples `[id, ic]` des contacts de l'avatar afin de garantir l'unicité de ceux-ci.
 - `lgrk` : map :
   - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue sur invitgr.
   - _valeur_ : cryptée par la clé K du compte du triplet `[nom, rnd, im]` reçu sur `invitgr` et inscrit à l'acceptation de l'invitation.
@@ -311,6 +309,7 @@ Table :
     "ic"	INTEGER,
     "v"  	INTEGER,
     "st" INTEGER,
+    "dlv" INTEGER,
     "q1" INTEGER,
     "q2" INTEGER,
     "qm1" INTEGER,
@@ -328,36 +327,40 @@ Table :
 - `id` : id de l'avatar A
 - `ic` : indice de contact de B pour A.
 - `v` :
-- `st` : statut entier de 3 chiffres, `x y z` : **les valeurs < 0 indiquent un row supprimé (les champs après sont null)**.
-  - `x` : 0: contact présumé actif, 2:disparu
-  - `y` : A accepte 1 (ou non 0) les partages de B.
-  - `z` : B accepte 1 (ou non 0) les partages de A.
+- `st` : statut entier de 2 chiffres, `x y` : **les valeurs < 0 indiquent un row supprimé (les champs après sont null)**.
+  - `x` :
+    - 0 : contact présumé actif,
+    - 1 : contact plus présumé actif,
+    - 2 : invitation à être contact plus en cours (sous contrôle de dlv),
+    - 3 : parrainage en cours (sous contrôle de dlv)
+    - 4 : parrainage refusé (sous contrôle de dlv)
+    - 9 : présumé disparu
+  - `y` : 0 1 2 3 selon que A et B acceptent le partage de secrets
+- `dlv` : date limite de validité de l'invitation à être contact *plus* ou du parrainage.
 - `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar A à l'avatar B (contact _fort_).
 - `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B.
 - `icbc` : pour un contact fort _accepté_, indice de A chez B (communiqué lors de l'acceptation par B) pour mise à jour dédoublée de l'ardoise et du statut, crypté par la clé `cc`.
 - `datak` : information cryptée par la clé K de A.
   - `nom rnd` : nom complet de l'avatar.
-  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _fort_ avec B (en attente ou accepté). Le hash de `cc` est **le numéro d'invitation** `ni` retrouvé en clé de invitct correspondant.
-  - `dlv` : date limite de validité de l'invitation à être contact _fort_ ou du parrainage.
-  - `pph` : hash du PBKFD de la phrase de parrainage.
+  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _plus_ avec B (en attente ou accepté). Le hash de `cc` est **le numéro d'invitation** `ni` retrouvé en clé de invitct correspondant.
 - `mc` : mots clés à propos du contact.
 - `infok` : commentaire à propos du contact crypté par la clé K du membre.
 - `vsh`
 
-Un contact **fort**,
-- est encore en _attente d'acceptation_ quand `icbc` et `ardc` sont null et `dlv` n'est pas dépassée : l'invitation peut être accédée étant identifiée par le hash de `cc` pour être annulée.
-- est _accepté_ quand `icbc` est non null. `ardc` contient le message de remerciement. `dlv` sans signification.
-- est _refusé_ quand `icbc` est null et `ardc` ne l'est pas (raison du refus de B).
-- est _sans réponse_ quand `icbc` et `ardc` sont null et `dlv` est dépassée.
+Un contact **plus**,
+- est encore en _attente d'acceptation_ quand `stx` vaut 2. `icbc` est null et `dlv` n'est pas dépassée : l'invitation peut être accédée étant identifiée par le hash de `cc` pour être annulée. `ardc` contient le message d'invitation.
+- est _accepté_ quand `stx` vaut 1. `icbc` est non null. `ardc` contient le message de remerciement. `dlv` vaut 0.
+- est _refusé_ quand `stx` est revenu à 0. `icbc` est toujours null et `ardc` peut contenir la raison du refus de B. `dlv` vaut 0.
 
 **Un parrainage,**
-- est encore _en attente d'acceptation_ quand `icbc` et `ardc` sont null et `dlv` n'est pas dépassée : `pph` permet d'accéder au parrainage pour le supprimer.
-- _accepté refusé sans réponse_, comme contact **fort**.
+- est encore _en attente d'acceptation_ quand stx vaut 3. `icbc` est null et `dlv` n'est pas dépassée. `ardc` contient le message d'invitation.
+- est _accepté_ quand `stx` vaut 1. `icbc` est non null. `ardc` contient le message de remerciement. `dlv` vaut 0.
+- _refusé_ qund `stx` vaut 4. `ardc` peut contenir la raison du refus. dlv étant inchangé, le contact va bientôt s'effacer (st < 0).
 
 Un contact est **supprimé** (`st` < 0) :
 - soit après refus d'un parrainage après dépassement de sa `dlv`.
 - soit pour un contact simple quand l'avatar l'a jugé explicitement _obsolète_.
-- les autres colonnes `ardc icbc datak ank` sont null.
+- les autres colonnes `dlv ardc icbc datak mc infok` sont null.
 
 Un *contact fort* permet de partager par **l'ardoise** un court texte entre A et B pour justifier d'un changement de statut ou n'importe quoi d'autre : en particulier quand A n'accepte pas le partage de secrets avec B par exemple, c'est le seul moyen de passer une courte information mutuelle qui n'encombre pas leurs volumes respectifs.
 
@@ -431,7 +434,6 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
     "datak"  BLOB,
     "datax"  BLOB,
     "ardc"  BLOB,
-    "ardfc"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("pph")
     ) WITHOUT ROWID;
