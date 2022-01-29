@@ -279,8 +279,8 @@ Table :
 - `cva` : carte de visite de l'avatar cryptée par la clé de l'avatar `[photo, info]`.
 - `lgrk` : map :
   - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue sur `invitgr`.
-  - _valeur_ : cryptée par la clé K du compte du couple `[nom, rnd]` reçu sur `invitgr` et inscrit à l'acceptation de l'invitation.
-  - une entrée est effacée par la résiliation du membre au groupe, sur refus de l'invitation et dépassement de la `dlv` (ce qui lui empêche de continuer à utiliser la clé du groupe).
+  - _valeur_ : cryptée par la clé K du compte de `[nom, rnd, im]` reçu sur `invitgr` et inscrit à l'acceptation de l'invitation.
+  - une entrée est effacée par la résiliation du membre au groupe ou sur refus de l'invitation (ce qui lui empêche de continuer à utiliser la clé du groupe).
 - `vsh`
 
 La lecture de avatar permet d'obtenir les deux listes de ses contacts et des groupes dont il est membre.
@@ -374,7 +374,7 @@ Table :
 - `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B. Couple `[dh, texte]`.
 - `datak` : information cryptée par la clé K de A.
   - `nom rnd` : nom complet du contact (B).
-  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact _plus_ avec B (en attente ou accepté).
+  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
   - `icb` : indice de A dans les contacts de B
 - `datap` : mêmes données que `datak` mais cryptées par la clé publique de A.
 - `mc` : mots clés à propos du contact.
@@ -418,7 +418,7 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
 - `id` : id du parrain.
 - `v`
 - `dlv` : la date limite de validité permettant de purger les parrainages (quels qu'en soient les statuts).
-- `st` : < 0: supprimé, 
+- `st` : < 0: supprimé,
   - 0: en attente de décision de F
   - 1 : accepté
   - 2 : refusé
@@ -430,6 +430,9 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
   - `cc` : clé `cc` générée par P pour le couple P / F.
   - `ic` : numéro de contact du filleul chez le parrain.
 - `datak2` : c'est le `datak` du futur contact créé en cas d'acceptation.
+  - `nom rnd` : nom complet du contact (B).
+  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
+  - `icb` : indice de A dans les contacts de B
 - `ardc` : ardoise (couple `[dh, texte]` cryptée par la clé `cc`).
   - du parrain, mot de bienvenue écrit par le parrain (cryptée par la clé `cc`).
   - du filleul, explication du refus par le filleul (cryptée par la clé `cc`) quand il décline l'offre. Quand il accepte, ceci est inscrit sur l'ardoise de leur contact afin de ne pas disparaître.
@@ -534,14 +537,14 @@ Table :
 - `v` :
 - `dds` :
 - `st` : statut
-  - négatif : l'avatar est supprimé / disparu (les autres colonnes sont à null). 
+  - négatif : l'avatar est supprimé / disparu (les autres colonnes sont à null).
   - 0 : OK
   - N : alerte.
     - 1 : détecté par le GC, _le groupe_ est resté plusieurs mois sans connexion.
     - J : auto-détruit le jour J: c'est un délai de remord. Quand un compte détruit un groupe, il a N jours depuis la date courante pour se rétracter et le réactiver.
 - `stxy` : Deux chiffres `x y`
   - `x` : 1-ouvert, 2-fermé, 3-ré-ouverture en vote
-  - `y` : 0-en écriture, 1-archivé 
+  - `y` : 0-en écriture, 1-archivé
 - `cvg` : carte de visite du groupe `[photo, info]` cryptée par la clé G du groupe.
 - `mcg` : liste des mots clés définis pour le groupe cryptée par la clé du groupe cryptée par la clé G du groupe.
 - `vsh`
@@ -556,7 +559,7 @@ Une invitation est un row qui va juste permettre de notifier une session de A qu
 - elle porte un numéro d'invitation aléatoire qui permettra aux animateurs du groupe de *résilier* l'accès de A au groupe en détruisant la référence au groupe dans le row avatar de A.
 - elle porte le couple `nom rnd` identifiant le groupe et sa clé crypté par la clé publique de l'avatar.
 
-Dans une session de A dès que cette invitation parvient, soit par synchronisation, soit au chargement initial, la session poste une opération de `rgularisationGR` qui va inscrire dans le row avatar de A le nouveau groupe nom rnd mais crypté par la clé K du compte de A. Ceci détruit l'invitation devenu inutile.
+Dans une session de A dès que cette invitation parvient, soit par synchronisation, soit au chargement initial, la session poste une opération de `rgularisationGR` qui va inscrire dans le row avatar de A le nouveau groupe `nom rnd` mais crypté par la clé K du compte de A. Ceci détruit l'invitation devenu inutile.
 
     CREATE TABLE "invitgr" (
     "id"  INTEGER,
@@ -567,7 +570,7 @@ Dans une session de A dès que cette invitation parvient, soit par synchronisati
 - `id` : id du membre invité.
 - `ni` : hash du numéro d'invitation.
 - `datap` : crypté par la clé publique du membre invité.
-	- `nom rnd` : nom complet du groupe (donne sa clé). Ceci permet de calculer son `im` (hash de l'encryption de `id` par `rnd`).
+	- `nom rnd im` : nom complet du groupe (donne sa clé).
 
 ## Table `membre` : CP `id nm`. Membre d'un groupe
 Chaque membre d'un groupe a une entrée pour le groupe identifiée par son indice de membre `im`.  
