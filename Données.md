@@ -373,9 +373,8 @@ Table :
 - `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar A à l'avatar B.
 - `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B. Couple `[dh, texte]`.
 - `datak` : information cryptée par la clé K de A.
-  - `nom rnd` : nom complet du contact (B).
+  - `nom rnd ic` : nom complet du contact (B) et son indice chez lui.
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
-  - `icb` : indice de A dans les contacts de B
 - `datap` : mêmes données que `datak` mais cryptées par la clé publique de A.
 - `mc` : mots clés à propos du contact.
 - `infok` : commentaire à propos du contact crypté par la clé K du membre.
@@ -425,10 +424,10 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
 - `q1 q2 qm1 qm2` : quotas donnés par P à F en cas d'acceptation.
 - `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
 - `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
-  - `nomp, rndp` : nom complet de l'avatar P.
-  - `nomf, rndf` : nom complet du filleul F (donné par P).
+  - `nomp, rndp, icp` : nom complet et indice de l'avatar P.
+  - `nomf, rndf, icf` : nom complet et indice du filleul F (donné par P).
   - `cc` : clé `cc` générée par P pour le couple P / F.
-  - `ic` : numéro de contact du filleul chez le parrain.
+  - `aps` : `true` si le parrain accepte le partage de secrets.
 - `datak2` : c'est le `datak` du futur contact créé en cas d'acceptation.
   - `nom rnd` : nom complet du contact (B).
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
