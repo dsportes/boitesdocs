@@ -635,10 +635,10 @@ Le row `membre` d'un membre subsiste quand il est _résilié_ ou _disparu_ pour 
 ## Secrets
 Un secret est identifié par l'id du propriétaire (avatar ou groupe) et de `ns` complémentaire aléatoire (pair pour un secret d'avatar, impair pour un secret de groupe).
 
-La clé de cryptage du secret `cs` est selon le cas :
+La clé de cryptage du secret `cles` est selon le cas :
 - (0) *secret personnel d'un avatar A* : la clé K de l'avatar. `ic` vaut 0.
-- (1) *secret d'un couple d'avatars A et B* : leur clé `cc` de contact fort. `ic` donne l'indice du contact ce qui permet d'obtenir `cc`.
-- (2) *secret d'un groupe G* : la clé du groupe G. `ic` vaut 0. `ic` vaut 0.
+- (1) *secret d'un couple d'avatars A et B* : leur clé `cc` de contact fort. `ic` donne l'indice du contact ce qui permet d'obtenir `cc` dans la donnée de `contact`.
+- (2) *secret d'un groupe G* : la clé du groupe G. `ic` vaut 0.
 
 **Un secret de couple A / B est matérialisé par 2 secrets de même contenu**
 - un pour A et un pour B (et la même clé de cryptage, celle `cc` du couple). 
@@ -737,7 +737,7 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
   - < 0 pour un secret _supprimé_.
   - `99999` pour un *permanent*.
   - `dlv` pour un _temporaire_.
-- `ora` : _xxxxx..xp_ (`p` reste de la division par 10)
+- `ora` : _xxxxxp_ (`p` reste de la division par 10)
   - `p` : 0: pas protégé, 1: protégé en écriture.
   - `xxxxx` : exclusivité : l'écriture et la gestion de la protection d'écriture sont restreintes au membre du groupe dont `im` est `x` (un animateur a toujours le droit de gestion de protection et de changement du `x`). Pour un secret de couple : 1 désigne celui des deux contacts du couple ayant l'id le plus bas, 2 désigne l'autre.
 - `v1` : volume du texte
@@ -765,14 +765,14 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
   - `idc` : id complète de la pièce jointe (`nom.ext|type|dh$`), cryptée par la clé du secret et en base64 URL.
   - `taille` : en bytes, avant gzip éventuel.
 
-**Identifiant de stockage :** `org/sid@sid2/cle@idc`  
+**Identifiant de stockage :** `org/sid@sns/cle@idc`  
 - `org` : code de l'organisation.
-- `sid` : id du secret en base64 URL.
-- `sid2` : ns du secret en base64 URL.
+- `sid` : id du secret en base64 URL. Pour un secret de couple `id ns` est par convvention celui de l'id la plus faible du couple (la pièce jointe n'est pas dédoublée contrairement au secret lui-même).
+- `sns` : ns du secret en base64 URL.
 - `cle` : hash court en base64 URL de nom.ext
 - `idc` : id complète de la pièce jointe, cryptée par la clé du secret et en base64 URL.
 
-En imaginant un stockage sur file system, il y a un répertoire par secret : dans ce répertoire pour une valeur donnée de cle@ il n'y a qu'un fichier. Le suffixe idc permet de gérer les états intermédiaires lors d'un changement de version).
+En imaginant un stockage sur file system, il y a un répertoire par secret : dans ce répertoire pour une valeur donnée de cle@ il n'y a qu'un fichier. Le suffixe `idc` permet de gérer les états intermédiaires lors d'un changement de version).
 
 _Une nouvelle version_ d'une pièce jointe est stockée sur support externe **avant** d'être enregistrée dans son secret.
 - _l'ancienne version_ est supprimée du support externe **après** enregistrement dans le secret.
@@ -896,7 +896,8 @@ Dans la session la carte de visite est supprimée, elle ne sera plus synchronis�
 
 Les références peuvent mettre longtemps a être mises à jour, tous les comptes référençant l'avatar D ayant à être ouverts (ou disparaissant eux-mêmes).
 
-# Base vivante et de backup ???
+# Réflexions
+## Base vivante et de backup ???
 La base de backup est l'image de la base vivante la veille au soir.
 - elle est accessible en lecture seule.
 - la table versions permet de savoir jusqu'à quelles versions elle a été sauvée.
@@ -907,3 +908,24 @@ Comment savoir s'il est opportun de faire deux passes ou une seule directement s
 
 La vraie connexion / synchronisation se fait sur la base vivante pour avoir les toutes dernières mises à jour mais ça devrait être très léger.
 
+## Secrets de couple A / B
+### A et B acceptent le partage de secrets
+Les volumes sont décomptés sur A et sur sur B, pour v1 comme pour v2, justement parce qu'ils peuvent en toute indépendance détruire leur exemplaire.
+
+Sait-on chez A que B a détruit son exemplaire ? Ca serait bien ! Sur ora xx vaut 0, 1 ou 2 : on pourrait rajouter 3 (signifiant exemplaire unique, donc exclusivité au restant).
+
+Si B **détruit** son exemplaire :
+- A continue à agir sur le sien comme il l'entend : retrouve-t-il de facto une exclusivité qu'il n'avait peut-être pas ? Oui, de toutes les façons B n'a plus de moyens de s'en plaindre, il a abandonné le secret.
+- B récupère le volume en quotas.
+
+### B n'accepte plus le partage de secrets
+... mais ça _pourrait_ revenir.
+- le secret est gelè, aucune mise à jour ni de texte ni de pièces jointes.
+- changement d'exclusivité / protection impossible.
+- seuls les mots-clés de chacun peuvent changer afin de pouvoir les filtrer en sélection.
+
+Le secret ne redevient normal que si les A et B acceptent le partage de secrets.
+
+Si B **détruit** son exemplaire :
+- B récupère le volume en quotas.
+- A se retrouve seul propriétaire et gestionnaire du secret dont il fait ce qu'il veut.
