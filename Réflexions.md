@@ -74,3 +74,82 @@ Le volume occupé par les secrets est décompté en variation _en plus ou en moi
 - sur l'avatar de l'auteur pour un secret personnel,
 - sur les deux avatars du couple pour un secret de couple.
 - sur le groupe pour un secret de groupe.
+
+# Maîtrise des ressources
+
+## Ligne de crédit
+Une ligne de crédit à un **numéro tiré au hasard** et correspond à un compte.
+- elle donne l'identifiant **d'un forfait** parmi ceux prédéfinis pour l'organisation. 
+  - si par convention cet identifiant est absent, le compte correspondant est _sans forfait_ et ne peut plus accéder à l'application.
+- une limite de validité facultative : le forfait peut être permanent ou limité dans le temps.
+
+### Forfait
+Un forfait fixe 4 limites :
+- `max1` : volume maximal total des textes des secrets mémorisés.
+- `max2` : volume maximal total des pièces jointes aux secrets mémorisés.
+- `maxops` : nombre maximal d'opérations de mises à jour de secrets sur une période d'une semaine.
+- `maxnet` : volume maximal total des pièce jointes échangées sur le réseau (upload / download) sur une période d'une semaine.
+
+>Pour savoir si une limite applicable à une semaine est atteinte, on cumule la consommation effective de la semaine précédente et celle de la semaine en cours et on regarde si elle dépasse 2 fois la limite hebdomadaire du forfait. 
+
+>Une organisation qui souhaiterait valoriser en unités monétaires le coût d'utilisation / immobilisation de ressources de son application n'a plus qu'à appliquer la formule de conversion de son choix depuis ces limites pour en donner un coût.
+
+### Activités des avatars d'un compte
+Tous les avatars du même compte ont la même ligne de crédit : celle-ci enregistre à tout instant l'activité des avatars du compte relative aux secrets de ses avatars :
+- `vol1` : volume total occupé par les textes des secrets à l'instant t.
+- `vol2` : volume total occupé par leurs pièces jointes à l'instant t.
+- `opsP` : nombre d'opérations effectuées la semaine précédente.
+- `opsC` : nombre d'opérations effectuées la semaine courante.
+- `netP` : volume maximal total des pièces jointes échangées sur le réseau la semaine précédente.
+- `netC` : volume maximal total des pièces jointes échangées sur le réseau la semaine courante.
+- `sem` : le numéro de la semaine _courante_ considérée ci-avant. Chaque opération saura ainsi gérer la répartition entre semaine courante / précédente et déterminer si la limite hebdomadaire a été atteinte.
+
+La ligne de crédit courante est :
+- obtenue sur demande par le compte,
+- retournée en résultat de chaque opération sur un secret, qu'elle soit acceptée ou refusée par dépassement de limite.
+
+## Administrateur comptable de l'organisation
+Il peut se connecter en utilisant un des quelques mots de passe enregistrés dans la configuration de l'application. Il peut :
+- attribuer un des forfaits prédéfinis à une ligne de crédit.
+- retirer ce forfait, c'est à dire bloquer une ligne de crédit.
+- consulter la liste des lignes de crédit.
+
+Les mises à jour notent dans la ligne de crédit le numéro du mot de passe qui a été employé afin de permettre un audit sommaire éventuel (qui a fait quoi).
+
+### Exemples de mise en œuvre
+#### Organisation connaissant ses membres
+L'organisation est capable de relier un identifiant de ligne de crédit à un membre de l'organisation et en conséquence de lui attribuer selon son rôle un forfait adapté à ce rôle.
+
+Le _coût_ supporté l'est globalement par l'organisation **mais** elle sait sur qui il a été réparti.
+
+L'organisation n'a aucun moyen de corréler l'identifiant de la ligne de crédit avec des avatars : elle ne peut en rien accéder aux secrets, ni aux contacts / groupes, etc. donc ne peut pas juger du caractère plus ou moins _éthiques_ de ceux-ci.
+
+Un membre souhaitant une évolution de son forfait doit le demander à l'organisation dont un des administrateurs comptables pourra effectuer l'opération.
+
+#### Organisation purement commerciale
+Le titulaire d'un compte fait parvenir à la comptabilité de l'organisation des virements portant l'identifiant de sa ligne de crédit. 
+
+Un des comptables met à jour la ligne de crédit correspondante avec une limite de validité correspondant au montant du virement reçu et au niveau du forfait souhaité.
+
+>Les virements _pouvant_ être obscurs ou faits par un intermédiaire, il peut être très difficile de corréler une personne physique ou morale à une ligne de crédit et complètement impossible ensuite de savoir quels avatars et secrets en sont dépendants.
+
+## Disparition des comptes *sans forfait*
+Un compte *sans forfait* ne peut pas se connecter : si la situation se prolonge, il sera classé en _disparu_ et ses ressources supprimées.
+
+La seule sortie possible est d'obtenir de l'administrateur comptable une extension de limite et/ou l'attribution d'un forfait.
+- dans une organisation _connaissant ses membres_, c'est à l'organisation de définir si les lignes de crédit ont une limite ou non et si tel membre doit ou non continuer à accéder au site de l'organisation.
+- dans une organisation _commerciale_, c'est selon les règles contractuelles en vigueur que l'administrateur attribuera ou non un forfait minimal (ou aucun) en cas de défaut de paiement plus ou moins prolongé.
+
+### Approches et atteintes des limites :
+- elle est signalée à la connexion et est rappelée à chaque fois que la situation s'aggrave.
+- l'atteinte de la limité `maxnet` empêche l'accès aux pièces jointes mais pas les autres opérations.
+- l'atteinte de la limité `maxops` bloque le compte en lecture seule (sans mise à jour du texte des secrets).
+- toutefois par construction ces deux limites sont relâchées en début de chaque semaine.
+- l'atteinte des limites de volume bloque respectivement la création de nouveaux secrets et leur mise à jour en expansion pour `max1` et celle des pièces jointes pour `max2`.
+- toute action de _nettoyage_ relâche, plus ou moins, ces limites.
+
+>Un forfait **minimal** n'est pas une absence de forfait : le compte peut lire les secrets (mais plus les pièces jointes a priori mais cela dépend du `maxnet` du forfait minimal en question).
+
+## Groupes
+
+## Création de compte
