@@ -692,14 +692,6 @@ Par défaut à sa création un secret est *temporaire* :
   - les deux avatars pour un secret de couple.
   - un des animateurs pour un secret de groupe.
 
-### Décompte du volume des secrets et des pièces jointes
-- il est décompté à la création sur le décompte de secrets *créés / modifiés dans le mois* de l'auteur.
-- le décompte intervient à chaque modification en plus dans le mois de l'auteur.
-
-Dès que le secret est *permanent* il est décompté (en plus ou en moins à chaque mise à jour) sur le volume du groupe.
-- quand le secret passe *permanent*, il est compté en plus en volume permanent et en moins en volume temporaire.
-- c'est l'inverse quand il repasse de *permanent* à *temporaire*.
-
 ### Secrets voisins
 Les secrets peuvent être regroupés par *voisinage* autour d'un secret de référence : ceci permet de voir ensemble facilement les secrets parlant d'un même sujet précis ou correspondant à une conversation.
 - **un secret voisin d'un secret de référence** contient sa référence (id et numéro de secret) ; celle-ci est immuable, donnée à la création.

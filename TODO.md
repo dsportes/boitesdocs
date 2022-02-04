@@ -38,11 +38,7 @@
 
 ## Partout : bloquer les maj en mode avion
 
-## Page compte
-- pas d'onglets
-- accordéon : 
-  - sur une ou deux colonnes selon largeur de l'écran
-  - ouverture systématique de celui des avatars
+## Textes et pièces jointes en attente en mode avion
 
 ## Gestion des bases
 - non connecté : sur page Org ?
