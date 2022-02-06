@@ -27,4 +27,3 @@ ul ul ol, ul ol ol, ol ul ol, ol ol ol { list-style-type: lower-alpha; }
 hr { height:0.2rem; padding:0; margin:1.2rem 0; background-color:#78909C; border: 0 none; }
 li>p { margin-top:0.5rem; }
 h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
-    
