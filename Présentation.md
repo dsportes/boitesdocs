@@ -72,17 +72,17 @@ Un **secret** est un *texte* court (moins de 4000 signes).
 - Le texte est lisible avec quelques éléments de décoration (*gras, italique, listes ...*) selon la syntaxe MD.
 - Le début du texte, les 140 premiers caractères ou la première ligne si elle est plus courte, est _l'aperçu ou titre_ du secret, le texte qui s'affiche à l'écran quand on y voit une liste de secrets.
 
-**Un secret est modifiable**, son texte comme sa pièce jointe, du moins jusqu'à ce que ce secret soit basculé en état *archivé* auquel cas il devient immuable.
+**Un secret est modifiable**, son texte comme ses pièces jointes, du moins jusqu'à ce que ce secret soit basculé en état *archivé* auquel cas il devient immuable.
 
 **Par défaut un secret est temporaire**, il s'efface automatiquement au bout de quelques semaines, mais il peut être rendu **permanent**, ou créé directement permanent, et n'est alors effacé que sur demande explicite.
 
 **Un secret a des _mots clés_** : le filtrage à l'affichage des secrets peut se faire par sélection de mots clés selon leurs sujets (thème abordé ...), leurs états (_favori, obsolète, important, à lire_ etc.). Le filtrage peut être affiné selon la présence d'une portion de texte (mot ...) dans le titre ou le texte complet.
 
 **Un secret peut avoir des _pièces jointes_**
-- une pièce jointe a un _nom_, comme un nom de fichier, dont l'extension (`.jpg .pdf .md` ...) correspond à son type MIME.
+- une pièce jointe a un _nom_, comme un nom de fichier, ayant en général (sauf sur MAC) une extension (`.jpg .pdf .md` ...) correspondant à son type MIME.
 - une pièce jointe a une taille raisonnable : les clips vidéo doivent être courts.
 - on peut changer les pièces jointes d'un secret (même sans changer le texte du secret), en ajouter, en supprimer, en remplacer une par une nouvelle version.
-- les pièces jointes de type texte _Markdown_ (`.md`), _image_ (`.jpg .png .svg`), _audio_ (`.mp3 `...) et _video_ peuvent s'afficher dans l'application directement : les autres sont ouvertes dans le navigateur qui peut soit les afficher, soit ouvrir une application qui peut l'afficher, soit la charger sur un espace local de téléchargement.
+- les pièces jointes de type texte _Markdown_ (`.md`), _image_ (`.jpg .png .svg`), _audio_ (`.mp3 `...) et _video_ peuvent s'afficher dans le navigateur qui peut soit les afficher, soit ouvrir une application qui peut l'afficher, soit la charger sur un espace local de téléchargement.
 
 ## Comptes et leurs avatars
 Un compte a un ou plusieurs **avatars** qui sont comme autant de personnalités différentes. Une même personne peut avoir des compartiments de vie différents, contribuer à des réflexions ou des actions différentes. Ce cloisonnement est possible en se définissant plusieurs avatars :
@@ -107,25 +107,20 @@ Les avatars membres d'un groupe partagent les secrets du groupe :
 
 ## Contacts personnels d'un avatar
 ### Contact *simple*
-Un avatar `A` peut inscrire un avatar `C` dans sa liste de contacts dès lors qu'il en a son identification complète : c'est le cas par exemple quand A et C sont membres d'un même groupe.
+Un avatar `A` peut inscrire un avatar `C` dans sa liste de contacts dès lors qu'il en a son identification complète : `C` verra alors `A` comme contact quand il ouvrira une session (ou immédiatement si sa session est ouverte).
 
-> A peut avoir C comme *simple contact*, C peut avoir ou non de son côté A comme *simple contact*, chacun ignore la connaissance que l'autre a de lui.
+A et C **peuvent** alors partager **des secrets de couple** : un secret de couple est _dédoublé_ sur chacun des contacts et toute mise à jour répercutée sur les deux exemplaires. L'un comme l'autre peuvent détruire leur exemplaire d'un secret partagé avec l'autre sans que ceci n'affecte l'accès de l'autre à son propre exemplaire.
 
-### Contact *plus*
-A et C peuvent décider explicitement, de devenir contacts _plus_, chacun sachant qu'il est un contact _plus_ de l'autre.
-
-A et C peuvent dans ce cas partager **des secrets de couple** : un secret de couple est _dédoublé_ sur chacun des contacts et toute mise à jour répercutée sur les deux exemplaires. L'un comme l'autre peuvent détruire leur exemplaire d'un secret partagé avec l'autre sans que ceci n'affecte l'accès de l'autre à son propre exemplaire.
-
-L'un des deux peut décider, tout en restant contact *plus*, de ne plus accepter le partage de secrets avec l'autre : ceci ne vaut que pour les secrets futurs, ceux partagés antérieurement restent accessibles à chacun.
+L'un des deux peut décider de ne plus accepter le partage de secrets avec l'autre : ceci ne vaut que pour les secrets futurs, ceux partagés antérieurement restent accessibles à chacun.
 
 A et C partagent une petite *ardoise textuelle* (140 signes), offrant un minimum d'échange sans utiliser un secret partagé. Ceci est utile en particulier quand l'un des deux a bloqué le partage de secrets : l'ardoise reste le seul moyen de communiquer a minima.
 
-Un contact *plus* reste établi jusqu'à disparition effective de A ou C : si C disparaît par exemple, les exemplaires pour A de ses secrets partagés avec C restent accessibles à A.
+Un contact reste établi jusqu'à disparition effective de A ou C : si C disparaît par exemple, les exemplaires pour A de ses secrets partagés avec C restent accessibles à A.
 
 ### Contact rencontré hors de l'application
 Si A et C n'ont jamais été membres d'un même groupe, ils ne connaissent pas l'identification complète de l'autre et ne peuvent pas s'enregistrer comme contact.
 
-Mais ils peuvent se connaître par ailleurs et peuvent établir un contact _plus_ : A par exemple déclare une **phrase de rencontre** et la communique hors de l'application à C. C en frappant cette phrase dans l'application récupère l'identité complète de A et peut ainsi devenir contact _plus_ avec A (ou refuser).
+Mais ils peuvent se connaître par ailleurs et peuvent établir un contact : A par exemple déclare une **phrase de rencontre** et la communique hors de l'application à C. C en frappant cette phrase dans l'application récupère l'identité complète de A et devient contact de A (avec ou sans partage de secrets).
 
 # Compte et avatars
 
@@ -142,13 +137,7 @@ Pour se créer un compte le titulaire doit déclarer :
   - parrain et filleul ont convenu de cette phrase et du nom du premier avatar du compte filleul.
   - le parrain a accepté de prendre sur ses propres quotas d'espace pour ses secrets pour en donner au compte filleul.
   - le parrain a enregistré la phrase de parrainage avec le nom d'avatar du filleul et les quotas donnés.
-  - quand le filleul accepte le parrainage, son compte est créé ainsi que son premier avatar qui a un premier contact *plus*, son parrain (réciproquement le filleul est un contact _plus_ lui).
-
-**Si au lieu d'une phrase de parrainage**, le titulaire fournit une clé longue définie par l'administrateur de l'hébergement, le compte et son premier avatar sont créés sans parrainage et avec des quotas définis par le titulaire lui-même.
-
-> C'est ainsi que peut _s'amorcer_ l'application avec un, ou quelques, comptes _primitifs_ sachant que le tout premier compte ne peut pas être parrainé par un autre compte ... vu qu'il est le premier.
-
-> L'administrateur de l'hébergement peut supprimer ou changer cette clé par sécurité après création de ce ou ces comptes _primitifs_. Il faut avoir confiance dans cet administrateur, ayant pouvoir d'ouvrir la création de comptes non parrainés.
+  - quand le filleul accepte le parrainage, son compte est créé ainsi que son premier avatar qui a un premier contact, son parrain (réciproquement le filleul est un contact du parrain).
 
 **Un compte,**
 - est identifié par un numéro immuable aléatoire de 15 chiffres qui n'a pas d'intérêt pratique.
@@ -156,7 +145,7 @@ Pour se créer un compte le titulaire doit déclarer :
 
 **Un avatar,**
 - est identifié par un numéro immuable aléatoire de 15 chiffres qui n'a pas d'intérêt pratique.
-- a un **nom immuable**, défini par le titulaire du compte : les homonymies sont permises dans l'application (ce nom ne pourra pas être changé). Un suffixe aléatoire immuable est accolé à la création au nom ce qui lève les homonymies.
+- a un **nom immuable**, défini par le titulaire du compte : les homonymies sont permises dans l'application (ce nom ne pourra pas être changé). Une partie du numéro accolé au nom lève les homonymies.
 - reçoit des clés cryptographique générées aléatoirement et immuables :
   - la clé cryptant sa **carte de visite**.
   - un couple de clés (publique / privée) d'usage interne.
@@ -169,7 +158,7 @@ La **carte de visite** d'un avatar d'un compte est modifiable par le titulaire d
 
 Elle est mémorisée cryptée par la clé de l'avatar et est visible :
 - de tout avatar X membre d'un même groupe G que A,
-- de tout avatar C ayant inscrit A dans ses contacts (simple ou _plus_).
+- de tout avatar C ayant inscrit A dans ses contacts.
 
 > _Il est possible de rencontrer deux avatars ayant même pseudo_, les homonymes étant autorisés : le suffixe permet de les distinguer mais surtout la carte de visite, quand les avatars en ont déclaré une, peut permettre de lever une éventuelle ambiguïté.
 
@@ -181,9 +170,7 @@ L'organisation déclare aussi des mots clés (d'index 200 à 255) : ils sont com
 Les secrets des avatars personnels du compte ou des secrets partagés par le compte (de couple avec un contact ou de groupe) peuvent se voir attacher des mots clés par le compte afin de les classer / filtrer.
 
 ## Création d'un avatar
-Un compte peut se créer un nouvel avatar supplémentaire :
-- en donnant son pseudo,
-- en fixant les quotas qu'il lui attribue et prélevé sur un autre de ses avatars.
+Un compte peut se créer un nouvel avatar supplémentaire en donnant son pseudo.
 
 Un compte peut aussi détruire un de ses avatars (sauf le dernier existant).
 
@@ -196,29 +183,26 @@ Ses données sont effacées *mais pas tous ses secrets* :
 
 ##  Disparition d'un compte
 
-**Un compte qui ne s'est pas connecté pendant un certain temps (18 mois) est déclaré *disparu*** et est détruit (ainsi que tous ses avatars). 
+**Un compte qui ne s'est pas connecté pendant un certain temps (12 mois) est déclaré *disparu*** et est détruit (ainsi que tous ses avatars). 
 
 Comme rien ne raccorde un compte au monde réel, ni adresse e-mail, ni numéro de téléphone ... il n'est pas possible d'informer quiconque de la disparition prochaine d'un compte.
 
 > un certain temps avant d'être détruits, les avatars du compte vont apparaître **en alerte** pour les autres avatars avec qui ils sont en contact : certains de ceux-ci peuvent avoir dans la vraie vie un moyen d'alerter leur titulaire afin qu'il se connecte une fois ce qui le fera sortir de cet état.
 
-## Création d'un contact *simple* d'un avatar
-Un avatar `A` peut inscrire un avatar `C` dans sa liste de contacts *simple* dès lors que A et C sont membres d'un même groupe G.
+## Création d'un contact d'un avatar
+Un avatar `A` peut inscrire un avatar `C` dans sa liste de contacts dès lors que A et C sont membres d'un même groupe G.
 
-Ainsi A conserve l'identification complète de C (son code, son pseudo et la clé de cryptage de sa carte de visite) même si A ou C sont résiliés du groupe G où ils se sont rencontrés. A pourra ainsi inviter C à un groupe ou établir un contact *plus* avec lui.
+Ainsi A conserve l'identification complète de C (son code, son pseudo et la clé de cryptage de sa carte de visite) même si A ou C sont résiliés du groupe G où ils se sont rencontrés. A pourra ainsi inviter C à un groupe.
 
 A peut associer un commentaire et des mots clés à un contact C (que C ne voit pas).
 
-## Création d'un contact *plus* entre A et C
-Pour qu'un contact devienne *plus* il faut que A et C en soient d'accord : le contact devient réciproque et indissoluble (jusqu'à disparation d'un des deux avatars).
+Pour que A et C puissent partager des secrets *de couple* il faut qu'il en soit d'accord tous les deux.
 
-Si C est déjà contact simple de A, A invite C à devenir contact *plus* et dès que C l'accepte le lien est établi.
-
-Si C et A se sont rencontrés hors de l'application et souhaitent établir un contact _plus_ :
+Si C et A se sont rencontrés hors de l'application et souhaitent établir un contact :
 - ils décident d'une phrase de contact connue d'eux seuls, par exemple `la framboise est précoce`.
 - chacun va citer cette phrase dans l'application :
   - le premier à citer la phrase y enregistre automatiquement son identification,
-  - le second à citer la phrase provoque la création du contact _plus_ entre eux (et efface la phrase).
+  - le second à citer la phrase provoque la création du contact entre eux (et efface la phrase).
 
 La phrase a une durée de vie courte, elle s'efface automatiquement par sécurité si le second avatar tarde à citer la phrase.
 
@@ -227,7 +211,6 @@ A et C partagent une petite ardoise (moins de 140 signes) ce qui leur permet un 
 # Groupe
 
 Un groupe est créé par un avatar avec un **nom immuable** censé être parlant dans l'organisation, du moins pour ses membres.
-- un suffixe aléatoire est généré et accolé au nom pour lever les cas d'homonymie
 - un **numéro** interne sur 15 chiffres lui est attribué (inutile dans la vie courante),
 - une **clé de cryptage** aléatoire et immuable lui est aussi attribuée à sa création : elle ne sera transmise qu'aux membres du groupe et sert à crypter les données du groupe dont l'accès à ses secrets.
 
@@ -246,7 +229,7 @@ Elle est mémorisée cryptée par la clé du groupe et est visible de tous les a
 ## Invitation d'un avatar à un groupe
 Un animateur A peut *inviter* un autre avatar I dont il a l'identification complète, avec un pouvoir proposé de *lecteur*, *auteur* ou *animateur* :
 - soit A et I sont membres d'un même autre groupe G,
-- soit I est un des contacts de A, simple ou _plus_.
+- soit I est un des contacts de A.
 
 I a désormais le statut *invité* dans la liste des membres du groupe jusqu'à ce qu'il,
   - accepte l'invitation : il passe en statut *actif*,
@@ -272,15 +255,13 @@ Un animateur peut agir sur les pouvoirs des autres membres non animateurs :
 - promouvoir un *lecteur* en *auteur* ou *animateur*,
 - promouvoir un *auteur* à *animateur*,
 
-Un animateur peut reprendre des quotas en excédent au groupe.
-
 Tout membre peut,
 - s'auto-résilier,
 - dégrader son propre pouvoir,
 - apporter des quotas au groupe afin de lui permettre d'avoir plus de secrets.
 
 ## Mots clés d'un groupe
-Un mot clé d'un groupe a un index de 100 à 199, un texte très court pouvant contenir un émoji, de préférence en tête.
+Un mot clé d'un groupe a un index de 100 à 199, un mot pouvant contenir un émoji, de préférence en tête.
 
 Les mots clés peuvent être attachés aux secrets du groupe.
 
@@ -307,24 +288,25 @@ Quand le dernier membre actif d'un groupe passe en état *disparu*, le groupe se
 
 Un secret est créé dans l'un des trois contextes suivants :
 - **secret personnel** d'un avatar d'un compte. Seul le titulaire du compte le connaît et peut le lire et le mettre à jour.
-- **secret de couple** de deux avatars A et B contacts _plus_. Le secret est dédoublé en deux exemplaires, chacun propriété respective de A et de B :
+- **secret de couple** de deux avatars A et B contacts. Le secret est dédoublé en deux exemplaires, chacun propriété respective de A et de B :
   - les mises à jour faites sur un exemplaire sont reportées sur l'autre.
   - si A ou B détruit son exemplaire ceci n'affecte pas l'autre exemplaire.
   - si B par exemple est considéré comme disparu, les secrets du couple restent lisible par A (les exemplaires de A restent accessibles).
   - les mots clés attachés par A à son exemplaire sont indépendants des mots clés attachés par B à son exemplaire.
 - **secret de groupe**. Seuls les membres actifs du groupe y ont accès et peuvent agir dessus.
   - le secret a un seul exemplaire partagé, toute mise à jour est visible par tous les membres du groupe.
-  - le dernier auteur du secret et tout animateur peut attribuer au secret des mots clés du groupe ou de l'organisation.
+  - tout animateur peut attribuer au secret des mots clés du groupe ou de l'organisation.
   - tout membre peut attribuer de plus ses propres mots clés : mots clés du groupe, de l'organisation ou les siens propres (ces derniers ne sont pas interprétables par les autres membres et en conséquence masqués).
 
-**Un secret est modifiable**, son texte comme ses pièces jointes, du moins jusqu'à ce que ce secret soit basculé en état *archivé* auquel cas il devient immuable. L'état d'un secret indique par qui il peut être modifié :
+**Un secret est modifiable**, son texte comme ses pièces jointes, du moins jusqu'à ce que ce secret soit basculé en état *protégé* auquel cas il devient immuable. L'état d'un secret indique par qui il peut être modifié :
 - *normal* : le secret est modifiable par tous ceux y ayant accès ce qui change selon qu'il s'agit d'un secret personnel, de couple ou de groupe.
-- *restreint* : le secret n'est modifiable que par le dernier avatar l'ayant modifié.
-- *archivé* : le secret n'est plus modifiable.
+- *exclusif* : le secret n'est modifiable que par un avatar.
+- *protégé* : le secret n'est plus modifiable.
 
 L'état d'un secret de groupe peut être forcé par un animateur du groupe.
 
 Un secret de groupe garde la liste ordonnée des avatars l'ayant modifié, les plus récents en tête mais sans doublons.
+
 
 **Un secret peut *faire référence* un autre secret** de la même _famille_ : un secret de couple à un secret du même couple, un secret de groupe à un autre secret du même groupe. Un secret personnel peut référencer n'importe quel secret.
 
