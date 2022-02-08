@@ -1,3 +1,295 @@
+# Maîtrise des ressources : forfaits / consommations et crédits
+**L'hébergement de l'application a un coût récurrent** : même quand le coût effectif est  _sponsorisé_ par l'organisation qui la met en œuvre, il se pose deux questions :
+- qui y a accès et peut en profiter,
+- comment maîtriser la consommation de ressources correspondantes.
+
+**Pour créer un compte il faut être parrainé, certes** : mais au delà de la création même, le parrain n'a plus aucun moyen de contrôler l'usage que fait son filleul de son compte, ni si lui-même devient parrain d'autres invités.
+
+**Si l'organisation ne sponsorise pas les coûts d'hébergement**, elle se posera la question de récupérer des comptes le part du coût global qui leur incombe.
+
+#### Sponsoring publicitaire
+Le cryptage des données est tel qu'une valorisation publicitaire est improbable : aucun ciblage ne peut être fait et bien peu de _business model_ s'équilibrent par de la publicité _non profilée_. Mais, même au cas bien improbable où des ressources publicitaires seraient envisagées, il faudrait pouvoir établir qu'il existe une audience réelle et non pas qu'un tout petit nombre d'utilisateurs monopolisent la quasi totalité des ressources.
+
+#### Maîtriser l'utilisation des ressources
+Si les comptes étaient laissés libres de créer autant de secrets et de pièces jointes que voulu sans limitation, l'application pourrait être saturée et inutilisable pour la majorité de ses comptes _raisonnables_ du fait de l'utilisation _déraisonnable_ de quelques uns. 
+
+Même une organisation très limitée de quelques membres pourraient être paralysée suite à une invitation imprudente.
+
+Afin de protéger la confidentialité des secrets, il n'y a pas de _méta-données_ en clair dans la base de données permettant à un traitement d'administration de connaître les comptes utilisant beaucoup de ressources, ni aucun moyen de les bloquer. 
+
+>Un mécanisme de _contrainte_ dans l'utilisation des ressources est nécessaire, les comptes devant pouvoir être contenus en cas d'inflation des secrets au delà des contraintes fixées.
+
+>Un mécanisme de _comptabilisation_ des consommations de ressources, doit permettre de savoir, soit de redistribuer la charge, soit de valoriser une audience ou justifier que ses usagers sont bien ceux qui étaient ciblés.
+
+### Les coûts d'hébergement
+Les coûts / contraintes d'hébergement ont été classés pour simplifier en trois catégories :
+- l'espace utilisé en _base de données_,
+- l'espace utilisé en _espace de fichiers_ (ou _object storage_),
+- la bande passante du réseau.
+
+>Le coût de calcul n'a pas été pris en compte directement : l'application n'a pas vraiment de calculs, hormis ceux nécessaires à lire et mettre à jour des secrets. Cette activité étant toujours associée à des transferts sur le réseau, le coût de calcul a été implicitement intégré dans le coût réseau.
+
+**Hormis l'accès aux secrets**, l'application a très peu de charge de calcul et d'occupation d'espace pour gérer les contacts, les participation aux groupes, etc. D'où le principe de se ramener à une unique unité d'œuvre : le **stockage des secrets, textes et pièces jointes et leur transfert sur le réseau**.
+
+### Capacités et consommations
+- La _capacité_ est la _possibilité de_, par exemple stocker des pièces jointes.
+- La _consommation_ est le volume réellement utilisé.
+- Une capacité peut s'exprimer comme un seuil maximal, par exemple un volume maximal.
+
+La maîtrise des ressources est basée sur :
+- des **forfaits** prédéfinis chacun correspondant à :
+  - des _volumes plafonds_ qui ne peuvent pas être dépassés exprimés en **Mo : méga-octets**.
+  - une consommation minimale mensuelle exprimée en **sous**.
+- un décompte mensuel de consommation effective exprimée en **sous**.
+- des lignes de crédit : chaque ligne exprime le montant courant en **sous** disponible pour couvrir la consommation future.
+
+Il y a trois **profils** de forfaits :
+- 1) peu de pièces jointes (et de transfert) par secret,
+- 2) beaucoup de pièces jointes (et de transfert) par secret,
+- 0) médian équilibré entre les 2 ci-dessus.
+
+Un forfait est le couple de son **profil** et d'un **niveau** de 1 à 9 (du très petit au très gros).
+
+>**Chaque avatar a sa ligne de crédit.** Un compte peut effectuer des transferts de crédit, _interne_ d'un de ses avatars vers un autre ou par crédit _externe_ vers un avatar avec qui il est en contact. Un compte peut aussi ajuster le niveau des forfaits de ses avatars.
+
+### Plafonds d'un forfait
+Un forfait est associé à trois plafonds exprimés en Mo (méga-octets) :
+- `max v1` : **le volume maximal des textes des secrets** qui immobilisent de l'espace en base de données, coûteux et relativement limité.
+- `max v2` : **le volume maximal de leurs pièces jointes** qui immobilisent de l'espace de fichiers (ou équivalent), moins coûteux et pouvant être important.
+- `max tr` : **le volume maximal hebdomadaire transitant sur le réseau**.
+
+Les plafonds `max v1` et `max v2` ne peuvent pas être dépassés, les opérations correspondantes sont bloquées.
+- ils sont contrôlés sur les seules opérations de création et de mise à jour des textes des secrets et de leur pièce jointe.
+
+#### Le plafond `max tr` de transfert sur le réseau
+Le volume correspondant est décompté sur plusieurs types d'opérations :
+- _lors de la mise à jour d'un secret_ ou d'une de ses pièces jointes, ce qui fait appel à un transfert sur le réseau. Le plafond ne peut pas être dépassé à cette occasion, l'opération étant le cas échéant refusée.
+- _lors du téléchargement d'une sélection de secrets sur disque local_ avec la remontée des pièces jointes non disponibles en mode _avion_ sur le poste. Le plafond ne peut pas être dépassé à cette occasion, l'opération étant le cas échéant refusée.
+- _lors de l'ouverture d'une session par un compte_ pour charger les textes des secrets (juste ceux ayant changé depuis la dernière fois en mode _synchronisé_ ou tous en mode _incognito_) et les pièces jointes déclarées accessibles en mode avion sur le poste (incrémentalement en mode _synchronisé_).
+
+**Tant qu'un avatar n'est pas _en sursis ou bloqué_**, le plafond `max tr` _peut_ être dépassé à l'ouverture d'une session. L'avatar peut toujours ouvrir sa session et accéder aux textes de ses secrets, _mais_ les mises à jour des pièces jointes accessibles en mode avion ne seront pas téléchargées en cas de dépassement.
+
+>Le volume réseau `tr` est décompté sur **le volume total échangé pour la semaine en cours et la précédente**. `max tr` est le volume moyenné sur la semaine courante et la précédente.
+
+### Monétarisation mensuelle des coûts en Mo
+Le coût _monétaire_ d'un Mo n'est pas le même si c'est un Mo de base de données, d'espace de fichier ou de transfert sur le réseau.
+
+Afin de pouvoir calculer des coûts globaux de consommations, un coût unitaire en **sou** est défini pour chacun des trois types de Mo.
+
+>Pour éviter de créer une confusion avec une monnaie réelle, tout le décompte est effectué en une pseudo unité monétaire, nommée par la suite le **sou**. Chaque organisation se charge in fine, si c'est nécessaire, d'appliquer le _cours du sou_ qu'elle veut par rapport à une vraie monnaie.
+
+Chaque ligne de crédit dispose des compteurs suivants :
+- **la date du dernier calcul enregistré** : par exemple le 17 Mai de l'année A
+- **pour le mois en cours**, celui de la date ci-dessus :
+  - _en Mo_, volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
+  - _en Mo_, volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
+  - _en Mo_, volume tr de transfert réseau : 1) somme depuis le début du mois, 2) somme sur la semaine du 17 Mai, 3) somme sur la semaine précédente,
+  - **en sous**, valorisation des compteurs (1) ci-dessus pour le mois de calcul en cours.
+  - **forfait** : 1) le plus élevé appliqué le mois en cours, 2) souhaité pour le mois suivant.
+- **pour les 11 mois antérieurs** (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
+  - le forfait F en cours dans le mois.
+  - la valorisation VM en sous des compteurs du mois arrêtée en fin du mois.
+  - le coût appliqué pour le mois est le plus élevé entre, a) le minimum de perception défini pour F, b) la valeur de VM.
+
+### Solde début de mois et du mois
+Toute ligne de crédit a deux compteurs **en sous** :
+- le solde **fin de mois** : dans l'exemple ci-dessus à fin Avril de l'année A,
+- le **solde des débits / crédits effectués dans le mois** :
+  - au crédit : les virements en provenance d'autres avatars,
+  - au crédit : les virements reçus par un comptable (apport externe),
+  - au débit : les virements faits au profit d'autres avatars,
+  - au débit : les virements pour un comptable (remboursement externe).
+
+A chaque calcul à l'instant t, on peut donc déterminer si le solde d'un avatar est créditeur ou débiteur en tenant compte du fait que le mois n'est pas fini.
+
+>Si les soldes évoluent du fait d'opérations explicitent, on voit bien qu'ils évoluent aussi au cours du temps même en l'absence d'opérations : 100Mo stockés pendant 6 mois sans qu'aucune action ne soit faite dessus, amènent un coût sur ces 6 mois et à la baisse du solde disponible. **Même en l'absence de toute opération, par principe une ligne de crédit a un solde qui se dégrade naturellement au fil des mois**.
+
+Il est donc important de savoir détecter et gérer les _disparitions de compte_ pae inactivité de ceux-ci.
+
+### Disparition par inactivité d'un compte
+Des ressources sont immobilisées par les comptes (partagées pour les groupes) : l'application doit les libérer quand les comptes sont _présumés disparus_, c'est à dire sans s'être connecté depuis plus d'un an.
+- mais pour préserver la confidentialité, toutes les ressources liées à un compte ne sont pas reliées au compte par des données lisibles dans la base de données mais cryptées et seulement lisibles en session.
+- pour marquer que les ressources sont encore utiles, un compte dépose lors de la connexion des jetons datés (approximativement) dans chacun de ses avatars et chacun des groupes auxquels il participe, ainsi que dans le compte lui-même.
+- la présence d'un jeton, par exemple sur un avatar, va garantir que ses données ne seront pas détruites dans les 400 jours qui suivent la date du jeton.
+- un traitement ramasse miettes tourne chaque jour, détecte les comptes / avatars / groupes dont le jeton est trop vieux et efface les données correspondantes jugées comme inutiles, l'avatar / compte / groupe correspondant ayant _disparu par inactivité_.
+
+### Quand s'effectuent les calculs
+- à l'ouverture d'une session par un compte. Ce calcul est effectué pour tous ses avatars.
+- en cours d'une session d'un compte à chaque création / mise à jour d'un secret, texte ou pièce jointe et à chaque téléchargement sur disque local.
+- quand un _comptable_ affiche une ligne de crédit et quand il procède à un débit / crédit.
+
+**Un compte n'est donc informé de l'état de son solde que quand il ouvre une session et tant qu'elle est ouverte**. 
+
+>Comme aucune référence d'identification dans le monde réel n'est enregistrée pour préserver la confidentialité du système, aucune alerte du type mail ou SMS ne peut informer un compte des soldes des lignes de crédit de ses avatars, et en particulier de leur passage _dans le rouge_ s'il ne se connecte pas.
+
+### États _normal_, _en sursis (1, 2, 3)_,  _bloqué_
+Tant que le solde est positif l'avatar est en état normal.
+
+#### Passage en état _en sursis_
+Dès que, au début ou au cours d'une session, le compte est informé d'un solde négatif pour un de ses avatars,
+- l'avatar bascule dans l'état _en sursis_,
+- la date à laquelle ce basculement a été opéré est inscrite dans la ligne de crédit.
+- **les dépôts de jetons attestant de la vitalité de l'avatar sont suspendus**.
+
+>Si rien n'est fait pour sortir d'un état _en sursis_, un an plus tard l'avatar sera considéré comme _disparu_ et ses données effacées définitivement.
+
+Dans l'état _en sursis_, l'avatar est frappé de restrictions qui dépendent de son ancienneté _en sursis_:
+- (1) _en sursis depuis moins d'un mois_ :
+  - la vie normale continue mais un panneau de pop-up s'affiche très régulièrement au cours des sessions pour rappeler le problème.
+- (2) _en sursis depuis plus d'un mois et moins de deux_ :
+  - l'avatar ne peut plus créer de secrets, de pièces jointes ni les mettre à jour en expansion (mais peut les mettre à jour si leur taille se réduit ou reste stable). 
+  - l'avatar peut continuer à lire ses secrets et ses pièces jointes.
+- (3) _en sursis depuis plus de deux mois et moins de trois_ :
+  - l'avatar ne peut plus créer de secrets.
+  - l'avatar ne peut que lire ses secrets, mais sans les pièces jointes.
+- (bloqué) _en sursis depuis plus de trois mois_ :
+  - l'avatar est bloqué, même la lecture de ses secrets n'est plus possible.
+  - le compte peut toujours converser avec le comptable pour solliciter un crédit.
+- (disparu) _en sursis depuis plus d'un an_ :
+  - la connexion est impossible.
+  - les données peuvent être physiquement supprimées à tout instant.
+
+#### Retour à l'état normal
+Le compte a des moyens pour faire revenir à l'état normal une ligne de crédit _en sursis_ d'un de ses avatars:
+- immédiatement en opérant un transfert de sous depuis un autre de ses avatars dans le vert,
+- avec un court délai en fournissant une information au comptable lui permettant de justifier l'inscription d'un crédit.
+
+**Avec le retour à l'état normal, le compte reprend la distribution de jetons datés pour maintenir en vie son avatar revenu de sursis.**
+
+## Comptables de l'organisation
+Ce sont des comptes normaux mais dont le _hash_ de leurs phrases secrètes sont enregistrées dans la configuration de l'application (avec un code court) ce qui leur confère quelques possibilités d'actions :
+- se créer eux-mêmes sans être parrainés par un autre compte.
+- consulter toutes les lignes de crédit et les télécharger.
+- consulter et répondre aux messages des comptes.
+- consulter le journal comptable.
+- inscrire des crédits **en sous** dans les lignes de crédit des avatars (voire inscrire des débits à titre de remboursement, à condition que ce soit justifié vis à vis des règles de l'organisation et que le compte en ait  indiqué le montant souhaité dans la ligne).
+
+>**Le rôle majeur d'un comptable est de pouvoir inscrire des crédits dans les lignes selon les règles propres à chaque organisation**.
+
+### Journal comptable
+Chaque débit / crédit est enregistré dans un journal chronologique qui note aussi le justificatif donné par le comptable.
+- quand, qui, numéro de la ligne de crédit, montant débité / crédité, justification.
+
+### Analyse statistique et historisation
+L'ensemble des lignes de crédit peut être téléchargé par un comptable dans un tableur pour analyse globale et pouvoir détecter la marge de manœuvre dont il dispose pour gérer le site.
+
+### Échanges textuels courts entre les comptables et les titulaires des comptes
+Ces conversations sont enregistrées _par ligne de crédit_ avec pour chaque échange :
+- sa date-heure,
+- qui l'a émis (l'avatar ou un des comptables repéré par son code court),
+- son texte de moins de 140 signes.
+
+La conversation conserve les échanges dans l'ordre chronologique inverse,
+- ceux ayant moins de 6 semaines,
+- au plus les 20 derniers.
+
+Le titulaire du compte d'un avatar peut consulter leurs conversations avec les comptables.
+
+C'est par ce moyen que le titulaire d'un compte peut communiquer a minima avec les comptables en particulier pour leur demander par exemple un crédit exceptionnel.
+
+### Création de compte parrainé
+L'avatar parrain prélève des sous sur sa ligne de crédit : ceci permet au filleul un démarrage avec une ligne de crédit minimale mais existante. Que le filleul le _rembourse_ ou non fait partie de leur accord moral.
+
+### Création de compte d'un comptable
+Sa phrase secrète (brouillée) ayant été enregistré dans la configuration du site, le titulaire d'un compte _comptable_ peut se créer sans parrainage et se créditer du montant jugé pertinent (ce qui laisse une trace dans le journal comptable).
+
+>Manifestement les **comptables** ont le moyen de privilégier une ligne de crédit (voire la leur), et de _brimer_ une autre : c'est de l'organisation humaine que peut venir le contrôle d'éventuelles dérives et pressions et le respect des règles fixées par l'organisation.  
+En tout état de cause, les comptables n'ont aucun moyen d'accéder aux contenus, ni même d'interpréter les meta données de la base qui est structurée de manière à crypter les liens entre comptes / avatars / groupes.
+
+### Transfert de crédit
+Un compte peut enregistrer un transfert de crédit à destination d'un de ses contacts : si une session du destinataire est ouverte ceci s'opère sur l'instant, sinon ça sera effectif à la prochaine ouverture de session du destinataire.
+
+Un tel transfert ne peut pas s'effectuer si le solde restant qui en résulterait serait négatif.
+
+## Différents types d'organisation
+### Organisation par _cotisation_
+- chaque compte acquitte régulièrement une cotisation pour contribuer au coût global d'hébergement.
+- selon ce que chacun paye (ses besoins), les seuils maximaux sont plus ou moins élevés.
+- si un compte ne paye plus, il passe par les différentes phases de _sursis_ puis disparaît.
+- s'il ne se connecte plus, il finit par disparaître.
+
+Le modèle de _paiement de cotisation_ peut prendre des formes variées. Par exemple.
+
+##### L'organisation paye les cotisations pour ses adhérents
+- C'est elle aussi qui détermine le niveau des forfaits associés.
+- Si un adhérent quitte l'organisation, elle cesse de déclencher les crédits qui maintiennent le compte en vie (il va finir par disparaître).
+
+##### Activité _commerciale_ pure (indépendamment de l'aspect lucratif ou non)
+- chaque compte paye selon son envie / besoins. Personne ne décide si un compte doit ou non avoir accès : tant que les cotisations rentrent, les comptes utilisent le service.
+
+### Une organisation peut-elle _virer_ à tout instant un compte ?
+La configuration de l'installation prévoit s'il est possible ou non de _mettre une ligne de crédit_ en liste noire ce qui empêche d'utiliser l'avatar correspondant. Mais :
+- l'organisation, au mieux, connaît le numéro de ligne de crédit du premier avatar d'un compte, mais déjà pas ceux comptes parrainés (sauf si l'option d'installation restreint le parrainage aux seuls comptables).
+- elle ne connaît pas le numéros des autres avatars créés par le compte : son blocage peut être inefficient (sauf si l'option d'interdiction de création d'avatars est activée).
+- si l'avatar bloqué, qui ne reçoit donc plus de crédits de la part de l'organisation, reçoit des crédits de _solidarité_ de la part d'autres avatars, le blocage n'est pas efficient. Il faut que l'option d'installation interdisant le transferts de sous entre avatars soit activé.
+
+Bref, si ces trois options restrictives sont activées, oui une organisation peut bloquer un compte
+
+### Mise à jour des lignes de crédit selon les opérations sur les secrets
+Les opérations concernées sont :
+- la synchronisation des secrets en ouverture de session : elle impute le volume `tr` de la ligne de crédit du compte.
+- la mise à jour **d'un secret personnel ou de couple** (texte et pièce jointe):
+  - elle impute la variation de volume sur les compteurs `v1 / v2` de la ligne de crédit du compte demandeur, selon que c'est le texte ou la pièce jointe,
+  - elle impute le volume transféré (texte ou pièce jointe) sur le compteur `tr` du compte demandeur.
+  - le téléchargement sur disque local d'une sélection de secrets. Elle impute le volume transféré des pièces jointes sur le compteur `tr` du compte demandeur.
+
+#### Gestion des secrets des groupes
+- un groupe est _supporté_ par la ligne de crédit d'un de ses membres (qui peut changer), son _hébergeur_.
+- un groupe dispose de compteurs `max1 / max2` fixés par le compte hébergeur du groupe et les volumes `v1 / v2` des secrets du groupe.
+
+Le volume de _transfert réseau_ associé à une opération est décompté sur la ligne de crédit du compte demandeur. Un groupe n'a aucun compteur / quota lié au transfert réseau.
+- la variation de volume liée à une mise à jour de texte ou de pièce jointe d'un secret,
+  - est décomptée une première fois sur le groupe lui-même,
+  - est décompté une seconde fois sur la ligne de crédit du compte hébergeur du groupe.
+
+>La mise à jour d'un secret d'un groupe entraîne la mise à jour, dans le cas général, a) de la ligne de crédit du demandeur pour le coût de transfert, b) de la ligne de crédit de l'hébergeur du groupe pour les volumes, c) du groupe lui-même pour les volumes afin que les membres aient conscience de son importance.
+
+La ou les deux lignes de crédit impactées dans une opération sur un secret sont retournée en résultat de l'opération, ce qui est particulièrement utile si l'opération a échoué en raison de quotas insuffisants (sur une ligne et / ou au niveau du groupe).
+
+#### Changement _du compte hébergeur_ d'un groupe
+Un membre animateur (auteur s'il n'y a plus d'animateurs) peut se déclarer _hébergeur_ du groupe en inscrivant son numéro de ligne de crédit à la place de celle actuelle :
+- il débite sa ligne de crédit des volumes actuels `v1` et `v2` occupés par les secrets du groupe et leurs pièces jointes et crédite d'autant la ligne de crédit actuelle.
+- il peut alors modifier les limites `max1 / max2` du groupe.
+
+Le compte _hébergeur_ dont la ligne de crédit est celle du groupe peut la retirer : **le groupe n'a plus de ligne de crédit associée**. 
+- **l'accès à ses secrets est suspendu** jusqu'à ce qu'un animateur y mette la sienne.
+- le groupe n'étant plus accédé, si personne ne s'est manifesté pour en reprendre la charge, il va finir par s'auto-dissoudre au bout d'un an.
+
+>Dans l'entête du groupe le numéro de la ligne de crédit est crypté par la clé du groupe. Seuls ses membres peuvent en avoir connaissance.
+
+
+
+
+## Contrôle éthique ... ou non
+Ce sujet ne concerne que les organisations ayant un objet social / politique : ses membres utilisent l'application pour les servir. 
+
+Un comptable ne peut jamais lire le contenu des secrets : il peut certes bloquer des lignes de crédit, mais à quel titre ?
+- supposons un avatar A partageant avec B des secrets que B considère comme contraire à l'objet de l'organisation. B n'a pas accès au numéro de ligne de crédit de A et ne peut donc pas demander à un comptable de la désactiver. Tout ce que B peut faire est de cesser le partage de secrets avec A.
+- supposons un groupe G où se partagent des secrets sans rapport ou contraires à l'objet de l'organisation. 
+  - un animateur du groupe peut résilier un membre perturbateur (s'il n'est pas animateur).
+  - le numéro de ligne de crédit du groupe est connu des membres qui peuvent demander à un comptable d'intervenir sur cette ligne : au pire ceci peut aboutir à un blocage d'accès aux secrets du compte hébergeur du groupe (et au groupe lui-même).
+  - mais n'importe quel animateur peut aussi changer la ligne de crédit du groupe, en prendre en charge l'hébergement et rien ne l'empêche de reconstituer un autre groupe, de récupérer les textes des secrets et leurs pièces jointes et d'y inviter ... presque tous les membres de l'ancien.
+
+>Le pouvoir d'exclusion d'une telle organisation est restreint du fait de l'impossibilité de connaître les liens entre lignes de crédit, comptes, avatars et groupes. Toutefois l'organisation a au moins la possibilité d'inhiber les lignes de crédits des membres quittant l'organisation et d'éviter ainsi de continuer à héberger gratuitement l'activité de ceux qui la quitte.
+
+#### Organisation totalement agnostique, _par cotisation_
+La question _éthique_ ne se pose pas à une organisation par cotisation payante (même sans but lucratif) : tant qu'un compte acquitte ses cotisations, il n'a pas à subir de blocage / restriction, ni à respecter aucune règle de contenu que ce soit. C'est la simple application de la liberté de penser et de s'exprimer en privé.
+
+Le titulaire d'un compte d'une telle organisation fait parvenir à la comptabilité de l'organisation des virements portant l'identifiant de sa ligne de crédit. 
+
+Un des comptables met à jour la ligne de crédit correspondante avec une limite de validité correspondant au montant du virement reçu et au niveau des quotas souhaités.
+
+>Les virements _pouvant_ être obscurs ou passer par un intermédiaire, il peut être quasi impossible de corréler (avec des moyens légaux) une personne physique ou morale à une ligne de crédit. In fine il est toujours complètement impossible ensuite de savoir quels avatars, groupes et secrets lui sont associés.
+
+>Une telle organisation n'est pas obligatoirement à but lucratif : elle peut simplement proposer un service d'hébergement qui sera maintenu **tant que les comptes supportent effectivement la juste part** des coûts d'hébergement. Ce peut être une association citoyenne qui gère, sans profit, un hébergement mutualisé de secrets ou chaque membre cotise pour en supporter les frais.
+
+>La publicité ciblée étant de facto impensable, le sponsoring reste, éventuellement, la seule source externe de financement (quoi que).
+
+**L'application est agnostique vis à vis des contenus des secrets** qui peuvent être n'importe quoi, en bien ou en mal ... et selon ce que chacun considère comme bien ou mal: c'est une application qui reste du niveau de la communication / mémorisation **personnelle et/ou privée**, comme celle que peut avoir un groupe restreint d'amis discutant librement entre eux dans un domicile privé.  
+C'est aussi pour cette raison qu'un groupe a une taille limitée, telle qu'il soit raisonnable de juger qu'il n'est pas public, et où tout le monde en contact se connaît et a été coopté.
+
+>Ce n'est pas une application _libertaire_ mais _privée_. Être libertaire supposerait un accès public sans restriction ce qui n'est pas le cas.
+
 # Maîtrise du volume des secrets : quotas et crédits
 
 ### Contrôler les volumes par des quotas
