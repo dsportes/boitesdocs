@@ -4,12 +4,12 @@
 - qui y a accès et peut en profiter,
 - comment maîtriser la consommation de ressources correspondantes.
 
-**Pour créer un compte il faut être parrainé** : en se limitant à principe, le parrain n'a aucun moyen de contrôler l'usage que fait son filleul de son compte, ni si celui-ci devient parrain d'autres invités. Le rôle de _parrain_ doit être régulé de manière à contribuer au contrôle de l'usage des ressources.
+**Pour créer un compte il faut être parrainé** : en se limitant à ce principe, le parrain n'a aucun moyen de contrôler l'usage que fait son filleul de son compte, ni si celui-ci devient parrain d'autres invités. Le rôle de _parrain_ doit être régulé de manière à contribuer au contrôle de l'usage des ressources.
 
 **Si l'organisation ne sponsorise pas en totalité les coûts d'hébergement**, elle se pose forcément la question de récupérer des comptes le part du coût global qui leur incombe.
 
 #### Sponsoring publicitaire
-Le cryptage des données est tel qu'une valorisation publicitaire est improbable : aucun ciblage ne peut être fait et bien peu de _business models_ s'équilibrent par de la publicité _non profilée_. Mais, même au cas bien improbable où des ressources publicitaires seraient envisagées, il faudrait pouvoir établir qu'il existe une audience réelle et non pas qu'un tout petit nombre d'utilisateurs monopolisent la quasi totalité des ressources.
+Le cryptage des données est tel qu'une valorisation publicitaire est improbable : aucun ciblage ne peut être fait et bien peu de _business models_ s'équilibrent par de la publicité _non profilée_. Mais, même au cas bien improbable où des ressources publicitaires seraient envisagées, il faudrait pouvoir établir qu'il existe une audience réelle et non pas qu'un tout petit nombre d'utilisateurs monopolisent la quasi totalité des accès.
 
 #### Maîtriser l'utilisation des ressources
 Si les comptes étaient laissés libres de créer autant de secrets et de pièces jointes que voulu sans limitation, l'application pourrait être saturée et inutilisable pour la majorité de ses comptes _raisonnables_ du fait de l'utilisation _déraisonnable_ de quelques uns. 
@@ -26,7 +26,7 @@ Afin de protéger la confidentialité des secrets, il n'y a pas de _méta-donné
 Les coûts / contraintes d'hébergement ont été classés pour simplifier en trois catégories :
 - l'espace `v1` utilisé en _base de données_,
 - l'espace `v2` utilisé en _espace de fichiers_ (ou _object storage_),
-- le volume `tr` transféré dur le réseau.
+- le volume `tr` transféré sur le réseau.
 
 >Le coût de calcul n'a pas été pris en compte directement : l'application n'a pas vraiment de calculs, hormis ceux nécessaires à lire et mettre à jour des secrets. Cette activité étant toujours associée à des transferts sur le réseau, le coût de calcul a été implicitement intégré dans le coût réseau.
 
@@ -42,7 +42,7 @@ La _contrainte_ d'un plafond est simple à comprendre et à mettre en œuvre : l
 
 **Le principe est de définir des _forfaits_ de volumes :**
 - leur dépassement ponctuel est bloqué.
-- le coût mensuel n'est pas basé sur le volume effectif consommé mais sur le forfait.
+- le coût mensuel n'est pas basé sur le volume effectif consommé mais sur le _forfait_, le plafond possible.
 - la mesure des volumes effectifs à deux intérêts :
   - montrer que celui-ci est correctement calculé et baisse ou monte selon les actions effectués.
   - permettre d'ajuster le niveau de _forfait_ utile, l'augmenter si on est proche du plafond ou l'abaisser.
@@ -77,28 +77,28 @@ Compte tenu des bandes passantes actuelles, l'option est de ne pas le limiter ni
 >Ce procédé gêne les téléchargements massifs, mais impacte peu la lecture / mise à jour courante des pièces jointes.
 
 ### Comptes et lignes comptables
-**Chaque compte reçoit à sa création un numéro de _ligne comptable_ (LC)** : ce numéro aléatoire et immuable ne permet pas de faire le lien avec le compte effectif. 
+**Chaque compte reçoit à sa création une _ligne comptable_** : son identifiant est celui du compte ce qui ne permet pas d'établir de lien avec l'activité du compte qui passe par ses avatars. 
 
 La _ligne comptable_ est un enregistrement des données des forfaits et de l'historique de suivi.
 
 ### Gestion des secrets des groupes
-- un groupe est _hébergé_ par la ligne comptable d'un de ses membres (qui peut changer), son _hébergeur_.
+- un groupe est _hébergé_ par le compte d'un de ses membres (qui peut changer), son _hébergeur_.
 - un groupe dispose de compteurs `max1 / max2` fixés par son compte hébergeur et les volumes `v1 / v2` des secrets du groupe à l'instant t.
 
->La mise à jour d'un secret d'un groupe entraîne la mise à jour : a) éventuellement de la ligne comptable du demandeur pour le volume v2 transféré, b) de la ligne comptable du compte hébergeur du groupe pour les volumes v1 et v2, c) du groupe lui-même pour les volumes effectivement occupés.
+>La mise à jour d'un secret d'un groupe entraîne la mise à jour : a) éventuellement de la ligne comptable du compte du demandeur pour le volume v2 transféré, b) de la ligne comptable du compte hébergeur du groupe pour les volumes v1 et v2, c) du groupe lui-même pour les volumes effectivement occupés.
 
 La ou les deux lignes comptables impactées dans une opération sur un secret de groupe sont retournée en résultat de l'opération, ce qui est particulièrement utile si l'opération a échoué en raison de forfaits insuffisants (sur une ligne et / ou au niveau du groupe).
 
 #### Changement _du compte hébergeur_ d'un groupe
 Un membre animateur (auteur s'il n'y a plus d'animateurs) peut se déclarer _hébergeur_ du groupe en inscrivant son numéro de ligne de crédit à la place de celle actuelle :
-- il débite sa ligne de crédit des volumes actuels `v1` et `v2` occupés par les secrets du groupe et leurs pièces jointes et crédite d'autant la ligne de crédit actuelle.
+- il débite sa ligne comptable des volumes actuels `v1` et `v2` occupés par les secrets du groupe et leurs pièces jointes et crédite d'autant la ligne comptable actuelle.
 - il peut alors modifier les limites `max1 / max2` du groupe.
 
-Le compte _hébergeur_ dont la ligne comptable est celle du groupe peut la retirer : **le groupe n'a plus d'hébergeur**. 
-- **l'accès à ses secrets est suspendu** jusqu'à ce qu'un animateur y mette la sienne.
+Le compte _hébergeur_ peut se retirer du groupe : **le groupe n'a plus d'hébergeur**. 
+- **l'accès à ses secrets est suspendu** jusqu'à ce qu'un animateur y mette son compte.
 - le groupe n'étant plus accédé, si personne ne s'est manifesté pour en reprendre la charge, il va finir par s'auto-dissoudre au bout d'un an.
 
->Dans l'entête du groupe le numéro de la ligne comptable est crypté par la clé du groupe. Seuls ses membres peuvent en avoir connaissance.
+>Dans l'entête du groupe le numéro du compte hébergeur est crypté par la clé du groupe. Seuls ses membres peuvent en avoir connaissance.
 
 ### Synthèse
 Chaque compte a deux forfaits mensuels respectivement pour les volumes v1 et v2 :
@@ -111,7 +111,7 @@ Chaque ligne comptable dispose des compteurs suivants :
   - _en Mo_, volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
   - _en Mo_, volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
   - _en Mo_, volume tr de cumul des transferts de pièces jointes : 31 compteurs pour les 31 derniers jours.
-- **forfaits v1 et v2** : le plus élevé appliqué le mois en cours.
+- **forfaits v1 et v2** : les plus élevés appliqués le mois en cours.
 - **pour les 11 mois antérieurs** (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
   - les forfaits v1 et v2 appliqués dans le mois.
   - le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
@@ -127,26 +127,26 @@ La création d'un compte est assurée par parrainage d'un compte _parrain_.
 - les comptes filleul et parrain sont **contact** par l'intermédiaire d'un de leurs avatars respectifs.
 - la parrain a attribué des forfaits v1 et v2 au filleul à la création. C'est lui qui peut ensuite :
   - augmenter le niveau des forfaits en cours.
-  - réduire le niveau des forfaits en cours mais au-dessus du volume courant.
-- la ligne comptable du filleul porte la référence du numéro de ligne comptable du parrain.
+  - réduire le niveau des forfaits en cours mais toujours au-dessus du volume courant.
+- la ligne comptable du filleul porte le numéro de compte du parrain.
 
 La ligne comptable d'un parrain comporte deux parties :
 - l'une porte ses propres compteurs.
 - l'autre porte le cumul des compteurs de ses comptes filleul :
-  - total des volumes forfaitaires v1 et v2 actuels
+  - total des volumes forfaitaires v1 et v2 actuellement attribués.
   - limites v1 / v2 des volumes attribuables aux filleuls (actuels et futurs).
 
 ## Comptables de l'organisation
-Ce sont quelques comptes normaux mais dont le _hash_ de leurs phrases secrètes est pré-enregistré dans la configuration de l'application (avec un code court) ce qui leur confère quelques possibilités d'actions :
+Ce sont quelques comptes normaux mais dont le _hash_ de leurs phrases secrètes est pré-enregistré dans la configuration de l'application (avec un numéro court) ce qui leur confère quelques possibilités d'actions :
 - se créer eux-mêmes sans être parrainés par un autre compte.
 - consulter / télécharger toutes les lignes comptables.
 - consulter et répondre aux messages des comptes.
-- attribuer aux comptes parrains les limites de volumes v1 / v2 qu'ils peuvent affecter à leur filleuls.
+- attribuer aux comptes parrains les limites de volumes v1 / v2 qu'ils peuvent attribuer à leur filleuls.
 
 >**Le rôle majeur des comptables est de pouvoir maîtriser les forfaits attribués selon la politique propre à chaque organisation**.
 
 Cette maîtrise est à 2 niveaux :
-- les comptables gèrent une allocation globale à des parrains,
+- les comptables distribuent l'allocation globale à des parrains,
 - chaque parrain peut allouer des forfaits à des comptes filleuls à l'intérieur de son allocation propre.
 
 ### Échanges textuels courts entre les comptables et les titulaires des comptes
@@ -172,32 +172,32 @@ Un compte parrainé peut changer de parrain, être rattaché à un autre. Il peu
 C'est un comptable qui peut effectuer cette opération :
 - sur demande du parrain,
 - sur demande d'un filleul,
-- de son propre chef (typiquement suite à disparition du parrain)
+- de son propre chef (typiquement suite à disparition du parrain).
 
 ## Disparition par inactivité d'un compte
 
 Des ressources sont immobilisées par les comptes (partagées pour les groupes) : l'application doit les libérer quand les comptes sont _présumés disparus_, c'est à dire sans s'être connecté depuis plus d'un an.
 - mais pour préserver la confidentialité, toutes les ressources liées à un compte ne sont pas reliées au compte par des données lisibles dans la base de données mais cryptées et seulement lisibles en session.
-- pour marquer que des ressources sont encore utiles, un compte dépose lors de la connexion des **jetons datés** (approximativement pour éviter des corrélations entre avatars / groupes / comptes) dans chacun de ses avatars et chacun des groupes auxquels il participe, ainsi que dans le compte lui-même.
+- pour marquer que des ressources sont encore utiles, un compte dépose lors de la connexion des **jetons datés** ("approximativement datés" pour éviter des corrélations entre avatars / groupes / comptes) dans chacun de ses avatars et chacun des groupes auxquels il participe, ainsi que dans le compte lui-même (en fait dans sa ligne comptable).
 - la présence d'un jeton, par exemple sur un avatar, va garantir que ses données ne seront pas détruites dans les 400 jours qui suivent la date du jeton.
 - un traitement ramasse miettes tourne chaque jour, détecte les comptes / avatars / groupes dont le jeton est trop vieux et efface les données correspondantes jugées comme inutiles, l'avatar / compte / groupe correspondant ayant _disparu par inactivité_.
-- un jeton daté est également déposé dans la ligne comptable du compte : celle-ci est donc informée de l'inactivité éventuelle du compte.
+- le jeton daté du compte ayant été déposé dans la ligne comptable du compte, les comptables peuvent savoir si un compte est inactif (ou actif, ou proche de l'inactivité).
 
 >Comme aucune référence d'identification dans le monde réel n'est enregistrée pour préserver la confidentialité du système, aucune alerte du type mail ou SMS ne peut informer un compte de sa prochaine disparition s'il ne se connecte pas.
 
 ## Ventilation éventuelle des coûts réels d'hébergement
 Pour l'instant l'organisation a les moyens de contrôler ses ressources :
 - elle maîtrise sa facture globale d'hébergement,
-- elles assure aux comptes qu'ils peuvent utiliser dans des conditions normales les ressources forfaitaires qui leur ont été allouées.
+- elle assure aux comptes qu'ils peuvent utiliser dans des conditions normales les ressources forfaitaires qui leur ont été allouées.
 
 En considérant deux types d'organisation bien différents, on observe une convergence vers une exigence commune : comment résilier des comptes devenus _indésirables_, qu'elle qu'en soit la raison.
 
 >Si les ressources étaient gratuites et infinies cette question ne se poserait pas, sauf à prendre en compte un point de vue _dogmatique_ vis à vis des contenus des secrets. Or l'organisation, par conception même de l'application n'y a pas accès direct, seulement le cas échéant par l'intermédiaire de comptes émettant des alertes.
 
 ### Organisation payant l'hébergement pour ses adhérents
-L'accès à l'application est un service de l'organisation, gratuit pour les adhérents (du moins invisiblement inclus dans leur adhésion, ou les crédits de sponsoring dont elle bénéficie).
+L'accès à l'application est un service de l'organisation, gratuit pour ses adhérents (du moins invisiblement inclus dans leur adhésion, ou les crédits de sponsoring dont elle bénéficie).
 - L'organisation connaît ses adhérents et leurs rôles : elle propose des forfaits conforme aux exigences des rôles tenus, aux statuts (salariés, ...).
-- L'organisation fait le rapprochement entre chaque adhérent et son numéro de compte dans l'application mais ne peut pas le faire avec les avatars de compte, les groupes auxquels il participe, ni les contacts avec les autres vatars (même pas des comptes), ni les secrets qu'il écrit et lit.
+- L'organisation fait le rapprochement entre chaque adhérent et son numéro de compte dans l'application mais ne peut pas le faire avec les avatars du compte, les groupes auxquels il participe, ni les contacts avec les autres avatars (même pas des comptes), ni les secrets qu'il écrit et lit.
 - **Questions :**
   - (1) si un adhérent quitte l'organisation, comment lui retirer son accès (et de facto récupérer ses ressources) ?
   - (2) si des comptes rapportent l'usage par un compte de l'application pour des fins étrangères à l'objet de l'organisation, voire opposées à cet objet, comment lui retirer son accès ? Cette question lève le sujet du contrôle éthique sur l'usage de l'application.
@@ -212,13 +212,13 @@ L'organisation, qu'elle soit à but lucratif ou non, a opté pour laisser chaque
   - (1) si un abonné ne paye plus son abonnement, comment lui retirer son accès (et de facto récupérer ses ressources) ?
   - (2) si des comptes rapportent des propos _inappropriés_ vis à vis de la charte éthique de l'organisation dans les secrets partagés, voire non conformes à la loi, comment lui retirer son accès ?
 
->Les virements des abonnements _pouvant_ être obscurs ou passer par un intermédiaire, il peut être quasi impossible de corréler (avec des moyens légaux) une personne physique ou morale à une ligne comptable. Dans ce type d'organisation **les comptes peuvent être totalement anonymes** ... ce qui n'empêche pas de devoir pouvoir les bloquer.
+>Les virements des abonnements _pouvant_ être obscurs ou passer par un intermédiaire, il peut être quasi impossible de corréler (avec des moyens légaux) une personne physique ou morale à une ligne comptable. Dans ce type d'organisation **les comptes peuvent être totalement anonymes** ... ce qui n'empêche pas de devoir pouvoir les bloquer, ni qu'ils n'aient pas à respecter la charte éthique s'il y en une.
 
->Le modèle de _paiement de cotisation_ peut tout à fait être sans but lucratif et proposé par des associations désireuses de permettre à chacun de disposer d'espaces privés et sécurisés pour noter ses pensées, échanger avec des contacts des propos privés. Ce n'est en rien, _a priori_ un modèle mercantile.
+>Le modèle de _paiement de cotisation_ peut tout à fait être sans but lucratif et proposé par des associations désireuses de permettre à chacun de disposer d'espaces privés et sécurisés pour noter ses pensées, échanger avec des contacts des propos privés. Ce n'est en rien, _a priori_ un modèle mercantile (mais ça peut aussi l'être).
 
 Il reste donc que dans certains cas, une organisation peut devoir mettre fin à l'activité d'un compte, ne serait-ce que pour répondre à une injonction judiciaire sans devoir détruire tous les comptes (et sans considérer les pressions _physiques_, légales ... (?) ou non).
 
-### Mise _en sursis_ et _bloqué_ d'un compte
+### Mise _en sursis_ et _blocage_ d'un compte
 Un compte peut être marqué _en sursis_ par application d'une décision de l'organisation : un comptable inscrit dans la ligne comptable une date de mise en sursis.
 - **les dépôts de jetons effectués à la connexion et attestant de la vitalité du compte sont suspendus**. Le compte a au maximum un an avant la disparition de ses données (ou la sortie de cet état).
 
@@ -233,7 +233,7 @@ Il y a deux états _en sursis_ et un état _bloqué_.
 - dans tous les cas de figure, le compte ne déposant plus de jetons de vitalité à la connexion depuis le jour de la mise en sursis / blocage, peut disparaître avant de passer en état 2 ou 3.
 
 #### En sursis (1)
-Le compte continue à vivre normalement mais un panneau de pop-up s'affiche très régulièrement au cours des sessions pour rappeler cet état, le temps restant et ce qui l'attend en _sursis 2.
+Le compte continue à vivre normalement mais un panneau de pop-up s'affiche très régulièrement au cours des sessions pour rappeler cet état, le temps restant et ce qui l'attend en _sursis 2_.
 
 #### En sursis (2)
 Le compte ne peut plus créer de secrets, de pièces jointes ni les mettre à jour mais il peut en supprimer.
@@ -247,7 +247,7 @@ Un comptable peut supprimer l'état de sursis / bloqué à tout instant.
 ## Contrôle éthique ... ou non
 Ce sujet ne concerne que les organisations ayant un objet social / politique : ses membres utilisent l'application pour les servir.
 
-Aucun contrôle éthique n'est envisageable vis à vis des secrets personnels : il n'y a que le compte qui peut y accéder, on ne voit pas pourquoi il se dénoncerait de lui-même de textes illisibles par d'autres. Autant clôturer son compte directement.
+Aucun contrôle éthique n'est envisageable vis à vis des secrets personnels : il n'y a que le compte qui peut y accéder, on ne voit pas pourquoi il se dénoncerait de lui-même de textes illisibles par d'autres.
 
 Concernant des secrets de couples, si des écrits sont jugés inappropriés pour l'un des deux,
 - il arrête le partage de secrets,
@@ -256,7 +256,7 @@ L'autre compte est ramené à gérer des secrets personnels.
 
 La question se pose vis à vis de secrets d'un groupe :
 - un avatar peut être résilié d'un groupe, sauf s'il en est animateur.
-- rien n'empêche les membres du groupes choqués par les écrits inappropriés,
+- s'il n'est pas possible de le résilier parce qu'il est animateur, rien n'empêche les membres du groupes choqués par les écrits inappropriés,
   - d'ouvrir un autre groupe,
   - d'y transférer par copie les secrets intéressants de l'ancien,
   - d'y inviter les mêmes membres, sauf l'indésirable,
@@ -264,9 +264,9 @@ La question se pose vis à vis de secrets d'un groupe :
 
 La question n'est donc pas pour les autres comptes de se _mettre à l'abri_ d'un comportement problématique (ils peuvent facilement le faire) mais de _dénoncer_ auprès de l'organisation un compte utilisant les ressources de l'application à des fins personnelles / contraires à l'organisation / illégales ...
 
-Cette question ne se pose pas de facto dans le cadre d'une organisation _par cotisation_ où finalement c'est l'indésirable lui-même qui paye pour disposer de secrets.
+Cette question se pose moins dans le cadre d'une organisation _par cotisation_ où finalement c'est l'indésirable lui-même qui paye pour disposer de secrets.
 
-L'organisation aura besoin qu'un compte ayant accès aux secrets de groupe litigieux accède physiquement à ceux-ci (de manière crédible) pour mettre en évidence le caractère inapproprié de certains secrets justifiant, une mise en sursis voire un blocage.
+L'organisation aura besoin qu'un compte _témoin_ ayant accès aux secrets de groupe litigieux accède physiquement à ceux-ci (par une manipulation claire) pour mettre en évidence le caractère inapproprié de certains secrets justifiant, une mise en sursis voire un blocage.
 
 >L'application permet de facto une modération par exclusion d'un compte, en aucun cas par retrait des textes litigieux, sauf à ce qu'un compte lanceur d'alerte le fasse.
 

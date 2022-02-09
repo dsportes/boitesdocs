@@ -44,7 +44,7 @@ Quand le titulaire d'un compte ouvre une session de l'application Web d'accès �
 ### Mode avion
 **Le réseau n'est pas utilisé : seul le stockage local est mis à contribution** :
 - c'est parfois utile quand on craint que l'environnement réseau soit *surveillé / peu sûr* ou techniquement instable, ou qu'on souhaite qu'aucun accès réseau ne puisse être tracé.
-- si une session de l'application locale s'est déjà exécutée une fois dans le navigateur pour un compte, celui-ci retrouve, ses données telles que synchronisées lors de la dernière session exécutée en mode *synchronisé* sur ce poste pour ce compte.  
+- si une session de l'application locale s'est déjà exécutée une fois dans le navigateur pour un compte, celui-ci retrouve ses données telles que synchronisées lors de la dernière session exécutée en mode *synchronisé* sur ce poste pour ce compte.  
 - les informations sont plus ou moins *en retard* par rapport à l'état de référence détenu en central, mais peuvent être très utiles.
 - les mises à jour ne sont pas possibles : **toutefois les textes de nouveaux secrets ou des mises à jour de secrets peuvent être préparées pour être injectés dans leurs secrets lors de la prochaine session en mode *synchronisé***.
 
@@ -55,9 +55,9 @@ C'est un mode dégradé quand ni le réseau, ni le stockage local ne sont access
 - depuis un mode initial *synchronisé*,
   - si le réseau n'est plus accessible, la session est dégradée en mode *avion*.
   - si le stockage local n'est plus accessible (espace saturé par exemple), la session est dégradée en mode *incognito*.
-- depuis un mode initial *incognito* (ou dégradé depuis *synchronisé*),
+- depuis un mode *incognito* (initial ou dégradé depuis *synchronisé*),
   - si le réseau n'est plus accessible, la session est dégradée en mode *visio*.
-- depuis un mode initial *avion* (ou dégradé depuis *synchronisé*),
+- depuis un mode *avion* (initial ou dégradé depuis *synchronisé*),
   - si le stockage local n'est plus accessible, la session est dégradée en mode *visio*.
 
 En mode *dégradé* **visio** les données actuellement chargées en session peuvent continuer à être consultées mais aucune mise à jour ne peut être faite. 
@@ -82,7 +82,7 @@ Un **secret** est un *texte* court (moins de 4000 signes).
 - une pièce jointe a un _nom_, comme un nom de fichier, ayant en général (sauf sur MAC) une extension (`.jpg .pdf .md` ...) correspondant à son type MIME.
 - une pièce jointe a une taille raisonnable : les clips vidéo doivent être courts.
 - on peut changer les pièces jointes d'un secret (même sans changer le texte du secret), en ajouter, en supprimer, en remplacer une par une nouvelle version.
-- les pièces jointes de type texte _Markdown_ (`.md`), _image_ (`.jpg .png .svg`), _audio_ (`.mp3 `...) et _video_ peuvent s'afficher dans le navigateur qui peut soit les afficher, soit ouvrir une application qui peut l'afficher, soit la charger sur un espace local de téléchargement.
+- les pièces jointes de type texte _Markdown_ (`.md`), _image_ (`.jpg .png .svg`), _audio_ (`.mp3 `...) et _video_ peuvent s'afficher dans le navigateur qui peut, soit les afficher, soit ouvrir une application qui peut l'afficher, soit la charger sur un espace local de téléchargement.
 
 ## Comptes et leurs avatars
 Un compte a un ou plusieurs **avatars** qui sont comme autant de personnalités différentes. Une même personne peut avoir des compartiments de vie différents, contribuer à des réflexions ou des actions différentes. Ce cloisonnement est possible en se définissant plusieurs avatars :
@@ -131,46 +131,46 @@ Pour se créer un compte le titulaire doit déclarer :
   - **elle a deux lignes**, une première d'au moins 16 signes et une seconde d'au moins 16 signes. L'application n'accepte pas d'avoir 2 comptes ayant des phrases secrètes ayant une même première ligne.
   - la phrase secrète peut être changée ... à condition de pouvoir fournir celle en cours.
   - l'oubli de cette phrase est irrémédiable : indirectement elle crypte toutes les informations et secrets accessibles au compte.
-  - l'administrateur d'hébergement lui-même n'a aucun moyen technique de la retrouver.
+  - l'administrateur de l'hébergement lui-même n'a aucun moyen technique de la retrouver.
 - le **nom, immuable, de son premier avatar** (un pseudo).
 - la **phrase de parrainage** conjointement fixée avec un autre compte rencontré (hors de l'application) et ayant accepté de le *parrainer* : 
   - parrain et filleul ont convenu de cette phrase et du nom du premier avatar du compte filleul.
-  - le parrain a accepté de prendre sur ses propres quotas d'espace pour ses secrets pour en donner au compte filleul.
-  - le parrain a enregistré la phrase de parrainage avec le nom d'avatar du filleul et les quotas donnés.
+  - le parrain a accepté de prendre sur ses quotas d'espace pour donner au compte filleul un forfait de ressources.
+  - le parrain a enregistré la phrase de parrainage avec le nom d'avatar du filleul et les forfaits attribués.
   - quand le filleul accepte le parrainage, son compte est créé ainsi que son premier avatar qui a un premier contact, son parrain (réciproquement le filleul est un contact du parrain).
 
 **Un compte,**
-- est identifié par un numéro immuable aléatoire de 15 chiffres qui n'a pas d'intérêt pratique.
+- est identifié par un numéro immuable aléatoire de 15 chiffres.
 - reçoit une clé principale de cryptage immuable aléatoirement générée : celle-ci est mémorisée cryptée par une clé dérivée de la phrase secrète du compte (impossible à craquer par force brute).
 
 **Un avatar,**
-- est identifié par un numéro immuable aléatoire de 15 chiffres qui n'a pas d'intérêt pratique.
+- est identifié par un numéro immuable aléatoire de 15 chiffres.
 - a un **nom immuable**, défini par le titulaire du compte : les homonymies sont permises dans l'application (ce nom ne pourra pas être changé). Une partie du numéro accolé au nom lève les homonymies.
 - reçoit des clés cryptographique générées aléatoirement et immuables :
   - la clé cryptant sa **carte de visite**.
-  - un couple de clés (publique / privée) d'usage interne.
+  - un couple de clés de cryptage (publique / privée) utilisée pour les invitations à des groupes.
 
 ## Carte de visite d'un avatar
 
 La **carte de visite** d'un avatar d'un compte est modifiable par le titulaire du compte et comporte :
 - une photo de petite dimension,
-- un court texte apportant une éventuelle précision au pseudo.
+- un court texte apportant une éventuelle précision au nom de l'avatar.
 
 Elle est mémorisée cryptée par la clé de l'avatar et est visible :
 - de tout avatar X membre d'un même groupe G que A,
 - de tout avatar C ayant inscrit A dans ses contacts.
 
-> _Il est possible de rencontrer deux avatars ayant même pseudo_, les homonymes étant autorisés : le suffixe permet de les distinguer mais surtout la carte de visite, quand les avatars en ont déclaré une, peut permettre de lever une éventuelle ambiguïté.
+> _Il est possible de rencontrer deux avatars ayant même pseudo_, les homonymes étant autorisés : la fin du numéro interne permet de les distinguer mais surtout la carte de visite, quand les avatars en ont déclaré une, peut permettre de lever une éventuelle ambiguïté.
 
 ## Mots clés d'un compte et de l'organisation
-Un mot clé d'un compte a un index (de 1 à 99), un texte très court pouvant contenir un émoji (de préférence en tête). Le titulaire d'un compte définit ses propres mots clés.
+Un mot clé d'un compte a un index (de 1 à 99): le mot peut contenir un émoji (de préférence en tête). Le titulaire d'un compte définit ses propres mots clés.
 
-L'organisation déclare aussi des mots clés (d'index 200 à 255) : ils sont communs à tous et déclarés dans la configuration de l'hébergement.
+L'organisation déclare aussi des mots clés (d'index 200 à 255) : ils sont communs à tous et déclarés dans la configuration de l'hébergement. Quelques mots clés (à partir de 250) ont une signification interprétée, donc ne pouvant pas être configurée.
 
 Les secrets des avatars personnels du compte ou des secrets partagés par le compte (de couple avec un contact ou de groupe) peuvent se voir attacher des mots clés par le compte afin de les classer / filtrer.
 
 ## Création d'un avatar
-Un compte peut se créer un nouvel avatar supplémentaire en donnant son pseudo.
+Un compte peut se créer un nouvel avatar supplémentaire en donnant son nom.
 
 Un compte peut aussi détruire un de ses avatars (sauf le dernier existant).
 
@@ -187,12 +187,12 @@ Ses données sont effacées *mais pas tous ses secrets* :
 
 Comme rien ne raccorde un compte au monde réel, ni adresse e-mail, ni numéro de téléphone ... il n'est pas possible d'informer quiconque de la disparition prochaine d'un compte.
 
-> un certain temps avant d'être détruits, les avatars du compte vont apparaître **en alerte** pour les autres avatars avec qui ils sont en contact : certains de ceux-ci peuvent avoir dans la vraie vie un moyen d'alerter leur titulaire afin qu'il se connecte une fois ce qui le fera sortir de cet état.
+> Un certain temps avant d'être détruits, les avatars du compte vont apparaître **en alerte** pour les autres avatars avec qui ils sont en contact : certains de ceux-ci peuvent avoir dans la vraie vie un moyen d'alerter leur titulaire afin qu'il se connecte une fois ce qui le fera sortir de cet état.
 
 ## Création d'un contact d'un avatar
 Un avatar `A` peut inscrire un avatar `C` dans sa liste de contacts dès lors que A et C sont membres d'un même groupe G.
 
-Ainsi A conserve l'identification complète de C (son code, son pseudo et la clé de cryptage de sa carte de visite) même si A ou C sont résiliés du groupe G où ils se sont rencontrés. A pourra ainsi inviter C à un groupe.
+Ainsi A conserve l'identification complète de C (son code, son nom et la clé de cryptage de sa carte de visite) même si A ou C sont résiliés du groupe G où ils se sont rencontrés. A pourra ainsi inviter C à un groupe.
 
 A peut associer un commentaire et des mots clés à un contact C (que C ne voit pas).
 
@@ -257,8 +257,7 @@ Un animateur peut agir sur les pouvoirs des autres membres non animateurs :
 
 Tout membre peut,
 - s'auto-résilier,
-- dégrader son propre pouvoir,
-- apporter des quotas au groupe afin de lui permettre d'avoir plus de secrets.
+- dégrader son propre pouvoir.
 
 ## Mots clés d'un groupe
 Un mot clé d'un groupe a un index de 100 à 199, un mot pouvant contenir un émoji, de préférence en tête.
@@ -275,14 +274,14 @@ En revanche le groupe peut continuer à avoir des mouvements de membres et ses s
 Un groupe peut être désarchivé par un animateur.
 
 ## Fermeture d'un groupe
-Un animateur peut *fermer* un groupe : il ne peut plus y avoir de nouvelles inscriptions.
+Un animateur peut *fermer* un groupe : il ne peut plus y avoir de nouvelles invitations.
 
 Pour rouvrir un groupe il faut que tous les animateurs aient voté vouloir le rouvrir.
 
 ## Dissolution d'un groupe
 Elle s'opère quand le dernier membre actif du groupe se résilie lui-même : tous les secrets sont détruits.
 
-Quand le dernier membre actif d'un groupe passe en état *disparu*, le groupe se dissout (plus personne ne pouvant y accéder).
+Quand le dernier membre actif d'un groupe passe en état *disparu*, le groupe s'auto-dissout (plus personne ne pouvant y accéder).
 
 # Secret
 
@@ -307,14 +306,27 @@ L'état d'un secret de groupe peut être forcé par un animateur du groupe.
 
 Un secret de groupe garde la liste ordonnée des avatars l'ayant modifié, les plus récents en tête mais sans doublons.
 
+**Secrets voisins**
+Au début il y a un secret A, normal.
 
-**Un secret peut *faire référence* un autre secret** de la même _famille_ : un secret de couple à un secret du même couple, un secret de groupe à un autre secret du même groupe. Un secret personnel peut référencer n'importe quel secret.
+Puis quelqu'un crée un autre secret B en le déclarant _voisin_ de A. Quelqu'un encore peut créer un secret C _voisin_ de A (s'il le déclare voisin de B, en fait il est créé voisin de A).
 
-L'affichage peut ainsi être hiérarchique :
-- à la racine apparaissent tous les secrets relatifs à aucun.
-- en dépliant un secret S1 on voit tous les secrets Si faisant référence à S1 et ainsi de suite.
+L'intérêt est que si quelqu'un consulte C par exemple, il aura sous les yeux la liste des voisins (A, B, C en l'occurrence).
 
-> Une pièce jointe peut être lue dans une session en ligne et sauvegardée cryptée (ou non !) localement par exemple dans *Téléchargement*.
+Ceci permet de créer des sortes du bulles autour d'un secret initial et traitant tous de la même chose. 
+- si A est un secret d'un groupe par exemple, rien n'empêche de créer des secrets D E F personnels voisins de A. De même pour un secret de couple.
+- quand il est dit qu'on voit la liste de tous ses voisins quand on affiche un secret c'est à nuancer : on ne voit que les secrets qu'on a le droit de voir.
+- si le secret A est supprimé, ça ne change rien pour les autres qui restent voisins de A (mais on ne peut plus voir A).
+
+**Pièces jointes d'un secret**
+Une pièce jointe a un nom, comme un nom de fichier, relativement à son secret.
+- une pièce jointe peut être mise à jour, supprimée, d'autres ajoutées.
+- une pièce jointe est stockée cryptée par la clé du groupe : si elle est de type MIME 'text' elle est compressée.
+- une pièce jointe est affichable en mode _synchronisé_ et _incognito_ : voir ci-arès comment par exception, elle peut être accessible en mode _avion_ sur certains appareils.
+- les navigateurs peuvent en général afficher beaucoup de types de pièces jointes (mais pas tous tant s'en faut).
+- on peut télécharger en local une pièce jointe, typiquement dans le répertoire `Téléchargement` de l'appareil.
+
+Une opération de téléchargement permet d'écrire sur un disque local une sélection de secrets, leurs textes et leurs pièces jointes, en clair. Ceci requiert un PC (Linux ou Windows) et le chargement d'une petite application qui doit être lancée localement (un navigateur n'a pas le droit d'écrire sur l'espace de fichiers du PC).
 
 ## Mots clés : indexation / filtrage / annotation personnelle des secrets
 Il existe une liste de 56 mots clés (de 200 à 255) génériques de l'application définis à son déploiement par l'administrateur de l'hébergement. Par exemple : _à relire, important, à cacher, à traiter d'urgence, ..._ 
@@ -339,7 +351,7 @@ Toutefois en mode _avion_ il est possible de créer des **notes** : ce sont des 
 ### Pièces jointes en attente
 De même des pièces jointes peuvent être préparées : elles référencent des secrets précis (elles sont cryptées par la clé des secrets). Elles pourront être chargées sur le serveur à l'occasion de la prochaine session _synchronisée_. Cette action n'est pas automatique par sécurité : elle doit être déclenchée explicitement, typiquement pour éviter d'écraser une pièce jointe plus récente par une plus ancienne capturée en mode _avion_.
 
-## Accès aux pièces jointes en mode *_avion_
+## Accès aux pièces jointes en mode _avion_
 En raison de leur volume les pièces jointes résident sur le serveur et ne sont pas mémorisées dans les bases locales des sessions : elles ne sont lisibles qu'en mode _synchronisé_ ou _incognito_ mais pas en mode _avion_.
 
 Toutefois pour chaque appareil distinctement, le titulaire d'un compte peut **cocher** des pièces jointes pour accéder à leur contenu en mode _avion_ :
