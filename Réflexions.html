@@ -29,123 +29,131 @@ hr { height:0.2rem; padding:0; margin:1.2rem 0; background-color:#78909C; border
 li>p { margin-top:0.5rem; }
 h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 </style></head><body> 
-<h1>Maîtrise du volume des secrets : quotas et crédits</h1>
+<h1>Maîtrise des ressources utilisées par les comptes</h1>
 
-<h3>Contrôler les volumes par des quotas</h3>
+<h2>Présentation de la problématique</h2>
 
-<p>Si les comptes étaient laissés libres de créer autant de secrets et de pièces jointes que voulu sans limitation, l'application pourrait être saturée et inutilisable pour la majorité de ses comptes raisonnables du fait de l'utilisation déraisonnable de quelques uns.</p>
+<p><strong>L'hébergement de l'application a un coût récurrent</strong> : même quand le coût effectif est  <em>sponsorisé</em> par l'organisation qui la met en œuvre, il se pose deux questions :
+- qui y a accès et peut en profiter,
+- comment maîtriser la consommation de ressources correspondantes.</p>
 
-<p>Il y a trois axes à maîtriser :
-- <code>v1</code> : <strong>le volume des textes des secrets</strong> qui mobilise un espace de base de données, coûteux et relativement limité.
-- <code>v2</code> : <strong>le volume de leurs pièces jointes</strong> qui mobilise un espace de fichiers (ou équivalent), moins coûteux et pouvant être important.
-- <code>tr</code> : <strong>le volume transitant sur le réseau</strong> qui est décompté,
-  - <em>lors de l'ouverture d'une session par un compte</em> pour charger les textes des secrets (juste ceux ayant changé depuis la dernière fois en mode <em>synchronisé</em> ou tous en mode <em>incognito</em>) et les pièces jointes déclarées accessibles en mode avion sur le poste (incrémentalement en mode <em>synchronisé</em>),
-  - <em>lors de la mise à jour d'un secret</em> ou d'une de ses pièces jointes,
-  - <em>lors du téléchargements d'une sélection de secrets sur disque local</em> avec la remontée des pièces jointes non disponibles en mode <em>avion</em> sur le poste.</p>
+<p><strong>Pour créer un compte il faut être parrainé</strong> : en se limitant à principe, le parrain n'a aucun moyen de contrôler l'usage que fait son filleul de son compte, ni si celui-ci devient parrain d'autres invités. Le rôle de <em>parrain</em> doit être régulé de manière à contribuer au contrôle de l'usage des ressources.</p>
+
+<p><strong>Si l'organisation ne sponsorise pas en totalité les coûts d'hébergement</strong>, elle se pose forcément la question de récupérer des comptes le part du coût global qui leur incombe.</p>
+
+<h4>Sponsoring publicitaire</h4>
+
+<p>Le cryptage des données est tel qu'une valorisation publicitaire est improbable : aucun ciblage ne peut être fait et bien peu de <em>business models</em> s'équilibrent par de la publicité <em>non profilée</em>. Mais, même au cas bien improbable où des ressources publicitaires seraient envisagées, il faudrait pouvoir établir qu'il existe une audience réelle et non pas qu'un tout petit nombre d'utilisateurs monopolisent la quasi totalité des ressources.</p>
+
+<h4>Maîtriser l'utilisation des ressources</h4>
+
+<p>Si les comptes étaient laissés libres de créer autant de secrets et de pièces jointes que voulu sans limitation, l'application pourrait être saturée et inutilisable pour la majorité de ses comptes <em>raisonnables</em> du fait de l'utilisation <em>déraisonnable</em> de quelques uns. </p>
+
+<p>Même une organisation très limitée de quelques membres pourraient être paralysée suite à une invitation imprudente.</p>
+
+<p>Afin de protéger la confidentialité des secrets, il n'y a pas de <em>méta-données</em> en clair dans la base de données permettant à un traitement d'administration de connaître les comptes utilisant beaucoup de ressources, ni aucun moyen de les bloquer. </p>
 
 <blockquote>
-  <p>Les volumes <code>v1</code> et <code>v2</code> sont simplement le total des volumes occupés à l'instant t. Un quota de volume correspond à deux chiffres <code>max1</code> et <code>max2</code> tels que <code>v1</code> et <code>v2</code> ne doivent pas les dépasser.</p>
+  <p>Un mécanisme de <em>contrainte</em> dans l'utilisation des ressources est nécessaire, les comptes devant pouvoir être contenus en cas d'inflation des secrets au delà des contraintes fixées.</p>
   
-  <p>Le volume réseau <code>tr</code> est décompté sur le volume total échangé pour la semaine en cours et la précédente. Le quota réseau est le volume hebdomadaire maximal moyenné sur la semaine courante et la précédente.</p>
+  <p>Un mécanisme de <em>comptabilisation</em> des consommations de ressources, doit permettre, soit de reporter la charge sur les comptes, soit pour valoriser une audience de justifier que ses usagers sont bien ceux qui étaient ciblés.</p>
 </blockquote>
 
-<p>La maîtrise des ressources globales et l'équilibre entre les usages de l'application par les comptes repose sur la contrainte de quota contraignant l'usage de l'application pour chaque compte.</p>
+<h4>Coûts d'hébergement</h4>
 
-<h3>Contrôler la répartition entre les comptes : les lignes de crédit</h3>
-
-<p>Comment affecter des quotas aux comptes, à l'instant t et au cours du temps ?</p>
-
-<p>Les organisations ont des profils différents et la politique de répartition ne peut pas être identique pour toutes. Exemples typiques.</p>
-
-<h5>Organisation uniforme figée et fiable</h5>
-
-<ul>
-<li>il y a N comptes, tous égaux en droits et en obligations.</li>
-<li>les comptes sont fiables et supportent le coût d'hébergement de manière régulière, ou un généreux sponsor paie pour tout le monde sur le long terme.</li>
-<li>Solution simple : tout le monde a le même triplet de quotas sans limitation de durée.</li>
-</ul>
-
-<p>Mais ce cas est virtuel et n'existe pas dans la vraie vie.</p>
-
-<h5>Organisation par <em>cotisation</em></h5>
-
-<ul>
-<li>chaque compte acquitte régulièrement une cotisation pour contribuer au coût global d'hébergement.</li>
-<li>selon ce que chacun paye (ses besoins), les quotas sont plus ou moins élevés.</li>
-<li>si un compte ne paye plus, il n'accède plus, s'il réduit sa cotisation (donc ses quotas) ses volumes doivent baisser ... sinon ...</li>
-<li>Tout le problème est dans le <em>sinon</em> : comment passer d'une liberté totale à une interdiction de connexion en laissant au compte le temps de s'adapter / préparer sa sortie.</li>
-</ul>
-
-<p>Ce cas est concret, même si le <em>paiement de cotisation</em> peut aussi prendre des formes variées.
-- c'est l'organisation qui paye les cotisations pour ses membres mais du coup c'est elle aussi qui détermine le montant des quotas associés et la date de validité de l'accès.
-- c'est une activité <em>commerciale</em> pure (indépendamment de l'aspect lucratif ou non), chaque compte payant selon son envie / besoins. Personne ne décide si un compte doit ou non avoir accès : tant que les cotisations rentrent, les comptes utilisent le service.</p>
-
-<h3>Les <em>lignes de crédit</em></h3>
-
-<p>C'est l'instrument qui va permettre de gérer l'évolution dans le temps des quotas attribués à chacun : ces lignes sont gérées par des <strong>comptables</strong> qui sont des comptes dont la phrase secrète (son hash) est enregistré dans la configuration de l'application.</p>
-
-<p><strong>Chaque compte a une ligne de crédit dont le numéro est aléatoire et immuable pour le compte durant sa vie</strong>. Personne, pas même les comptables, ne peut corréler un numéro de ligne de crédit et un compte, <em>sauf le titulaire du compte lui-même</em>. </p>
-
-<p>Une ligne de crédit fixe :
-- 3 quotas :
-  - <code>max1</code> : volume maximal total des <strong>textes</strong> des secrets.
-  - <code>max2</code> : volume maximal total des <strong>pièces jointes</strong> aux secrets.
-  - <code>maxt</code> : volume maximal total du <strong>trafic réseau sur une semaine</strong> :
-    - des pièces jointes échangées (upload / download).
-    - des textes des secrets téléchargés en début de session.
-    - des textes des secrets mis à jour.
-- 3 volumes à l'instant t :
-  - <code>v1</code> : volume total des <strong>textes</strong> des secrets.
-  - <code>v2</code> : volume total des <strong>pièces jointes</strong> aux secrets.
-  - <code>tr</code> : <strong>trafic réseau sur une semaine</strong>. Concrètement c'est calculé depuis 3 compteurs : le numéro de la semaine N du dernier enregistrement et les cumuls sur la semaine N-1 et N.
-- <code>dlv</code> : date limite de validité du <em>contrat</em>, le service est <em>normalement</em> assuré au moins jusqu'à cette date, et bloqué au delà.
-- <code>dbx</code> : date de blocage exceptionnelle du compte.
-- <code>dbq</code> : date limite de respect des quotas : au delà, si les quotas ne sont toujours pas respectés, le compte est bloqué.
-- <code>dds</code> : date de dernière signature du compte.
-- <code>en sursis</code> : calculé : quand il y a plusieurs raisons, c'est la plus forte qui est indiquée.
-  - 0 : pas en sursis
-  - 1 : en sursis pour excès de v1
-  - 2 : en sursis pour excès de v2
-- <code>bloqué</code> : calculé, raison du blocage.
-  - 0 : pas bloqué.
-  - 1 : dépassement de la <code>dlv</code>,
-  - 2 : dépassement de la <code>dbq</code> <strong>et</strong> le compte ne respecte toujours pas ses quotas de volume.
-  - 3 : dépassement de <code>dbx</code>.</p>
-
-<p>L'application renseigne les <em>volumes</em> et la dernière date de connexion : les quotas et autres dates sont renseignées par les comptables selon les règles en vigueur dans l'organisation.</p>
-
-<p>La ligne de crédit d'un compte est affichable en session de ce compte sur demande.</p>
+<p>Les coûts / contraintes d'hébergement ont été classés pour simplifier en trois catégories :
+- l'espace <code>v1</code> utilisé en <em>base de données</em>,
+- l'espace <code>v2</code> utilisé en <em>espace de fichiers</em> (ou <em>object storage</em>),
+- le volume <code>tr</code> transféré dur le réseau.</p>
 
 <blockquote>
-  <p>Une organisation qui souhaiterait valoriser en unités monétaires le coût d'usage / immobilisation des ressources de son application n'a plus qu'à appliquer la formule de conversion de son choix depuis les compteurs d'une ligne de crédit (quitte à utiliser des historiques externes tirés des lignes).</p>
+  <p>Le coût de calcul n'a pas été pris en compte directement : l'application n'a pas vraiment de calculs, hormis ceux nécessaires à lire et mettre à jour des secrets. Cette activité étant toujours associée à des transferts sur le réseau, le coût de calcul a été implicitement intégré dans le coût réseau.</p>
 </blockquote>
 
-<h3>Mise à jour des lignes de crédit selon les opérations sur les secrets</h3>
+<p><strong>Hormis l'accès aux secrets</strong>, l'application a très peu de charge de calcul et d'occupation d'espace pour gérer les contacts, les participation aux groupes, etc. D'où le principe de se ramener à une unique unité d'œuvre : le <strong>stockage des secrets, textes et pièces jointes et leur transfert sur le réseau</strong>.</p>
 
-<p>Les opérations concernées sont :
-- la synchronisation des secrets en ouverture de session : elle impute le volume <code>tr</code> de la ligne de crédit du compte.
-- la mise à jour <strong>d'un secret personnel ou de couple</strong> (texte et pièce jointe):
-  - elle impute la variation de volume sur les compteurs <code>v1 / v2</code> de la ligne de crédit du compte demandeur, selon que c'est le texte ou la pièce jointe,
-  - elle impute le volume transféré (texte ou pièce jointe) sur le compteur <code>tr</code> du compte demandeur.
-  - le téléchargement sur disque local d'une sélection de secrets. Elle impute le volume transféré des pièces jointes sur le compteur <code>tr</code> du compte demandeur.</p>
-
-<h4>Gestion des secrets des groupes</h4>
+<h4>Capacités et consommations</h4>
 
 <ul>
-<li>un groupe est <em>supporté</em> par la ligne de crédit d'un de ses membres (qui peut changer), son <em>hébergeur</em>.</li>
-<li>un groupe dispose de compteurs <code>max1 / max2</code> fixés par le compte hébergeur du groupe et les volumes <code>v1 / v2</code> des secrets du groupe.</li>
+<li>La <em>capacité</em> est la <em>possibilité de</em>, par exemple stocker des pièces jointes : elle s'exprime comme un plafond, par exemple un volume maximal.</li>
+<li>La <em>consommation</em> est le volume réellement utilisé.</li>
 </ul>
 
-<p>Le volume de <em>transfert réseau</em> associé à une opération est décompté sur la ligne de crédit du compte demandeur. Un groupe n'a aucun compteur / quota lié au transfert réseau.
-- la variation de volume liée à une mise à jour de texte ou de pièce jointe d'un secret,
-  - est décomptée une première fois sur le groupe lui-même,
-  - est décompté une seconde fois sur la ligne de crédit du compte hébergeur du groupe.</p>
+<h2>Options de mise en œuvre</h2>
+
+<h3>Volume v1 et v2</h3>
+
+<p>La <em>contrainte</em> d'un plafond est simple à comprendre et à mettre en œuvre : les opérations menant à un dépassement du plafond (création de secrets / pièces jointes et mises à jour en expansion) retournent une erreur.</p>
+
+<p><strong>Le principe est de définir des <em>forfaits</em> de volumes :</strong>
+- leur dépassement ponctuel est bloqué.
+- le coût mensuel n'est pas basé sur le volume effectif consommé mais sur le forfait.
+- la mesure des volumes effectifs à deux intérêts :
+  - montrer que celui-ci est correctement calculé et baisse ou monte selon les actions effectués.
+  - permettre d'ajuster le niveau de <em>forfait</em> utile, l'augmenter si on est proche du plafond ou l'abaisser.</p>
 
 <blockquote>
-  <p>La mise à jour d'un secret d'un groupe entraîne la mise à jour, dans le cas général, a) de la ligne de crédit du demandeur pour le coût de transfert, b) de la ligne de crédit de l'hébergeur du groupe pour les volumes, c) du groupe lui-même pour les volumes afin que les membres aient conscience de son importance.</p>
+  <p><strong>Le coût <em>monétaire</em> unitaire du Mo (méga-octet) de volume v1 est environ 10 fois celui du volume v2.</strong></p>
 </blockquote>
 
-<p>La ou les deux lignes de crédit impactées dans une opération sur un secret sont retournée en résultat de l'opération, ce qui est particulièrement utile si l'opération a échoué en raison de quotas insuffisants (sur une ligne et / ou au niveau du groupe).</p>
+<p>Quelques forfaits v1 / v2 sont prédéfinis et portent un code simple auquel est associé un volume : la liste est enregistrée dans la configuration de l'installation.</p>
+
+<h3>Le volume transféré sur le réseau</h3>
+
+<ul>
+<li>il est beaucoup moins simple à percevoir.</li>
+<li>il est sujet à des pointes importantes : le téléchargement d'une sélection de secrets et de ses pièces jointes mobilise intensivement du transfert mais sur une période de temps courte.</li>
+<li>le fonctionnement <em>normal</em> n'est pas particulièrement critique : les comportements de téléchargements systématiques et lourds le sont.</li>
+</ul>
+
+<h4>Volume de transfert associé aux textes des messages</h4>
+
+<ul>
+<li>il est très corrélé au volume v1 de ceux-ci.</li>
+<li>le comportement qui l'influence est marginal : taux de mise à jour, fréquence des ouverture de sessions en mode <em>incognito</em> ...</li>
+</ul>
+
+<p>Compte tenu des bandes passantes actuelles, l'option est de ne pas le limiter ni même de le décompter : son <em>coût</em> est intégré dans celui du volume v1.</p>
+
+<h4>Volume de transfert associé aux pièces jointes</h4>
+
+<ul>
+<li>il peut être important.</li>
+<li>de manière normale un compte ne lit pas toutes ses pièces jointes tous les jours, mais il peut avoir un comportement de sécurité l'amenant à faire des téléchargements massifs sur disque local.</li>
+<li>pour un même volume v2 de pièces jointes, deux comptes peuvent avoir des comportements très contrastés et des volumes de transfert très différents.</li>
+</ul>
+
+<blockquote>
+  <p><strong>Le coût <em>monétaire</em> d'un Mo transféré sur le réseau équivaut au coût mensuel de son stockage.</strong> Mais d'ordinaire chaque mois il n'est lu / modifié qu'une faible proportion des pièces jointes stockées ... sauf si on télécharge massivement systématiquement.</p>
+</blockquote>
+
+<p><strong>Principes retenus</strong>
+- il n'y a pas de plafond impératif de transfert mensuel de volume v2.
+- le cumul du volume des transfert des pièces jointes est mémorisé sur les 31 derniers jours : plus il approche puis dépasse le volume v2, plus des temporisations (explicitées à l'écran) ralentissent <em>artificiellement</em> le débit.
+- le volume mensuel est mémorisé en historique pour information.</p>
+
+<blockquote>
+  <p>Ce procédé gêne les téléchargements massifs, mais impacte peu la lecture / mise à jour courante des pièces jointes.</p>
+</blockquote>
+
+<h3>Comptes et lignes comptables</h3>
+
+<p><strong>Chaque compte reçoit à sa création un numéro de <em>ligne comptable</em> (LC)</strong> : ce numéro aléatoire et immuable ne permet pas de faire le lien avec le compte effectif. </p>
+
+<p>La <em>ligne comptable</em> est un enregistrement des données des forfaits et de l'historique de suivi.</p>
+
+<h3>Gestion des secrets des groupes</h3>
+
+<ul>
+<li>un groupe est <em>hébergé</em> par la ligne comptable d'un de ses membres (qui peut changer), son <em>hébergeur</em>.</li>
+<li>un groupe dispose de compteurs <code>max1 / max2</code> fixés par son compte hébergeur et les volumes <code>v1 / v2</code> des secrets du groupe à l'instant t.</li>
+</ul>
+
+<blockquote>
+  <p>La mise à jour d'un secret d'un groupe entraîne la mise à jour : a) éventuellement de la ligne comptable du demandeur pour le volume v2 transféré, b) de la ligne comptable du compte hébergeur du groupe pour les volumes v1 et v2, c) du groupe lui-même pour les volumes effectivement occupés.</p>
+</blockquote>
+
+<p>La ou les deux lignes comptables impactées dans une opération sur un secret de groupe sont retournée en résultat de l'opération, ce qui est particulièrement utile si l'opération a échoué en raison de forfaits insuffisants (sur une ligne et / ou au niveau du groupe).</p>
 
 <h4>Changement <em>du compte hébergeur</em> d'un groupe</h4>
 
@@ -153,193 +161,214 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 - il débite sa ligne de crédit des volumes actuels <code>v1</code> et <code>v2</code> occupés par les secrets du groupe et leurs pièces jointes et crédite d'autant la ligne de crédit actuelle.
 - il peut alors modifier les limites <code>max1 / max2</code> du groupe.</p>
 
-<p>Le compte <em>hébergeur</em> dont la ligne de crédit est celle du groupe peut la retirer : <strong>le groupe n'a plus de ligne de crédit associée</strong>. 
+<p>Le compte <em>hébergeur</em> dont la ligne comptable est celle du groupe peut la retirer : <strong>le groupe n'a plus d'hébergeur</strong>. 
 - <strong>l'accès à ses secrets est suspendu</strong> jusqu'à ce qu'un animateur y mette la sienne.
 - le groupe n'étant plus accédé, si personne ne s'est manifesté pour en reprendre la charge, il va finir par s'auto-dissoudre au bout d'un an.</p>
 
 <blockquote>
-  <p>Dans l'entête du groupe le numéro de la ligne de crédit est crypté par la clé du groupe. Seuls ses membres peuvent en avoir connaissance.</p>
+  <p>Dans l'entête du groupe le numéro de la ligne comptable est crypté par la clé du groupe. Seuls ses membres peuvent en avoir connaissance.</p>
 </blockquote>
 
-<h2>Disparition et blocage des comptes</h2>
+<h3>Synthèse</h3>
 
-<h3>Disparition par inactivité d'un compte</h3>
+<p>Chaque compte a deux forfaits mensuels respectivement pour les volumes v1 et v2 :
+- les opérations menant à dépasser le niveau de forfait pour le mois courant sont interdites.
+- les transferts de pièces jointes sont ralentis, sans être bloqués, dès que leur cumul sur les 31 derniers jours approche puis dépasse le volume du forfait v2.</p>
 
-<p>Des ressources sont immobilisées par les comptes (partagées pour les groupes) : l'application doit les libérer quand les comptes sont <em>présumés disparus</em>, c'est à dire sans s'être connecté depuis plus d'un an.
-- mais pour préserver la confidentialité, toutes les ressources liées à un compte ne sont pas reliées au compte par des données lisibles dans la base de données mais cryptées et seulement lisibles en session.
-- à la connexion, un compte va <em>signer</em>, 
-  - par une estampille datée approximativement dans chacun de ses avatars et chacun des groupes auxquels il participe, ainsi que dans le compte lui-même.
-  - par la date du jour dans sa ligne de crédit.
-  - la disparition est entérinée 400 jours après la plus récente date de signature.</p>
+<p>Chaque ligne comptable dispose des compteurs suivants :
+- <strong>la date du dernier calcul enregistré</strong> : par exemple le 17 Mai de l'année A
+- <strong>pour le mois en cours</strong>, celui de la date ci-dessus :
+  - <em>en Mo</em>, volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
+  - <em>en Mo</em>, volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
+  - <em>en Mo</em>, volume tr de cumul des transferts de pièces jointes : 31 compteurs pour les 31 derniers jours.
+- <strong>forfaits v1 et v2</strong> : le plus élevé appliqué le mois en cours.
+- <strong>pour les 11 mois antérieurs</strong> (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
+  - les forfaits v1 et v2 appliqués dans le mois.
+  - le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
+  - le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.</p>
 
-<p>Un traitement ramasse miettes tourne chaque jour, détecte les comptes / avatars / groupes pas signés depuis plus d'un an et efface les données correspondantes.</p>
+<p>Une ligne comptable en base de données n'est pas forcément calculée par rapport à l'instant t du fait des notions de <em>mois en cours, 31 derniers jours, 11 mois antérieurs</em>. Un calcul de <em>normalisation</em> est effectué en fonction de l'instant t et de la date du dernier calcul de normalisation :
+- à l'ouverture d'une session par un compte.
+- en cours d'une session d'un compte à chaque création / mise à jour d'un secret, texte ou pièce jointe et à chaque téléchargement sur disque local.
+- quand un <em>comptable</em> ou un parrain affiche une ligne comptable : elle est alors calculée vis à vis de l'instant t cité en tête de la ligne.</p>
 
-<p>Les comptables peuvent lire dans les lignes de crédit si la date de dernière signature (dds) du compte a ou non plus d'un an. Ils ont ainsi une photo à tout instant des ressources effectivement utiles, ce qui leur permet de satisfaire les demandes de ressources par récupération des volumes libérés.</p>
+<h2>Parrains et filleuls</h2>
 
-<h3>Disparition par décision comptable</h3>
+<p>La création d'un compte est assurée par parrainage d'un compte <em>parrain</em>. 
+- les comptes filleul et parrain sont <strong>contact</strong> par l'intermédiaire d'un de leurs avatars respectifs.
+- la parrain a attribué des forfaits v1 et v2 au filleul à la création. C'est lui qui peut ensuite :
+  - augmenter le niveau des forfaits en cours.
+  - réduire le niveau des forfaits en cours mais au-dessus du volume courant.
+- la ligne comptable du filleul porte la référence du numéro de ligne comptable du parrain.</p>
 
-<p>Si un compte n'acquitte plus sa cotisation, quitte l'organisation, etc. bref doit impérativement cesser son activité, il n'est pas techniquement possible d'effacer toutes ses données,
-- la ligne de crédit n'indique pas le compte correspondant par nécessaire confidentialité,
-- même la connaissance du compte ne donne pas, pour les mêmes raisons de confidentialité, quels avatars et quels groupes font partie de son environnement.</p>
-
-<h4>Compte <em>en sursis</em></h4>
-
-<p>Un compte est <em>en sursis</em> dès lors que l'état de sa ligne de crédit <strong>l'empêche de signer sa preuve d'activité</strong> lors de l'ouverture d'une session dans ses avatars et les groupes auxquels il participe.</p>
-
-<p>Un tel compte reste <strong>en sursis</strong> pendant pratiquement un an avant sa disparition effective et pendant ce temps peut vivre, le cas échéant avec des restrictions d'activité selon ce qu'indique sa ligne de crédit et les compteurs des groupes auxquels il participe.</p>
-
-<h4>Compte <em>bloqué</em></h4>
-
-<p>Un compte <em>bloqué</em> n'a plus aucun droit d'accès à son compte, sauf pour,
-- lire sa ligne de crédit,
-- dialoguer avec un comptable.</p>
-
-<p>Le blocage peut intervenir de plusieurs façons :
-- <em>normalement</em> quand <strong>la date de validité du contrat est dépassée</strong>. Dans certaines organisations, cette date peut être fixée par convention à la fin du siècle. C'est l'objet du champ <code>dlv</code> de la ligne de crédit.
-- <em>exceptionnellement</em>, soit <strong>pour des raisons réglementaires ou de justice</strong> (si elles s'appliquent à l'organisation). C'est l'objet du champ <code>dbx</code> de la ligne de crédit.
-- <em>par dépassement du délai</em> <strong>à respecter ses volumes maximaux v1 et v2</strong>. C'est l'objet du champ <code>dbq</code> de la ligne de crédit.</p>
-
-<blockquote>
-  <p>La raison majeure d'un blocage est indiquée dans la ligne de crédit : un blocage ne peut être levé que par une action d'un comptable (par principe ! le compte ne peut plus rien faire).</p>
-  
-  <p>L'état <em>en sursis</em> est <em>déduit</em> des autres données de la ligne de crédit : excès de volume v1 ou v2.</p>
-  
-  <p>un compte bloqué ne <em>signe</em> plus son activité puisque justement il n'en n'a plus : le délai d'un an avant disparition pour inactivité commence donc à courir à sa date de blocage.</p>
-</blockquote>
-
-<h3>Raisons d'un sursis et restrictions de vie en sursis</h3>
-
-<h4>Respect des quotas, révisions à la baisse</h4>
-
-<p>En vie courante, les quotas sont toujours respectés puisque toute action susceptible de les enfreindre est bloquée.</p>
-
-<p>Mais ce n'est plus le cas en cas de <em>restrictions</em> de quota par rapport à une situation existante :
-- <strong>la restriction du quota de transfert réseau ne s'applique pas à l'ouverture d'une session</strong> (sauf pour les pièces jointes des secrets déclarées disponibles en mode avion). Bref même avec une réduction de quotas de transfert réseau à 0, un compte peut ouvrir une session et consulter ses secrets, mais seulement certaines de leurs pièces jointes (pas forcément à jour).
-- <strong>la restriction des quotas portant sur les volumes v1 et v2</strong>. Un blocage complet d'écriture est trop contraignant : il faut laisser au compte le temps de résoudre cette restriction imposée par un comptable (même si elle est totalement justifiée) alors que jusqu'à présent il était en règle.</p>
-
-<p><em>Typiquement,</em>
-- c'est le cas d'un compte souscrivant un forfait inférieur dont les quotas sont inférieurs aux volumes qu'il occupe actuellement.
-- ça peut être aussi le cas d'un compte ayant changé de fonctions dans l'organisation ne lui ouvrant pas droit à des quotas aussi importants et que le comptable ramène au niveau idoine.
-- ça peut être aussi une règle contractuelle laissant au compte N mois pour revenir au niveau que son adhésion / souscription prévoit.</p>
-
-<p>Pour retrouver une consommation en phase avec des quotas revus à la baisse, une date limite à cet état de <em>sursis</em> est fixée : à la date indiquée dans la ligne de crédit <code>dbq</code>, le compte est <em>bloqué</em>. </p>
-
-<p>D'où la règle : tout compte dont la ligne de crédit fait apparaître des volumes supérieurs à ses quotas est implicitement <em>en sursis</em>.
-- il sort de facto de cet état quand il est revenu dans ses quotas : normalement il ne peut plus alors les dépasser (sauf si un comptable les réduit à nouveau ensuite).
-- si cet état persiste au delà de la date limite <code>dbq</code>, il est automatiquement bloqué. Ne pouvant plus agir sur son compte pour réduire son volume, le déblocage ne peut venir que d'une action d'un comptable.
-- in fine au bout d'un an en sursis / bloqué, il disparaît définitivement.</p>
-
-<h4>Conséquences pratiques de l'état de <em>sursis</em> consécutif à une baisse de quota de volume</h4>
-
-<p>Toute action risquant d'augmenter le volume est bloquée :
-- sur une restriction de <code>v1</code>, les secrets ne peuvent être que modifiés en restriction de taille ou supprimés.
-- sur une restriction de <code>v2</code>, les pièces jointes des secrets ne peuvent être que modifiées en restriction de taille ou supprimées.
-- en cas de double restriction <code>v1</code> et <code>v2</code> les deux règles ci-dessus se cumulent.</p>
-
-<blockquote>
-  <p>La lecture reste possible : le téléchargement d'une sélection de secrets est soumis au quota de transfert, pas à celles sur les quotas de volume.</p>
-</blockquote>
-
-<h4>Restreindre un compte à la lecture seule des secrets.</h4>
-
-<p>Le comptable attribue des quotas de volume à 0 mais ne l'assortit pas d'un délai pour y parvenir.</p>
+<p>La ligne comptable d'un parrain comporte deux parties :
+- l'une porte ses propres compteurs.
+- l'autre porte le cumul des compteurs de ses comptes filleul :
+  - total des volumes forfaitaires v1 et v2 actuels
+  - limites v1 / v2 des volumes attribuables aux filleuls (actuels et futurs).</p>
 
 <h2>Comptables de l'organisation</h2>
 
-<p>Ce sont des comptes normaux mais dont les phrases secrètes (leur hash du moins) sont enregistrées dans la configuration de l'application (avec un code court) ce qui leur confère quelques possibilités d'actions :
-- se créer eux-mêmes sans être parrainés (et se sont attribuer eux-mêmes des quotas).
-- attribuer des quotas forfaitaires prédéfinis à une ligne de crédit.
-- modifier ces quotas (potentiellement en mettant le compte correspondant en sursis) et fixer des dates limites de validité.
-- fixer les dates de <em>blocage</em>.
-- consulter toutes les lignes de crédit et les télécharger.
-- consulter et répondre aux messages des compte.
-- consulter le journal des actions des comptables</p>
+<p>Ce sont quelques comptes normaux mais dont le <em>hash</em> de leurs phrases secrètes est pré-enregistré dans la configuration de l'application (avec un code court) ce qui leur confère quelques possibilités d'actions :
+- se créer eux-mêmes sans être parrainés par un autre compte.
+- consulter / télécharger toutes les lignes comptables.
+- consulter et répondre aux messages des comptes.
+- attribuer aux comptes parrains les limites de volumes v1 / v2 qu'ils peuvent affecter à leur filleuls.</p>
 
-<p>Une mise à jour note dans la ligne de crédit, la date-heure de la mise à jour et leur code court afin de permettre un audit sommaire éventuel (quel est le dernier qui a fait quoi, quand).</p>
+<blockquote>
+  <p><strong>Le rôle majeur des comptables est de pouvoir maîtriser les forfaits attribués selon la politique propre à chaque organisation</strong>.</p>
+</blockquote>
 
-<h3>Journal des actions des comptables</h3>
-
-<p>Chaque action est enregistrée dans un journal chronologique qui note aussi le justificatif donné par le comptable (ce justificatif ne figure pas dans la ligne de crédit elle-même).
-- quand, qui, numéro de la ligne de crédit, états avant et après l'action, justification.</p>
-
-<h3>Analyse statistique et historisation</h3>
-
-<p>L'ensemble des lignes de crédit peuvent être téléchargées par un comptable dans un tableur pour analyse globale et pouvoir détecter la marge de manœuvre dont il dispose pour gérer le site.</p>
-
-<p>Depuis de tels extraits, il est possible, par un traitement externe, de construire et de maintenir un historique donnant les évolutions des lignes de crédit sur une période longue.</p>
+<p>Cette maîtrise est à 2 niveaux :
+- les comptables gèrent une allocation globale à des parrains,
+- chaque parrain peut allouer des forfaits à des comptes filleuls à l'intérieur de son allocation propre.</p>
 
 <h3>Échanges textuels courts entre les comptables et les titulaires des comptes</h3>
 
-<p>Ces conversations sont enregistrées <em>par ligne de crédit</em> avec pour chaque échange :
+<p>Ces conversations sont enregistrées <em>par ligne comptable</em> avec pour chaque échange :
 - sa date-heure,
-- qui l'a émis (le compte ou un des comptables repéré par son numéro de mot de passe),
+- qui l'a émis (le compte ou un des comptables repéré par son code court),
 - son texte de moins de 140 signes.</p>
 
 <p>La conversation conserve les échanges dans l'ordre chronologique inverse,
 - ceux ayant moins de 6 semaines,
 - au plus les 20 derniers.</p>
 
-<p>Le titulaire d'un compte peut consulter sa conversation avec les comptables.</p>
+<p>Un compte peut consulter sa conversation avec les comptables.</p>
 
-<p>C'est par ce moyen que le titulaire d'un compte peut communiquer a minima avec les comptables en particulier pour leur demander un accroissement de ses quotas.</p>
+<p>Le parrain d'un compte peut consulter les conversations de ses filleuls (et bien entendu la sienne).</p>
+
+<h3>Création de compte d'un comptable</h3>
+
+<p>Sa phrase secrète (brouillée) ayant été enregistrée dans la configuration du site, le titulaire d'un compte <em>comptable</em> peut se créer sans parrainage et se créditer du montant jugé pertinent. Il est de facto un <em>parrain</em>.</p>
+
+<h3>Changement de parrain</h3>
+
+<p>Un compte parrainé peut changer de parrain, être rattaché à un autre. Il peut aussi <em>devenir</em> un parrain.</p>
+
+<p>C'est un comptable qui peut effectuer cette opération :
+- sur demande du parrain,
+- sur demande d'un filleul,
+- de son propre chef (typiquement suite à disparition du parrain)</p>
+
+<h2>Disparition par inactivité d'un compte</h2>
+
+<p>Des ressources sont immobilisées par les comptes (partagées pour les groupes) : l'application doit les libérer quand les comptes sont <em>présumés disparus</em>, c'est à dire sans s'être connecté depuis plus d'un an.
+- mais pour préserver la confidentialité, toutes les ressources liées à un compte ne sont pas reliées au compte par des données lisibles dans la base de données mais cryptées et seulement lisibles en session.
+- pour marquer que des ressources sont encore utiles, un compte dépose lors de la connexion des <strong>jetons datés</strong> (approximativement pour éviter des corrélations entre avatars / groupes / comptes) dans chacun de ses avatars et chacun des groupes auxquels il participe, ainsi que dans le compte lui-même.
+- la présence d'un jeton, par exemple sur un avatar, va garantir que ses données ne seront pas détruites dans les 400 jours qui suivent la date du jeton.
+- un traitement ramasse miettes tourne chaque jour, détecte les comptes / avatars / groupes dont le jeton est trop vieux et efface les données correspondantes jugées comme inutiles, l'avatar / compte / groupe correspondant ayant <em>disparu par inactivité</em>.
+- un jeton daté est également déposé dans la ligne comptable du compte : celle-ci est donc informée de l'inactivité éventuelle du compte.</p>
 
 <blockquote>
-  <p>Un compte peut toujours réduire de lui-même ses quotas (le cas échéant en dessous de ses volumes actuels ce qui enclenchera un état de <em>sursis</em>).</p>
+  <p>Comme aucune référence d'identification dans le monde réel n'est enregistrée pour préserver la confidentialité du système, aucune alerte du type mail ou SMS ne peut informer un compte de sa prochaine disparition s'il ne se connecte pas.</p>
 </blockquote>
 
-<h2>Création de compte</h2>
+<h2>Ventilation éventuelle des coûts réels d'hébergement</h2>
 
-<h3>Compte parrainé</h3>
+<p>Pour l'instant l'organisation a les moyens de contrôler ses ressources :
+- elle maîtrise sa facture globale d'hébergement,
+- elles assure aux comptes qu'ils peuvent utiliser dans des conditions normales les ressources forfaitaires qui leur ont été allouées.</p>
 
-<p>Le parrain prélève un pourcentage de son choix sur ses propres quotas : ceci permet au filleul un démarrage avec une ligne de crédit minimale mais existante.</p>
-
-<p>Le parrain peut aussi fixer une date de validité mais qui ne peut pas être plus lointaine que la sienne.</p>
-
-<h3>Compte non parrainé</h3>
-
-<p>Le compte a un pouvoir <em>comptable</em> déclaré dans la configuration d'installation du site et peut se créer / gérer lui-même sa ligne de crédit.</p>
+<p>En considérant deux types d'organisation bien différents, on observe une convergence vers une exigence commune : comment résilier des comptes devenus <em>indésirables</em>, qu'elle qu'en soit la raison.</p>
 
 <blockquote>
-  <p>Manifestement les <strong>comptables</strong> ont le moyen de privilégier une ligne de crédit (voire la leur), et de <em>brimer</em> une autre : c'est de l'organisation humaine que peut venir le contrôle d'éventuelles dérives et pressions et le respect des règles fixées par l'organisation. <br>
-  En tout état de cause, les comptables n'ont aucun moyen d'accéder aux contenus, ni même d'interpréter les meta données de la base qui est structurée de manière à crypter les liens entre comptes / avatars / groupes.</p>
+  <p>Si les ressources étaient gratuites et infinies cette question ne se poserait pas, sauf à prendre en compte un point de vue <em>dogmatique</em> vis à vis des contenus des secrets. Or l'organisation, par conception même de l'application n'y a pas accès direct, seulement le cas échéant par l'intermédiaire de comptes émettant des alertes.</p>
 </blockquote>
 
-<h3>Transfert de quotas</h3>
+<h3>Organisation payant l'hébergement pour ses adhérents</h3>
 
-<p>Un compte peut enregistrer un transfert de quotas à destination d'un de ses contacts : si une session du destinataire est ouverte ceci s'opère sur l'instant, sinon ça sera effectif à la prochaine ouverture de session du destinataire.</p>
+<p>L'accès à l'application est un service de l'organisation, gratuit pour les adhérents (du moins invisiblement inclus dans leur adhésion, ou les crédits de sponsoring dont elle bénéficie).
+- L'organisation connaît ses adhérents et leurs rôles : elle propose des forfaits conforme aux exigences des rôles tenus, aux statuts (salariés, ...).
+- L'organisation fait le rapprochement entre chaque adhérent et son numéro de compte dans l'application mais ne peut pas le faire avec les avatars de compte, les groupes auxquels il participe, ni les contacts avec les autres vatars (même pas des comptes), ni les secrets qu'il écrit et lit.
+- <strong>Questions :</strong>
+  - (1) si un adhérent quitte l'organisation, comment lui retirer son accès (et de facto récupérer ses ressources) ?
+  - (2) si des comptes rapportent l'usage par un compte de l'application pour des fins étrangères à l'objet de l'organisation, voire opposées à cet objet, comment lui retirer son accès ? Cette question lève le sujet du contrôle éthique sur l'usage de l'application.</p>
+
+<blockquote>
+  <p><strong>Un paragraphe spécifique traite du sujet du contrôle <em>éthique</em>.</strong></p>
+</blockquote>
+
+<h3>Organisation par <em>cotisation</em></h3>
+
+<p>L'organisation, qu'elle soit à but lucratif ou non, a opté pour laisser chaque adhérent choisir son niveau de forfait et corrélativement en payer l'usage.
+- chaque compte choisit les niveaux de forfait qui lui semble correspondre à son besoin,
+- il paye un abonnement pour contribuer à supporter le coût global d'hébergement.
+- <strong>Questions :</strong>
+  - (1) si un abonné ne paye plus son abonnement, comment lui retirer son accès (et de facto récupérer ses ressources) ?
+  - (2) si des comptes rapportent des propos <em>inappropriés</em> vis à vis de la charte éthique de l'organisation dans les secrets partagés, voire non conformes à la loi, comment lui retirer son accès ?</p>
+
+<blockquote>
+  <p>Les virements des abonnements <em>pouvant</em> être obscurs ou passer par un intermédiaire, il peut être quasi impossible de corréler (avec des moyens légaux) une personne physique ou morale à une ligne comptable. Dans ce type d'organisation <strong>les comptes peuvent être totalement anonymes</strong> ... ce qui n'empêche pas de devoir pouvoir les bloquer.</p>
+  
+  <p>Le modèle de <em>paiement de cotisation</em> peut tout à fait être sans but lucratif et proposé par des associations désireuses de permettre à chacun de disposer d'espaces privés et sécurisés pour noter ses pensées, échanger avec des contacts des propos privés. Ce n'est en rien, <em>a priori</em> un modèle mercantile.</p>
+</blockquote>
+
+<p>Il reste donc que dans certains cas, une organisation peut devoir mettre fin à l'activité d'un compte, ne serait-ce que pour répondre à une injonction judiciaire sans devoir détruire tous les comptes (et sans considérer les pressions <em>physiques</em>, légales ... (?) ou non).</p>
+
+<h3>Mise <em>en sursis</em> et <em>bloqué</em> d'un compte</h3>
+
+<p>Un compte peut être marqué <em>en sursis</em> par application d'une décision de l'organisation : un comptable inscrit dans la ligne comptable une date de mise en sursis.
+- <strong>les dépôts de jetons effectués à la connexion et attestant de la vitalité du compte sont suspendus</strong>. Le compte a au maximum un an avant la disparition de ses données (ou la sortie de cet état).</p>
+
+<p>Mais rien n'oblige le compte à se connecter et à en prendre connaissance. Une organisation peut parfaitement n'avoir aucun moyen de contacter la personne physique (ou morale) titulaire de sa mise en sursis.</p>
+
+<p>Une seconde date est notée dans la ligne comptable : <strong>celle de la prise de connaissance de la mise <em>en sursis</em></strong>, celle de la première connexion du compte après sa mise en sursis.</p>
+
+<p>Il y a deux états <em>en sursis</em> et un état <em>bloqué</em>.
+- la mise en sursis peut spécifier de passer directement en état 2, voir <em>bloqué</em>.
+- les durées pour passer automatiquement de l'état 1 à 2 (n1) puis de 2 à 3 (n2) sont spécifiés en nombre de jours à la configuration de l'installation.
+- le jour de départ est celui de la prise de connaissance de son état par le compte.
+- dans tous les cas de figure, le compte ne déposant plus de jetons de vitalité à la connexion depuis le jour de la mise en sursis / blocage, peut disparaître avant de passer en état 2 ou 3.</p>
+
+<h4>En sursis (1)</h4>
+
+<p>Le compte continue à vivre normalement mais un panneau de pop-up s'affiche très régulièrement au cours des sessions pour rappeler cet état, le temps restant et ce qui l'attend en _sursis 2.</p>
+
+<h4>En sursis (2)</h4>
+
+<p>Le compte ne peut plus créer de secrets, de pièces jointes ni les mettre à jour mais il peut en supprimer.</p>
+
+<h4>Bloqué (3)</h4>
+
+<p>Le compte est bloqué et ne peut rien consulter. Il ne conserve que de la possibilité de converser avec le comptable.</p>
+
+<h4>Retour à l'état normal</h4>
+
+<p>Un comptable peut supprimer l'état de sursis / bloqué à tout instant.</p>
 
 <h2>Contrôle éthique ... ou non</h2>
 
-<p>Ce sujet ne concerne que les organisations ayant un objet social / politique : ses membres utilisent l'application pour les servir. </p>
+<p>Ce sujet ne concerne que les organisations ayant un objet social / politique : ses membres utilisent l'application pour les servir.</p>
 
-<p>Un comptable ne peut jamais lire le contenu des secrets : il peut certes bloquer des lignes de crédit, mais à quel titre ?
-- supposons un avatar A partageant avec B des secrets que B considère comme contraire à l'objet de l'organisation. B n'a pas accès au numéro de ligne de crédit de A et ne peut donc pas demander à un comptable de la désactiver. Tout ce que B peut faire est de cesser le partage de secrets avec A.
-- supposons un groupe G où se partagent des secrets sans rapport ou contraires à l'objet de l'organisation. 
-  - un animateur du groupe peut résilier un membre perturbateur (s'il n'est pas animateur).
-  - le numéro de ligne de crédit du groupe est connu des membres qui peuvent demander à un comptable d'intervenir sur cette ligne : au pire ceci peut aboutir à un blocage d'accès aux secrets du compte hébergeur du groupe (et au groupe lui-même).
-  - mais n'importe quel animateur peut aussi changer la ligne de crédit du groupe, en prendre en charge l'hébergement et rien ne l'empêche de reconstituer un autre groupe, de récupérer les textes des secrets et leurs pièces jointes et d'y inviter ... presque tous les membres de l'ancien.</p>
+<p>Aucun contrôle éthique n'est envisageable vis à vis des secrets personnels : il n'y a que le compte qui peut y accéder, on ne voit pas pourquoi il se dénoncerait de lui-même de textes illisibles par d'autres. Autant clôturer son compte directement.</p>
+
+<p>Concernant des secrets de couples, si des écrits sont jugés inappropriés pour l'un des deux,
+- il arrête le partage de secrets,
+- il supprime les secrets qui le dérange.
+L'autre compte est ramené à gérer des secrets personnels.</p>
+
+<p>La question se pose vis à vis de secrets d'un groupe :
+- un avatar peut être résilié d'un groupe, sauf s'il en est animateur.
+- rien n'empêche les membres du groupes choqués par les écrits inappropriés,
+  - d'ouvrir un autre groupe,
+  - d'y transférer par copie les secrets intéressants de l'ancien,
+  - d'y inviter les mêmes membres, sauf l'indésirable,
+  - de s'auto-résilier de l'ancien groupe.</p>
+
+<p>La question n'est donc pas pour les autres comptes de se <em>mettre à l'abri</em> d'un comportement problématique (ils peuvent facilement le faire) mais de <em>dénoncer</em> auprès de l'organisation un compte utilisant les ressources de l'application à des fins personnelles / contraires à l'organisation / illégales ...</p>
+
+<p>Cette question ne se pose pas de facto dans le cadre d'une organisation <em>par cotisation</em> où finalement c'est l'indésirable lui-même qui paye pour disposer de secrets.</p>
+
+<p>L'organisation aura besoin qu'un compte ayant accès aux secrets de groupe litigieux accède physiquement à ceux-ci (de manière crédible) pour mettre en évidence le caractère inapproprié de certains secrets justifiant, une mise en sursis voire un blocage.</p>
 
 <blockquote>
-  <p>Le pouvoir d'exclusion d'une telle organisation est restreint du fait de l'impossibilité de connaître les liens entre lignes de crédit, comptes, avatars et groupes. Toutefois l'organisation a au moins la possibilité d'inhiber les lignes de crédits des membres quittant l'organisation et d'éviter ainsi de continuer à héberger gratuitement l'activité de ceux qui la quitte.</p>
+  <p>L'application permet de facto une modération par exclusion d'un compte, en aucun cas par retrait des textes litigieux, sauf à ce qu'un compte lanceur d'alerte le fasse.</p>
+  
+  <p>Une organisation peut aussi déclarer dans ses conditions qu'elle ne procède jamais à un blocage de compte pour raisons éthiques, les autres comptes ayant facilement les moyens de se protéger d'écrits inappropriés.</p>
 </blockquote>
 
-<h4>Organisation totalement agnostique, <em>par cotisation</em></h4>
-
-<p>La question <em>éthique</em> ne se pose pas à une organisation par cotisation payante (même sans but lucratif) : tant qu'un compte acquitte ses cotisations, il n'a pas à subir de blocage / restriction, ni à respecter aucune règle de contenu que ce soit. C'est la simple application de la liberté de penser et de s'exprimer en privé.</p>
-
-<p>Le titulaire d'un compte d'une telle organisation fait parvenir à la comptabilité de l'organisation des virements portant l'identifiant de sa ligne de crédit. </p>
-
-<p>Un des comptables met à jour la ligne de crédit correspondante avec une limite de validité correspondant au montant du virement reçu et au niveau des quotas souhaités.</p>
-
-<blockquote>
-  <p>Les virements <em>pouvant</em> être obscurs ou passer par un intermédiaire, il peut être quasi impossible de corréler (avec des moyens légaux) une personne physique ou morale à une ligne de crédit. In fine il est toujours complètement impossible ensuite de savoir quels avatars, groupes et secrets lui sont associés.</p>
-  
-  <p>Une telle organisation n'est pas obligatoirement à but lucratif : elle peut simplement proposer un service d'hébergement qui sera maintenu <strong>tant que les comptes supportent effectivement la juste part</strong> des coûts d'hébergement. Ce peut être une association citoyenne qui gère, sans profit, un hébergement mutualisé de secrets ou chaque membre cotise pour en supporter les frais.</p>
-  
-  <p>La publicité ciblée étant de facto impensable, le sponsoring reste, éventuellement, la seule source externe de financement (quoi que).</p>
-</blockquote>
-
-<p><strong>L'application est agnostique vis à vis des contenus des secrets</strong> qui peuvent être n'importe quoi, en bien ou en mal ... et selon ce que chacun considère comme bien ou mal: c'est une application qui reste du niveau de la communication / mémorisation <strong>personnelle et/ou privée</strong>, comme celle que peut avoir un groupe restreint d'amis discutant librement entre eux dans un domicile privé. <br>
+<p><strong>L'application est agnostique vis à vis des contenus des secrets</strong> (pas de vote, d'avis ...) qui peuvent être n'importe quoi, en bien ou en mal ... et selon ce que chacun considère comme bien ou mal: c'est une application qui reste du niveau de la communication / mémorisation <strong>personnelle et/ou privée</strong>, comme celle que peut avoir un groupe restreint d'amis discutant librement entre eux dans un domicile privé. <br>
 C'est aussi pour cette raison qu'un groupe a une taille limitée, telle qu'il soit raisonnable de juger qu'il n'est pas public, et où tout le monde en contact se connaît et a été coopté.</p>
 
 <blockquote>
