@@ -60,11 +60,10 @@
 - membres
 - revisiter les secrets
 
-## Attribution / transfert de quotas
-- sur contact : volume / quotas lisibles pour ceux de confiance
-- analyse globale :
-  - privilège grand argentier
-  - stats des volumes / quotas (avgrvq)
+## Gestion comptable
+
+## Intégrer salts en ressource
+Cryptage du fichier de config du serveur.
 
 ## Démons serveur
 - quotidiens

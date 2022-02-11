@@ -196,10 +196,10 @@ En considérant deux types d'organisation bien différents, on observe une conve
 
 ### Organisation payant l'hébergement pour ses adhérents
 L'accès à l'application est un service de l'organisation, gratuit pour ses adhérents (du moins invisiblement inclus dans leur adhésion, ou les crédits de sponsoring dont elle bénéficie).
-- L'organisation connaît ses adhérents et leurs rôles : elle propose des forfaits conforme aux exigences des rôles tenus, aux statuts (salariés, ...).
+- L'organisation connaît ses adhérents et leurs rôles : elle propose des forfaits conformes aux exigences des rôles tenus, aux statuts (salariés, ...).
 - L'organisation fait le rapprochement entre chaque adhérent et son numéro de compte dans l'application mais ne peut pas le faire avec les avatars du compte, les groupes auxquels il participe, ni les contacts avec les autres avatars (même pas des comptes), ni les secrets qu'il écrit et lit.
 - **Questions :**
-  - (1) si un adhérent quitte l'organisation, comment lui retirer son accès (et de facto récupérer ses ressources) ?
+  - (1) si un adhérent quitte l'organisation, comment lui retirer son accès -sous quel délai- (et de facto récupérer ses ressources) ?
   - (2) si des comptes rapportent l'usage par un compte de l'application pour des fins étrangères à l'objet de l'organisation, voire opposées à cet objet, comment lui retirer son accès ? Cette question lève le sujet du contrôle éthique sur l'usage de l'application.
 
 >**Un paragraphe spécifique traite du sujet du contrôle _éthique_.**
@@ -209,7 +209,7 @@ L'organisation, qu'elle soit à but lucratif ou non, a opté pour laisser chaque
 - chaque compte choisit les niveaux de forfait qui lui semble correspondre à son besoin,
 - il paye un abonnement pour contribuer à supporter le coût global d'hébergement.
 - **Questions :**
-  - (1) si un abonné ne paye plus son abonnement, comment lui retirer son accès (et de facto récupérer ses ressources) ?
+  - (1) si un abonné ne paye plus son abonnement, comment lui retirer son accès -sous quel délai- (et de facto récupérer ses ressources) ?
   - (2) si des comptes rapportent des propos _inappropriés_ vis à vis de la charte éthique de l'organisation dans les secrets partagés, voire non conformes à la loi, comment lui retirer son accès ?
 
 >Les virements des abonnements _pouvant_ être obscurs ou passer par un intermédiaire, il peut être quasi impossible de corréler (avec des moyens légaux) une personne physique ou morale à une ligne comptable. Dans ce type d'organisation **les comptes peuvent être totalement anonymes** ... ce qui n'empêche pas de devoir pouvoir les bloquer, ni qu'ils n'aient pas à respecter la charte éthique s'il y en une.

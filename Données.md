@@ -170,7 +170,6 @@ Table :
     CREATE TABLE "compte" (
     "id"	INTEGER,
     "v"		INTEGER,
-    "dds" INTEGER,
     "dpbh"	INTEGER,
     "pcbh"	INTEGER,
     "kx"   BLOB,
@@ -179,7 +178,6 @@ Table :
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
     CREATE UNIQUE INDEX "dpbh_compte" ON "compte" ( "dpbh" );
-    CREATE INDEX "dds_compte" ON "compte" ( "dds" );
 
 - `id` : id du compte.
 - `v` :
@@ -225,6 +223,73 @@ Table :
 - `v` :
 - `mapk` {} : map des préférences.
 - `vsh`
+
+## Table `compta` : CP `id`. Ligne comptable d'un compte
+Il y a une ligne par compte, l'id étant l'id du compte. idp est l'id du parrain pour un filleul : un parrain a donc null dans cette colonnes.
+
+Table :
+
+    CREATE TABLE "compta" (
+    "id"	INTEGER,
+    "idp"	INTEGER,
+    "v"	INTEGER,
+    "dds"	INTEGER,
+    "st"	INTEGER,
+    "data"	BLOB,
+    "datap"	BLOB,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id")
+    ) WITHOUT ROWID;
+    CREATE INDEX "idp_compta" ON "compta" ( "idp" );
+    CREATE INDEX "dds_compta" ON "compta" ( "dds" );
+    CREATE INDEX "st_compta" ON "compta" ( "st" ) WHERE "st" < 0;
+
+- `id` : du compte.
+- `idp` : pour un filleul, id du parrain (null pour un parrain).
+- `v` :
+- `dds` : date de dernière signature du compte (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
+- `st` :
+  - 0 : normal.
+  - 1 : en sursis 1.
+  - 2 : en sursis 2.
+  - 3 : bloqué.
+- `data`: compteurs sérialisés (non cryptés)
+- `data2`: compteurs pour un parrain (réserve).
+- `vsh` :
+
+## Table `ardoise` : CP `id`. Ardoise supportant les échanges d'administration d'un compte
+Il y a une ardoise par compte, l'id étant l'id du compte.
+
+Table :
+
+    CREATE TABLE "ardoise" (
+    "id"	INTEGER,
+    "dh"  INTEGER,
+    "data"	BLOB,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id")
+    ) WITHOUT ROWID;
+
+- `id` : du compte.
+- `dh` : date-heure de dernière mise à jour.
+- `data`: contenu sérialisé non crypté de l'ardoise.
+- `vsh`:
+
+L'ardoise est une séquence chronologique d'échanges. Chacun concerne,
+- un compte,
+- son compte parrain éventuel,
+- les comptables : toujours concernés, ils lisent les ardoises en fonction de la date-heure de dernière modification.
+
+Quand un compte a un parrain, l'échange est dédoublé sur les deux ardoises du filleul et du parrain.
+- `dh` : date-heure de l'échange
+- `idp` : id du parrain
+- `idf` : id du filleul
+- `em` : émis par, 0 - le compte, 1 - son parrain, 2 - le comptable
+- `texte` : court.
+
+Une ardoise conserve,
+- tous les échanges de moins de 6 semaines,
+- au moins les 10 derniers quels qu'en soit la date.
 
 ## Table `avrsa` : CP `id`. Clé publique RSA des avatars
 Cette table donne la clé RSA (publique) obtenue à la création de l'avatar : elle permet d'inviter un avatar à être contact fort ou à devenir membre d'un groupe.
