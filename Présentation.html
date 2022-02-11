@@ -440,3 +440,81 @@ Une pièce jointe a un nom, comme un nom de fichier, relativement à son secret.
 <blockquote>
   <p>Un excès de pièces jointes accessibles en mode <em>avion</em> peut entraîner le blocage de sessions, le stockage local tombant en erreur.</p>
 </blockquote>
+
+<h1>Contraintes sur la consommation des ressources</h1>
+
+<p>Les ressources techniques ne sont, ni infinies, ni gratuites. </p>
+
+<p>L'organisation qui gère l'hébergement de l'application a besoin de pouvoir <em>contrôler / maîtriser</em> les volumes des secrets et le cas échéant si c'est sa politique, de redistribuer le coût d'hébergement sur les comptes, ou certains d'entre eux.</p>
+
+<h2>Forfaits v1 et v2</h2>
+
+<p>Pour chaque compte deux <em>forfaits</em> sont définis :
+- le forfait v1 du volume occupé des textes des messages.
+- le forfait v2 du volume occupé des pièces jointes de ces messages.</p>
+
+<blockquote>
+  <p>Pour information le <em>prix sur le marché</em> du méga-octet de volume v1 est environ 10 fois supérieur à celui du méga-octet de volume v2 ... mais l'utilisation de v2 pour stocker des photos, des sons et des clips video est considérable par rapport à du texte.</p>
+</blockquote>
+
+<p>Les volumes des secrets ne peuvent pas dépasser leurs forfaits.</p>
+
+<p>Le transfert sur le réseau des pièces jointes (upload / download) est ralenti dès qu'il s'approche ou dépasse sur les 31 derniers jours le volume v2 : la temporisation est d'autant plus forte que cet écart l'est.</p>
+
+<h3>Décomptes des secrets</h3>
+
+<p>Les secrets personnels sont décomptés sur le compte de l'avatar qui les détient.</p>
+
+<p>Les secrets d'un couple de contacts sont décomptés sur chacun des comptes des deux avatars en contact.</p>
+
+<p>Pour les secrets de groupe :
+- un compte est <em>hébergeur</em> du groupe : il peut fixer deux limites v1 / v2 de volume maximal pour les secrets du groupe.
+- les secrets lui sont décomptés.
+- le compte hébergeur peut changer : les volumes occupés sont transférés du compte antérieur au compte repreneur.
+- si le compte hébergeur décide d'arrêter son hébergement, la mise à jour secrets est suspendue tant qu'un repreneur ne s'est pas manifesté. Si la situation perdure au delà d'un an le groupe est déclaré disparu, les secrets sont effacés.</p>
+
+<h3>Attribution des forfaits</h3>
+
+<p>Pour se créer un compte, il faut être parrainé par un compte parrain :
+- c'est lui qui fixe le niveau des forfaits initiaux en prenant sur sa <em>réserve</em>.
+- c'est auprès de son parrain qu'un compte peut demander l'augmentation de son forfait. Le compte peut réduire son forfait lui-même, sans tomber en dessous des volumes qu'il atteint à cet instant.</p>
+
+<blockquote>
+  <p>Dans une organisation où les coûts seraient répartis, les comptes <em>parrains</em> pourraient être responsables des coûts de leurs filleuls.</p>
+</blockquote>
+
+<h3>Communication parrain / filleul et avec un <em>comptable</em></h3>
+
+<p>Quelques comptes ont une fonction <em>comptable</em> :
+- ce sont eux qui allouent des réserves aux comptes parrains.
+- ils peuvent aussi, 
+  - basculer un compte filleul d'un parrain vers un autre,
+  - déclarer un compte filleul <em>parrain</em> et lui attribuer une réserve,
+  - basculer un compte actuellement parrain comme filleul d'un autre en basculant également tous ses filleuls actuels.</p>
+
+<p>Tout compte peut communiquer avec son compte parrain et les comptables par des messages courts <strong>non cryptés</strong> : les quelques derniers sont accessibles.</p>
+
+<h3>Mise en sursis et blocage des comptes</h3>
+
+<p>Un comptable a également quelques leviers de contrainte sur les comptes que l'organisation peut faire appliquer,
+- soit parce qu'un compte n'acquitte plus sa part de cotisation correspondant à son usage de l'application si l'organisation a prévu que c'était dans sa politique.
+- soit parce que le compte a quitté l'organisation et que la politique de celle-ci prévoit qu'au bout d'un certain temps le compte soit bloqué.
+- soit sur injonction judiciaire ...</p>
+
+<p>Il y a trois niveaux de suspension.</p>
+
+<h5>En sursis (1)</h5>
+
+<p>Le compte continue à vivre normalement mais un panneau de pop-up s'affiche très régulièrement au cours des sessions pour rappeler cet état, le temps restant et ce qui l'attend en <em>sursis 2</em>.</p>
+
+<h5>En sursis (2)</h5>
+
+<p>Le compte ne peut plus créer de secrets, de pièces jointes ni les mettre à jour mais il peut en supprimer.</p>
+
+<h5>Bloqué (3)</h5>
+
+<p>Le compte est bloqué et ne peut rien consulter. Il ne conserve que de la possibilité de converser avec le comptable.</p>
+
+<p>Selon la politique de l'organisation et la raison de la suspension,
+- le niveau de suspension peut être différent,
+- le temps de passage d'un niveau au suivant également.</p>

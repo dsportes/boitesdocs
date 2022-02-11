@@ -361,3 +361,68 @@ Toutefois pour chaque appareil distinctement, le titulaire d'un compte peut **co
 - si le secret disparaît, les pièces jointes correspondantes sont aussi supprimées localement.
 
 > Un excès de pièces jointes accessibles en mode _avion_ peut entraîner le blocage de sessions, le stockage local tombant en erreur.
+
+# Contraintes sur la consommation des ressources
+Les ressources techniques ne sont, ni infinies, ni gratuites. 
+
+L'organisation qui gère l'hébergement de l'application a besoin de pouvoir _contrôler / maîtriser_ les volumes des secrets et le cas échéant si c'est sa politique, de redistribuer le coût d'hébergement sur les comptes, ou certains d'entre eux.
+
+## Forfaits v1 et v2
+Pour chaque compte deux _forfaits_ sont définis :
+- le forfait v1 du volume occupé des textes des messages.
+- le forfait v2 du volume occupé des pièces jointes de ces messages.
+
+>Pour information le _prix sur le marché_ du méga-octet de volume v1 est environ 10 fois supérieur à celui du méga-octet de volume v2 ... mais l'utilisation de v2 pour stocker des photos, des sons et des clips video est considérable par rapport à du texte.
+
+Les volumes des secrets ne peuvent pas dépasser leurs forfaits.
+
+Le transfert sur le réseau des pièces jointes (upload / download) est ralenti dès qu'il s'approche ou dépasse sur les 31 derniers jours le volume v2 : la temporisation est d'autant plus forte que cet écart l'est.
+
+### Décomptes des secrets
+Les secrets personnels sont décomptés sur le compte de l'avatar qui les détient.
+
+Les secrets d'un couple de contacts sont décomptés sur chacun des comptes des deux avatars en contact.
+
+Pour les secrets de groupe :
+- un compte est _hébergeur_ du groupe : il peut fixer deux limites v1 / v2 de volume maximal pour les secrets du groupe.
+- les secrets lui sont décomptés.
+- le compte hébergeur peut changer : les volumes occupés sont transférés du compte antérieur au compte repreneur.
+- si le compte hébergeur décide d'arrêter son hébergement, la mise à jour secrets est suspendue tant qu'un repreneur ne s'est pas manifesté. Si la situation perdure au delà d'un an le groupe est déclaré disparu, les secrets sont effacés.
+
+### Attribution des forfaits
+Pour se créer un compte, il faut être parrainé par un compte parrain :
+- c'est lui qui fixe le niveau des forfaits initiaux en prenant sur sa _réserve_.
+- c'est auprès de son parrain qu'un compte peut demander l'augmentation de son forfait. Le compte peut réduire son forfait lui-même, sans tomber en dessous des volumes qu'il atteint à cet instant.
+
+>Dans une organisation où les coûts seraient répartis, les comptes _parrains_ pourraient être responsables des coûts de leurs filleuls.
+
+### Communication parrain / filleul et avec un _comptable_
+Quelques comptes ont une fonction _comptable_ :
+- ce sont eux qui allouent des réserves aux comptes parrains.
+- ils peuvent aussi, 
+  - basculer un compte filleul d'un parrain vers un autre,
+  - déclarer un compte filleul _parrain_ et lui attribuer une réserve,
+  - basculer un compte actuellement parrain comme filleul d'un autre en basculant également tous ses filleuls actuels.
+
+Tout compte peut communiquer avec son compte parrain et les comptables par des messages courts **non cryptés** : les quelques derniers sont accessibles.
+
+### Mise en sursis et blocage des comptes
+Un comptable a également quelques leviers de contrainte sur les comptes que l'organisation peut faire appliquer,
+- soit parce qu'un compte n'acquitte plus sa part de cotisation correspondant à son usage de l'application si l'organisation a prévu que c'était dans sa politique.
+- soit parce que le compte a quitté l'organisation et que la politique de celle-ci prévoit qu'au bout d'un certain temps le compte soit bloqué.
+- soit sur injonction judiciaire ...
+
+Il y a trois niveaux de suspension.
+
+##### En sursis (1)
+Le compte continue à vivre normalement mais un panneau de pop-up s'affiche très régulièrement au cours des sessions pour rappeler cet état, le temps restant et ce qui l'attend en _sursis 2_.
+
+##### En sursis (2)
+Le compte ne peut plus créer de secrets, de pièces jointes ni les mettre à jour mais il peut en supprimer.
+
+##### Bloqué (3)
+Le compte est bloqué et ne peut rien consulter. Il ne conserve que de la possibilité de converser avec le comptable.
+
+Selon la politique de l'organisation et la raison de la suspension,
+- le niveau de suspension peut être différent,
+- le temps de passage d'un niveau au suivant également.
