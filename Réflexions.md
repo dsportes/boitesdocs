@@ -276,3 +276,40 @@ L'organisation aura besoin qu'un compte _témoin_ ayant accès aux secrets de gr
 C'est aussi pour cette raison qu'un groupe a une taille limitée, telle qu'il soit raisonnable de juger qu'il n'est pas public, et où tout le monde en contact se connaît et a été coopté.
 
 >Ce n'est pas une application _libertaire_ mais _privée_. Être libertaire supposerait un accès public sans restriction ce qui n'est pas le cas.
+
+# Estimations monétaires
+Tous les prix sont mensuels en centimes d'€.
+
+L'espace v1 est de l'espace de base de données. Son coût est en fait celui d'une instance VPS, CPU + RAM + SSD. Environ 3GB de SSD sont pris par l'OS.
+- une instance de 40GB de SSD doit pouvoir supporter 10GB de textes de messages (de v1) : **0,05c / MB**
+
+L'espace v2 est de l'espace Object Storage ou File System externe.
+- l'offre en général comporte une part de stockage et une part de transfert.
+- approximativement on trouve des offres à 3c / GB : **0,3c / 100MB**
+
+La granularité pourrait être :
+- pour v1 : 1 MB - 0,05c
+- pour v2 : 100 MB - 0,3c
+
+Les forfaits typiques s'étagent de 1 à 64 : (coût mensuel)
+- (1) - XXS - 1 MB / 100 MB - 0,35c
+- (2) - XS - 2 MB / 200 MB - 0,70c
+- (4) - SM - 4 MB / 400 MB - 1,40c
+- (8) - MD - 8 MB / 800 MB - 2,80c
+- (16) - LG - 16 MB / 1,6GB - 5,60c
+- (32) - XL - 32 MB / 3,2GB - 1,12€
+- (64) - XXL - 64 MB / 6,4GB - 2,24€
+
+**Remarques**
+- le _coût_ de v1 est négligeable en monétaire : c'est surtout sa limitation qui est importante puisque au total il va déterminer la taille du VPS.
+- on peut concevoir des comptes avec très peu d'espace v2, la valeur principale de l'application étant de partager des notes textuelles.
+- mais on peut aussi imaginer des organisations très orientées _images_ et / ou _gros documents externes_. Les textes des secrets ne sont alors que des remarques / synthèses / commentaires à propos de documents infiniment plus volumineux.
+
+**Limites technologiques**
+La limite v2 n'existe pas : les transferts s'effectuent directement entre le site d'hébergement de l'object store et les navigateurs, sans passer par le serveur.
+
+La limite v1 en tant que _volume_ est assez lointaine : on peut imaginer une base SQLite de 200GB : soit environ 100,000,000 de secrets ce qui est énorme.
+
+En pratique ça signifie un ordre de grandeur de 10,000 comptes : en accès séquentiel en écriture par un seul processus, il est probable que le couple _node / SQLite_ soit déjà saturé bien avant cette limite.
+
+L'application n'est pas structurellement conçue pour des organisations ayant un grand nombre de comptes mais peut supporter un nombre significatif de comptes partageant des secrets ayant des volumes de fichiers joints très importants.

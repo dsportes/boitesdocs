@@ -173,6 +173,7 @@ Table :
     "dpbh"	INTEGER,
     "pcbh"	INTEGER,
     "kx"   BLOB,
+    "cpriv" BLOB,
     "mack"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -181,9 +182,9 @@ Table :
 
 - `id` : id du compte.
 - `v` :
-- `dds` : date (jour) de dernière signature.
 - `dpbh` : hashBin (53 bits) du PBKFD du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbh` : hashBin (53 bits) du PBKFD de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
+- `cpriv` : clé asymétrique privée du compte (pour gérer les rencontres entre comptes). La clé publique est dans la table `avrsa`.
 - `kx` : clé K du compte, crypté par la X (phrase secrète courante).
 - `mack` {} : map des avatars du compte cryptée par la clé K. Clé: id, valeur: `[nom, rnd, cpriv]`
   - `nom rnd` : nom complet.
@@ -195,7 +196,7 @@ première ligne s'affiche en haut de l'écran.
 - un row `compte` ne peut être modifié que par une transaction du compte (mais peut être purgé par le traitement journalier de détection des disparus).
 - il est synchronisé lorsqu'il y a plusieurs sessions ouvertes en parallèle sur le même compte depuis plusieurs sessions de browsers.
 - chaque mise à jour vérifie que `v` actuellement en base est bien celle à partir de laquelle l'édition a été faite pour éviter les mises à jour parallèles intempestives.
-- le row `compte` change très rarement : à l'occasion de l'ajout / suppression d'un avatar et d'un changement de phrase secréte.
+- le row `compte` change très rarement : à l'occasion de l'ajout / suppression d'un avatar et d'un changement de phrase secrète.
 
 ## Table : `prefs` CP `id`. Préférences et données d'un compte
 Afin que le row compte qui donne la liste des avatars ne soit mis à jour que rarement, les données et préférences associées au compte sont mémorisées dans une autre table :
@@ -236,13 +237,12 @@ Table :
     "dds"	INTEGER,
     "st"	INTEGER,
     "data"	BLOB,
-    "datap"	BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
     CREATE INDEX "idp_compta" ON "compta" ( "idp" );
     CREATE INDEX "dds_compta" ON "compta" ( "dds" );
-    CREATE INDEX "st_compta" ON "compta" ( "st" ) WHERE "st" < 0;
+    CREATE INDEX "st_compta" ON "compta" ( "st" ) WHERE "st" > 0;
 
 - `id` : du compte.
 - `idp` : pour un filleul, id du parrain (null pour un parrain).
@@ -253,9 +253,41 @@ Table :
   - 1 : en sursis 1.
   - 2 : en sursis 2.
   - 3 : bloqué.
+- `dst` : date du dernier changement de st.
 - `data`: compteurs sérialisés (non cryptés)
-- `data2`: compteurs pour un parrain (réserve).
 - `vsh` :
+
+**data**
+- `j` : jour de calcul
+- `v1 v1m` : volume v1 actuel et total du mois
+- `v2 v2m` : volume v2 actuel et total du mois
+- `f1 f2` : forfait de v1 et v2
+- `tr` : array de 31 compteurs (les 31 derniers jours) : cumul journalier du volume de transfert de pièces jointes.
+- `hist` : array de 12 éléments, un par mois. 4 bytes par éléments.
+  - `f1 f2` : forfaits du mois
+  - `r1` : ratio du v1 du mois par rapport à son forfait.
+  - `r2` : ratio du v2 du mois par rapport à son forfait.
+- `res1 res2` : pour un parrain, réserve de forfaits v1 et v2.
+- `t1 t2` : pour un parrain, total des forfaits 1 et 2 attribués aux filleuls.
+
+#### Unités de volume
+- pour v1 : 1 MB
+- pour v2 : 100 MB
+
+Les forfaits, pour les comptes, pour les groupes, pour la réserve, peuvent être donnés en nombre d'unités ci-dessus.
+
+Les forfaits typiques s'étagent de 1 à 64 : (coût mensuel)
+- (1) - XXS - 1 MB / 100 MB - 0,35c
+- (2) - XS - 2 MB / 200 MB - 0,70c
+- (4) - SM - 4 MB / 400 MB - 1,40c
+- (8) - MD - 8 MB / 800 MB - 2,80c
+- (16) - LG - 16 MB / 1,6GB - 5,60c
+- (32) - XL - 32 MB / 3,2GB - 1,12€
+- (64) - XXL - 64 MB / 6,4GB - 2,24€
+
+Les codes _numériques_ des forfaits tiennent sur 1 octet : c'est le facteur multiplicateur du forfait le plus petit (1MB / 100MB). Des codes symboliques peuvent être ajoutés, voire modifiés, sans affecter les données.
+
+Les _ratios_ sont exprimés en pourcentage de 1 à 255% : mais 1 est le minimum (< 1 fait 1) et 255 le maximum.
 
 ## Table `ardoise` : CP `id`. Ardoise supportant les échanges d'administration d'un compte
 Il y a une ardoise par compte, l'id étant l'id du compte.
@@ -272,7 +304,7 @@ Table :
 
 - `id` : du compte.
 - `dh` : date-heure de dernière mise à jour.
-- `data`: contenu sérialisé non crypté de l'ardoise.
+- `data`: contenu sérialisé _crypté soft_ de l'ardoise.
 - `vsh`:
 
 L'ardoise est une séquence chronologique d'échanges. Chacun concerne,
@@ -280,7 +312,7 @@ L'ardoise est une séquence chronologique d'échanges. Chacun concerne,
 - son compte parrain éventuel,
 - les comptables : toujours concernés, ils lisent les ardoises en fonction de la date-heure de dernière modification.
 
-Quand un compte a un parrain, l'échange est dédoublé sur les deux ardoises du filleul et du parrain.
+Quand un compte a un parrain, l'échange est **dédoublé** sur les deux ardoises du filleul et du parrain.
 - `dh` : date-heure de l'échange
 - `idp` : id du parrain
 - `idf` : id du filleul
@@ -348,7 +380,7 @@ Table :
   - une entrée est effacée par la résiliation du membre au groupe ou sur refus de l'invitation (ce qui lui empêche de continuer à utiliser la clé du groupe).
 - `vsh`
 
-La lecture de avatar permet d'obtenir les deux listes de ses contacts et des groupes dont il est membre.
+La lecture de `avatar` permet d'obtenir la liste des groupes dont il est membre.
 
 Sur GC quotidien sur `dds` : 
 - mise à jour du statut `st` OK/alerte/disparu.
@@ -360,7 +392,7 @@ Sur GC quotidien sur `dds` :
 - à la signature d'un avatar, quand `dds` doit être mise à jour :
   - si le statut était _OK_, `v` n'est **pas** changé,
   - si le statut était _alerte_ (et va donc repasser à _OK_), `v` est changée afin que la mise à jour soit propagée dans les stockage off line.
-- l'état disparu est immuable, un avatar ne _renaît_ jamais, le row `avatar` est marqué _supprimé_, les autres propriétés sont mise à null et le row sera physiquement détruit 18 mois après sa suppression.
+- l'état disparu est immuable, un avatar ne _renaît_ jamais, le row `avatar` est marqué _supprimé_, les autres propriétés sont mise à null et le row sera physiquement détruit 14 mois après sa suppression logique. Tous les comptes concernés se seront connectés et auront pris en compte la suppression logique.
 
 ### Table `contact` : CP `id ic`. Contact d'un avatar A
 Un contact entre A et B est créé par exemple à l'initiative de A et a deux exemplaires : l'un dont l'id est celle de A, l'autre dont l'id est celle de B :
@@ -413,10 +445,6 @@ Table :
     "ic"	INTEGER,
     "v"  	INTEGER,
     "st" INTEGER,
-    "q1" INTEGER,
-    "q2" INTEGER,
-    "qm1" INTEGER,
-    "qm2" INTEGER,
     "ardc"	BLOB,
     "datap"  BLOB
     "datak"	BLOB,
@@ -435,7 +463,6 @@ Table :
     - 0 : n'accepte pas le partage de secrets.
     - 1 : accepte le partage de secrets.
     - 2 : présumé disparu
-- `q1 q2 qm1 qm2` : balance des quotas donnés / reçus par l'avatar A à l'avatar B.
 - `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B. Couple `[dh, texte]`.
 - `datak` : information cryptée par la clé K de A.
   - `nom rnd ic` : nom complet du contact (B) et son indice chez lui.
@@ -455,7 +482,7 @@ Comme il va y avoir un don de quotas du *parrain* vers son *filleul*, ces deux-l
 - P peut indiquer que son contact est sans partage de secrets.
 - F pourra indiquer que son contact est sans partage de secrets.
 
-Le parrain fixe l'avatar filleul (mais pas son compte), donc son nom : le contact _fort_ est préétabli dans `contact` de P. Le filleul établira le sien lors de son acceptation du parrainage.
+Le parrain fixe l'avatar filleul (donc son nom). Le filleul établira le contact lors de son acceptation du parrainage.
 
 Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pour être retrouvée par le filleul.
 
@@ -465,10 +492,8 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
     "v"   INTEGER,
     "dlv"  INTEGER,
     "st"  INTEGER,
-    "q1" INTEGER,
-    "q2" INTEGER,
-    "qm1" INTEGER,
-    "qm2" INTEGER,
+    "f1" INTEGER,
+    "f2" INTEGER,
     "datak"  BLOB,
     "datax"  BLOB,
     "ardc"  BLOB,
@@ -486,7 +511,7 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
   - 0: en attente de décision de F
   - 1 : accepté
   - 2 : refusé
-- `q1 q2 qm1 qm2` : quotas donnés par P à F en cas d'acceptation.
+- `f1 f2` : forfaits attribués par P à F.
 - `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
 - `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
   - `nomp, rndp, icp` : nom complet et indice de l'avatar P.
@@ -502,27 +527,26 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
   - du filleul, explication du refus par le filleul (cryptée par la clé `cc`) quand il décline l'offre. Quand il accepte, ceci est inscrit sur l'ardoise de leur contact afin de ne pas disparaître.
 - `vsh`
 
-Après création les seuls champs pouvant changer, avant acceptation ou refus explicite, sont :
-- `q1 q2 qm1 qm2` : que le parrain peut ajuster.
+Après création les seuls champs pouvant changer, avant acceptation ou refus explicite, sont  :
+- `f1 f2` : que le parrain peut ajuster.
 - `ardc` : permettant un dialogue simplifié entre parrain et filleul.
 
-**Les quotas de P sont prélevés à la création du parrainage.** 
+**Les forfaits sur la réserve du parrain lors de l'acceptation.** 
 
 **Si le filleul ne fait rien à temps : (`st` toujours à 0)** 
 - Lors du GC sur la `dlv`, le row `parrain` sera supprimé par GC de la `dlv`. 
-- Les quotas donnés par le parrain (`q1 q2 qm1 qm2`) lui sont restitués par le GC qui a l'id du parrain dans `id`.
 
 **Si le filleul refuse le parrainage :** 
-- Les quotas donnés par P lui sont restitués au moment du refus.
 - L'ardoise contient une justification / remerciement du refus.
 - Le row `parrain` sera supprimé à l'expiration de la `dlv`. 
 
 **Le parrain peut annuler son row avant acceptation / refus :** 
 - son `st` passe à < 0.
-- Les quotas donnés par P lui sont restitués.
 
 **Si le filleul accepte le parrainage :** 
-- Le filleul crée son compte et son premier avatar (dont il a reçu `nom rnd`), Il est crédité des quotas donnés par le parrain.
+- Le filleul crée son compte et son premier avatar (dont il a reçu `nom rnd`).
+- sa ligne `compta` est créée et crédités des forfaits attribués par le parrain.
+- la ligne `compta` du parrain est mise à jour (total des forfaits et réserve).
 - il créé un double contact C[p] et C[f] avec P.
   - dans `C[p]` le `datak` est le `datak2` transmis dans le row `parrain` : ce contact est déjà régularisé dès sa création.
   - dans `C[f]` le `datak` est créé à partir des données contenues dans le `datax` du row `parrain`.
@@ -590,6 +614,11 @@ Table :
     "st"  INTEGER,
     "stxy"  INTEGER,
     "cvg"  BLOB,
+    "idhg"  BLOB,
+    "v1"  INTEGER,
+    "v2"  INTEGER,
+    "f1"  INTEGER,
+    "f2"  INTEGER,
     "mcg"   BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -610,6 +639,9 @@ Table :
   - `x` : 1-ouvert, 2-fermé, 3-ré-ouverture en vote
   - `y` : 0-en écriture, 1-archivé
 - `cvg` : carte de visite du groupe `[photo, info]` cryptée par la clé G du groupe.
+- `idhg` : id du compte hébergeur crypté par la clé G du groupe.
+- `v1 v2` : volumes courants des secrets du groupe.
+- `f1 f2` : forfaits v1 v2 attribués par le compte hébergeur.
 - `mcg` : liste des mots clés définis pour le groupe cryptée par la clé du groupe cryptée par la clé G du groupe.
 - `vsh`
 
@@ -650,8 +682,6 @@ Table
     "v"		INTEGER,
     "st"	INTEGER,
     "vote"  INTEGER,
-    "q1"   INTEGER,
-    "q2"   INTEGER,
     "mc"  BLOB,
     "infok" BLOB,
     "datag"	BLOB,
@@ -669,7 +699,6 @@ Table
   - `x` : 0:pressenti, 1:invité, 2:actif (invitation acceptée), 3: inactif (invitation refusée), 4: inactif (résilié), 5: inactif (disparu).
   - `p` : 0:lecteur, 1:auteur, 2:administrateur.
 - `vote` : vote de réouverture.
-- `q1 q2` : balance des quotas donnés / reçus par le membre au groupe.
 - `mc` : mots clés du membre à propos du groupe.
 - `infok` : commentaire du membre à propos du groupe crypté par la clé K du membre.
 - `datag` : données cryptées par la clé du groupe. (immuable)
@@ -898,23 +927,21 @@ Pour utilisation pour filtrer une liste de secrets dans un groupe :
 - ainsi le groupe peut avoir indiqué que le secret est _nouveau_ et _important_, mais si le compte A a indiqué que le secret est _lu_ et _sans intérêt_ c'est ceci qui sera utilisé pour filtrer les listes.
 
 # Gestion des disparitions
-Les ouvertures de session *signent* dans les tables `compte avatar groupe`, colonne `dds`, les rows relatifs aux compte, avatars du compte et groupes accédés par le compte.
+Les ouvertures de session *signent* dans les tables `compta avatar groupe`, colonne `dds`, les rows relatifs aux compte, avatars du compte et groupes accédés par le compte.
 
 Une disparition est détectée dès lors que le GC quotidien détecte des `dds` trop vieilles.
 
 ## Disparition des comptes
-La détection par `dds` trop ancienne d'un **compte** détruit son row dans `compte`.
+La détection par `dds` trop ancienne d'un **compte** détruit son row dans `compte compta prefs`.
 
 Un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures.
 
 Le compte n'étant plus accessible, ses avatars ne seront plus signés ni les groupes auxquels il accédait.
 
 ## Disparition des groupes
-Par construction s'il avait existé encore un avatar dont l'accès au groupe n'est pas résilié, le groupe aurait été signé lors de la connexion du compte de cet avatar : un groupe de signature ancienne n'est donc par principe plus référencé (au plus par des rows `invitgr` conservés pour historique mais marqué _résilié_).
+Par construction s'il avait existé encore un avatar dont l'accès au groupe n'est pas résilié, le groupe aurait été signé lors de la connexion du compte de cet avatar : un groupe de signature ancienne n'est donc par principe plus référencé.
 
-La détection par `dds` trop ancienne d'un **groupe**,
-- détruit ses rows dans les tables `groupe membre secret`.
-- transfère ses quotas de son row `avgrvq` sur la banque centrale et détruit son row `avgrvq`.
+La détection par `dds` trop ancienne d'un **groupe** détruit ses rows dans les tables `groupe membre secret`.
 
 _Remarque_ : quand le dernier avatar ayant accès à un groupe _disparaît_, le groupe va finir par disparaître faute de ne plus être signé. Les données vont finir par être purgées, mais ça va prendre du temps. Avec la résiliation explicitement demandée (suppression du groupe), c'est différent : la purge des données ci-dessus peut être immédiate.
 
@@ -924,16 +951,15 @@ La détection s'effectue par le GC quotidien sur recherche des `dds` trop ancien
 Par principe un avatar est détecté disparu après la détection de la disparition de son compte. Il s'agit donc de purger les données.
 
 ### Purge des données identifiées par l'id de l'avatar
-- transfert de ses quotas depuis son row `avgrvq` sur la banque et destruction de son row `avgrvq`.
-- destruction des rows les tables `avrsa avatar contact invitct invitgr parrain rencontre secret`.
+- destruction des rows les tables `avrsa avatar contact invitgr parrain rencontre secret`.
 
 Dès cet instant le volume occupé est récupéré.
 
 ### Mise à jour des références chez les autres comptes
-L'avatar _disparu_ D reste toutefois encore _référencé_ dans des rows :
-- `parrain rencontre invitct invitgr` : la date limite de validité a déjà résolu la question, les rows ont _déjà_ été détruits.
-- `avatar contact` : autres avatars l'ayant en contact.
-- `groupe membre` : groupes l'ayant pour membre.  
+Un avatar _disparu_ D reste toutefois encore _référencé_ dans des rows :
+- `parrain rencontre invitgr` : la date limite de validité a déjà résolu la question, les rows ont _déjà_ été détruits.
+- `contact` : autres avatars l'ayant en contact.
+- `membre` : groupes l'ayant pour membre.  
 
 #### contacts
 Quand une session d'un avatar A synchronise les cartes de visite elle a connaissance par la carte de visite de D que cet avatar a disparu : le row `contact` correspondant a son statut mis à jour (disparu). 
@@ -942,7 +968,7 @@ Il n'y a pas de raisons pour que les secrets partagés avec D (et dédoublés) d
 
 Le row contact garde une trace historique mais sur demande du compte, un contact _disparu_ peut être _oublié_ :
 - le row `contact` a un statut supprimé (`st` < 0).
-- tous les `secret` de l'avatar portant ce numéro de contact sont détruits (et l'avatar crédité des volumes supprimés).
+- tous les `secret` de l'avatar portant ce numéro de contact sont détruits.
 
 #### membres
 Pour chaque groupe accédé par l'avatar :
@@ -953,27 +979,15 @@ Dans la session la carte de visite est supprimée, elle ne sera plus synchronis�
 
 Les références peuvent mettre longtemps a être mises à jour, tous les comptes référençant l'avatar D ayant à être ouverts (ou disparaissant eux-mêmes).
 
-# Réflexions
-## Base vivante et de backup ???
-La base de backup est l'image de la base vivante la veille au soir.
-- elle est accessible en lecture seule.
-- la table versions permet de savoir jusqu'à quelles versions elle a été sauvée.
-
-En début de session un compte *peut* avoir des jours / semaines / mois à rattraper, voire tout si la session est en mode incognito : une grande masse de rows peuvent être lus depuis le backup sans bloquer la base vivante. 
-
-Comment savoir s'il est opportun de faire deux passes ou une seule directement sur la base vivante ?.
-
-La vraie connexion / synchronisation se fait sur la base vivante pour avoir les toutes dernières mises à jour mais ça devrait être très léger.
-
 ## Secrets de couple A / B
 ### A et B acceptent le partage de secrets
 Les volumes sont décomptés sur A et sur sur B, pour v1 comme pour v2, justement parce qu'ils peuvent en toute indépendance détruire leur exemplaire.
 
-Sait-on chez A que B a détruit son exemplaire ? Ca serait bien ! Sur ora xx vaut 0, 1 ou 2 : on pourrait rajouter 3 (signifiant exemplaire unique, donc exclusivité au restant).
+On sait chez A que B a détruit son exemplaire (sur `ora` xx vaut 0, 1 ou 2. 3 signifiant exemplaire unique, donc exclusivité au restant.
 
 Si B **détruit** son exemplaire :
-- A continue à agir sur le sien comme il l'entend : retrouve-t-il de facto une exclusivité qu'il n'avait peut-être pas ? Oui, de toutes les façons B n'a plus de moyens de s'en plaindre, il a abandonné le secret.
-- B récupère le volume en quotas.
+- A continue à agir sur le sien comme il l'entend : il retrouve de facto une exclusivité qu'il n'avait peut-être pas. De toutes les façons B n'a plus de moyens de s'en plaindre, il a abandonné le secret.
+- B récupère du volume v1 / v2.
 
 ### B n'accepte plus le partage de secrets
 ... mais ça _pourrait_ revenir.
@@ -982,7 +996,3 @@ Si B **détruit** son exemplaire :
 - seuls les mots-clés de chacun peuvent changer afin de pouvoir les filtrer en sélection.
 
 Le secret ne redevient normal que si les A et B acceptent le partage de secrets.
-
-Si B **détruit** son exemplaire :
-- B récupère le volume en quotas.
-- A se retrouve seul propriétaire et gestionnaire du secret dont il fait ce qu'il veut.

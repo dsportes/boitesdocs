@@ -62,6 +62,8 @@
 
 ## Gestion comptable
 
+## Rencontre parrain / filleul à l'occasion d'un changement de parrain
+
 ## Intégrer salts en ressource
 Cryptage du fichier de config du serveur.
 

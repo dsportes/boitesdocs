@@ -279,10 +279,10 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 <h3>Organisation payant l'hébergement pour ses adhérents</h3>
 
 <p>L'accès à l'application est un service de l'organisation, gratuit pour ses adhérents (du moins invisiblement inclus dans leur adhésion, ou les crédits de sponsoring dont elle bénéficie).
-- L'organisation connaît ses adhérents et leurs rôles : elle propose des forfaits conforme aux exigences des rôles tenus, aux statuts (salariés, ...).
+- L'organisation connaît ses adhérents et leurs rôles : elle propose des forfaits conformes aux exigences des rôles tenus, aux statuts (salariés, ...).
 - L'organisation fait le rapprochement entre chaque adhérent et son numéro de compte dans l'application mais ne peut pas le faire avec les avatars du compte, les groupes auxquels il participe, ni les contacts avec les autres avatars (même pas des comptes), ni les secrets qu'il écrit et lit.
 - <strong>Questions :</strong>
-  - (1) si un adhérent quitte l'organisation, comment lui retirer son accès (et de facto récupérer ses ressources) ?
+  - (1) si un adhérent quitte l'organisation, comment lui retirer son accès -sous quel délai- (et de facto récupérer ses ressources) ?
   - (2) si des comptes rapportent l'usage par un compte de l'application pour des fins étrangères à l'objet de l'organisation, voire opposées à cet objet, comment lui retirer son accès ? Cette question lève le sujet du contrôle éthique sur l'usage de l'application.</p>
 
 <blockquote>
@@ -295,7 +295,7 @@ h1,h2,h3,h4,h5,h6 { page-break-after:avoid;page-break-inside:avoid; }
 - chaque compte choisit les niveaux de forfait qui lui semble correspondre à son besoin,
 - il paye un abonnement pour contribuer à supporter le coût global d'hébergement.
 - <strong>Questions :</strong>
-  - (1) si un abonné ne paye plus son abonnement, comment lui retirer son accès (et de facto récupérer ses ressources) ?
+  - (1) si un abonné ne paye plus son abonnement, comment lui retirer son accès -sous quel délai- (et de facto récupérer ses ressources) ?
   - (2) si des comptes rapportent des propos <em>inappropriés</em> vis à vis de la charte éthique de l'organisation dans les secrets partagés, voire non conformes à la loi, comment lui retirer son accès ?</p>
 
 <blockquote>
@@ -374,3 +374,41 @@ C'est aussi pour cette raison qu'un groupe a une taille limitée, telle qu'il so
 <blockquote>
   <p>Ce n'est pas une application <em>libertaire</em> mais <em>privée</em>. Être libertaire supposerait un accès public sans restriction ce qui n'est pas le cas.</p>
 </blockquote>
+
+<h1>Estimations monétaires</h1>
+
+<p>Tous les prix sont mensuels en centimes d'€.</p>
+
+<p>L'espace v1 est de l'espace de base de données. Son coût est en fait celui d'une instance VPS, CPU + RAM + SSD. Environ 3GB de SSD sont pris par l'OS.
+- une instance de 40GB de SSD doit pouvoir supporter 10GB de textes de messages (de v1) : <strong>0,05c / MB</strong></p>
+
+<p>L'espace v2 est de l'espace Object Storage ou File System externe.
+- l'offre en général comporte une part de stockage et une part de transfert.
+- approximativement on trouve des offres à 3c / GB : <strong>0,3c / 100MB</strong></p>
+
+<p>La granularité pourrait être :
+- pour v1 : 1 MB - 0,05c
+- pour v2 : 100 MB - 0,3c</p>
+
+<p>Les forfaits typiques s'étagent de 1 à 64 : (coût mensuel)
+- (1) - XXS - 1 MB / 100 MB - 0,35c
+- (2) - XS - 2 MB / 200 MB - 0,70c
+- (4) - SM - 4 MB / 400 MB - 1,40c
+- (8) - MD - 8 MB / 800 MB - 2,80c
+- (16) - LG - 16 MB / 1,6GB - 5,60c
+- (32) - XL - 32 MB / 3,2GB - 1,12€
+- (64) - XXL - 64 MB / 6,4GB - 2,24€</p>
+
+<p><strong>Remarques</strong>
+- le <em>coût</em> de v1 est négligeable en monétaire : c'est surtout sa limitation qui est importante puisque au total il va déterminer la taille du VPS.
+- on peut concevoir des comptes avec très peu d'espace v2, la valeur principale de l'application étant de partager des notes textuelles.
+- mais on peut aussi imaginer des organisations très orientées <em>images</em> et / ou <em>gros documents externes</em>. Les textes des secrets ne sont alors que des remarques / synthèses / commentaires à propos de documents infiniment plus volumineux.</p>
+
+<p><strong>Limites technologiques</strong>
+La limite v2 n'existe pas : les transferts s'effectuent directement entre le site d'hébergement de l'object store et les navigateurs, sans passer par le serveur.</p>
+
+<p>La limite v1 en tant que <em>volume</em> est assez lointaine : on peut imaginer une base SQLite de 200GB : soit environ 100,000,000 de secrets ce qui est énorme.</p>
+
+<p>En pratique ça signifie un ordre de grandeur de 10,000 comptes : en accès séquentiel en écriture par un seul processus, il est probable que le couple <em>node / SQLite</em> soit déjà saturé bien avant cette limite.</p>
+
+<p>L'application n'est pas structurellement conçue pour des organisations ayant un grand nombre de comptes mais peut supporter un nombre significatif de comptes partageant des secrets ayant des volumes de fichiers joints très importants.</p>
