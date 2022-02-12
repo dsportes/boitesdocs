@@ -91,13 +91,14 @@ Afin de pouvoir rafraîchir uniquement les cartes de visites des avatars, la pro
 ## Tables
 
 - `versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde) et autres singletons (id value)
-- `avgrvq` (id) : volumes et quotas d'un avatar ou groupe  
 - `avrsa` (id) : clé publique d'un avatar
 
 _**Tables aussi persistantes sur le client (IDB)**_
 
 - `compte` (id) : authentification et liste des avatars d'un compte 
-- `prefs` (id) : données et préférences d'un compte 
+- `prefs` (id) : données et préférences d'un compte
+- `compta` (id) : ligne comptable du compte
+- `ardoise` (id) : ardoise du compte avec parrain / comptables
 - `avatar` (id) : données d'un avatar et liste de ses contacts
 - `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
 - `contact` (id, ic) : données d'un contact d'un avatar    
@@ -128,37 +129,6 @@ L'id 0 correspondant à l'état courant et l'id 1 à la dernière sauvegarde.
     "v"  BLOB,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
-
-## Table `avgrvq` - CP `id`. Volumes et quotas des avatars et groupes
-Pour chaque avatar et groupe, par convention la *banque centrale* est l'avatar d'id 1, 
-- `v1 v2` : les volumes utilisés augmentent quand des secrets sont rendus persistants ou mis à jour en augmentation et diminuent quand ils sont supprimés ou mis à jour en réduction : ce sont des actions qui peuvent être déclenchées par d'autres comptes (maj d'un secret déjà persistant).
-- `vm1 vm2` : volumes consommés dans le mois. Le changement de mois remet à 0 `vm1` et `vm2`.
-- `q1 q2 qm1 qm2` : quotas donnés à un groupe / avatar par une groupe / avatar / banque. En cas de GC d'un avatar / groupe, ils sont retournés à la banque. 
-
-Pour un groupe il n'y a pas de `vm1 vm2 qm1 qm2`.
-
-Les transferts de quotas entre avatars / groupes / banque centrale se font sous la forme d'un débit / crédit.
-- *Normalement* les sommes des quotas doivent être nulles.
-- *Normalement* les volumes doivent être inférieurs à leur quotas.
-
-Table :
-
-    CREATE TABLE "avgrvq" (
-    "id"	INTEGER,
-    "q1"	INTEGER,
-    "q2"	INTEGER,
-    "qm1"	INTEGER,
-    "qm2"	INTEGER,
-    "v1"	INTEGER,
-    "v2"	INTEGER,
-    "vm1"	INTEGER,
-    "vm2"	INTEGER,
-    "vsh"	INTEGER,
-    PRIMARY KEY("id")
-    ) WITHOUT ROWID;
-
-**Opération mensuelle**  
-Les volumes mensuels sont mis à 0 le premier de chaque mois à minuit. Le cas échéant l'occasion de sortir des statistiques sur un fichier `xls`. 
 
 ## Table : `compte` CP `id`. Authentification d'un compte
 _Phrase secrète_ : une ligne 1 de 16 caractères au moins et une ligne 2 de 16 caractères au moins.  
@@ -236,6 +206,7 @@ Table :
     "v"	INTEGER,
     "dds"	INTEGER,
     "st"	INTEGER,
+    "dst" INTEGER,
     "data"	BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -496,6 +467,7 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
     "f2" INTEGER,
     "datak"  BLOB,
     "datax"  BLOB,
+    "data2k"  BLOB,
     "ardc"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("pph")
@@ -514,11 +486,12 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
 - `f1 f2` : forfaits attribués par P à F.
 - `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
 - `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
+  - `idp` : id du compte parrain pour crer la ligne compta du filleul et mettre à jour celle du parrain à l'acceptation.
   - `nomp, rndp, icp` : nom complet et indice de l'avatar P.
   - `nomf, rndf, icf` : nom complet et indice du filleul F (donné par P).
   - `cc` : clé `cc` générée par P pour le couple P / F.
   - `aps` : `true` si le parrain accepte le partage de secrets.
-- `datak2` : c'est le `datak` du futur contact créé en cas d'acceptation.
+- `data2k` : c'est le `datak` du futur contact créé en cas d'acceptation.
   - `nom rnd` : nom complet du contact (B).
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
   - `icb` : indice de A dans les contacts de B
@@ -623,6 +596,7 @@ Table :
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
+    CREATE INDEX "dds_groupe" ON "groupe" ( "dds" );
     CREATE INDEX "id_v_groupe" ON "groupe" ( "id", "v" );
     CREATE INDEX "st_groupe" ON "groupe" ( "st" ) WHERE "st" < 0;
 
