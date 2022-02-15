@@ -483,14 +483,14 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
   - 0: en attente de décision de F
   - 1 : accepté
   - 2 : refusé
-- `f1 f2` : forfaits attribués par P à F.
 - `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
 - `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
-  - `idp` : id du compte parrain pour crer la ligne compta du filleul et mettre à jour celle du parrain à l'acceptation.
   - `nomp, rndp, icp` : nom complet et indice de l'avatar P.
   - `nomf, rndf, icf` : nom complet et indice du filleul F (donné par P).
   - `cc` : clé `cc` générée par P pour le couple P / F.
   - `aps` : `true` si le parrain accepte le partage de secrets.
+  - `f: [f1 f2]` : forfaits attribués par P à F.
+  - `r: [r1 r2]` : si non null, réserve attribuable aux filleuls si le compte _parrainé_ est en fait un _parrain_ lui-même.
 - `data2k` : c'est le `datak` du futur contact créé en cas d'acceptation.
   - `nom rnd` : nom complet du contact (B).
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
