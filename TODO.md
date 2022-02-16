@@ -14,14 +14,14 @@
   - ardoise
   - note perso
   - mots clés
-  - affichage des volumes si confiance
-  - transfert de quotas
 
 ## Secrets
 - gestion exclusivité / protection. Dialogue : affiche les membres pour secrets de groupe
 - suppression. Pour un couple affichage que l'autre exemplaire est supprimé
 - liste des auteurs
 - mots clés des autres membres pour les secrets de groupe
+- gestion des volumes à refaire
+- gestion des PJ à reprendre
 
 ## Rencontre
 - dialogue de saisie. MAJ du texte, suppression, prolongation
@@ -32,8 +32,6 @@
 
 ## Mots clés
 - fixer les mots clés impératifs : nouveau, liste noire, confiance, favori
-- interpréter confiance dans la gestion des quotas
-- forcer nouveau à la création d'un contact
 - ne pas sélectionner d'obsolètes, les enlever sur OK.
 
 ## Partout : bloquer les maj en mode avion
@@ -61,26 +59,23 @@
 - revisiter les secrets
 
 ## Gestion comptable
+- gestion affichage ardoise : dh de lecture. Popup à la connexion, icône rouge en cours de session
+- listes (filtrées) des ardoises -comptable / parrain-
+- cession / reprise de forfaits / réserves
 
 ## Rencontre parrain / filleul à l'occasion d'un changement de parrain
-
-## Intégrer salts en ressource
-Cryptage du fichier de config du serveur.
+- ne rien faire pour l'instant ? on peut passer par les ardoises
 
 ## Démons serveur
 - quotidiens
   - détection des disparus
   - gestion des suppressions
-  - backup
 - scan des pièces jointes orphelines
 
 ## Documentation
 - Présentation Générale à ajuster
-  - voisins
-  - secrets de couples
-  - pièces jointes ?
   - chapitre sur la confiance dans les logiciels
-  - chapitre sur upload
+  - chapitre sur upload ?
 - UI
   - révision complète : synchronisation à reprendre
   - modele / store / operation
