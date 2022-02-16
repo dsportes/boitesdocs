@@ -970,3 +970,42 @@ Si B **détruit** son exemplaire :
 - seuls les mots-clés de chacun peuvent changer afin de pouvoir les filtrer en sélection.
 
 Le secret ne redevient normal que si les A et B acceptent le partage de secrets.
+
+## Echanges sur les ardoises des comptes
+
+Un échange est identifié par :
+- idt : le titulaire de l'ardoise,
+- idp : son parrain au moment de l'écriture (s'il en avait un) - celui qui en a eu copie ou qui l'a écrit
+- dh : sa date-heure d'écriture
+- em: son auteur. 0:titulaire de l'ardoise, 1:parrain du compte, 2:comptable
+
+Propriétés
+- dhlt: dh de lecture par le titulaire : 0 quand c'est le titulaire qui est l'auteur
+- dhlp: dh de lecture par le parrain : 0 quand idp est 0 (pas de parrain)
+- dhlc: dh de lecture par comptable : 0 quand le comptable est l'auteur
+- texte: son texte
+
+L'inscription d'un échange d'une ardoise d'un compte ayant un parrain, est dupliquée sur l'ardoise du parrain;
+
+Sur l'ardoise d'un compte ayant un parrain:
+- tous les échanges ont pour idt le numéro de son compte : 0 pour simplifier.
+
+Sur l'ardoise d'un parrain:
+- les échanges ayant pour idt le numéro du compte sont ceux du compte : 0 pour simplifier.
+- les échanges ayant pour idt nf, sont des copies d'échanges de l'ardoise du compte filleul nf (dont il était parrain à dh).
+
+La lecture d'un message :
+  - écrit par le titulaire
+    - lecture par un compatble : notée sur l'ardoise du titulaire + l'ardoise de son parrain s'i le titulaire en avait un
+    - lecture par le parrain: notée sur l'ardoise du titulaire + l'ardoise du parrain
+  - écrit par le parrain
+    - lecture par le titulaire : notée sur l'ardoise du titulaire + l'ardoise du parrain
+    - lecture par un comptable : notée sur l'ardoise du titulaire + l'ardoise du parrain
+  - écrit par un comptable
+    - lecture par le titulaire : notée sur l'ardoise du titulaire + l'ardoise de son parrain s'i le titulaire en avait un
+    - lecture par le parrain : notée sur l'ardoise du titulaire + l'ardoise du parrain
+
+Quand un compte déclare avoir lu son ardoise :
+- scan de tous les échanges non lus par lui et actions ci-dessus
+- pour un _filleul_ deux ardoises (au moins) : la sienne et celle(s) de son(ses) parrain(s)
+- pour un parrain : N ardoises. La sienne + toutes celles des filleuls dont il n'avait pas encore lu les échanges.
