@@ -437,7 +437,8 @@ Table :
 - `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B. Couple `[dh, texte]`.
 - `datak` : information cryptée par la clé K de A.
   - `nom rnd ic` : nom complet du contact (B) et son indice chez lui.
-  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
+  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B.
+  - `idcf` : si ce contact est un avatar d'un compte filleul, id du compte filleul.
 - `datap` : mêmes données que `datak` mais cryptées par la clé publique de A.
 - `mc` : mots clés à propos du contact.
 - `infok` : commentaire à propos du contact crypté par la clé K du membre.
@@ -495,6 +496,7 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
   - `nom rnd` : nom complet du contact (B).
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
   - `icb` : indice de A dans les contacts de B
+  - `idcf` : id du compte filleul.
 - `ardc` : ardoise (couple `[dh, texte]` cryptée par la clé `cc`).
   - du parrain, mot de bienvenue écrit par le parrain (cryptée par la clé `cc`).
   - du filleul, explication du refus par le filleul (cryptée par la clé `cc`) quand il décline l'offre. Quand il accepte, ceci est inscrit sur l'ardoise de leur contact afin de ne pas disparaître.
@@ -504,7 +506,7 @@ Après création les seuls champs pouvant changer, avant acceptation ou refus ex
 - `f1 f2` : que le parrain peut ajuster.
 - `ardc` : permettant un dialogue simplifié entre parrain et filleul.
 
-**Les forfaits sur la réserve du parrain lors de l'acceptation.** 
+**Les forfaits sont prélevés sur la réserve du parrain lors de l'acceptation.** 
 
 **Si le filleul ne fait rien à temps : (`st` toujours à 0)** 
 - Lors du GC sur la `dlv`, le row `parrain` sera supprimé par GC de la `dlv`. 
@@ -516,15 +518,18 @@ Après création les seuls champs pouvant changer, avant acceptation ou refus ex
 **Le parrain peut annuler son row avant acceptation / refus :** 
 - son `st` passe à < 0.
 
+**Le parrain peut prolonger la date-limite d'un parrainage** (encore en attente), sa `dlv` est augmentée.
+
 **Si le filleul accepte le parrainage :** 
 - Le filleul crée son compte et son premier avatar (dont il a reçu `nom rnd`).
 - sa ligne `compta` est créée et crédités des forfaits attribués par le parrain.
 - la ligne `compta` du parrain est mise à jour (total des forfaits et réserve).
+- sa ligne `ardoise` est créée vide.
 - il créé un double contact C[p] et C[f] avec P.
   - dans `C[p]` le `datak` est le `datak2` transmis dans le row `parrain` : ce contact est déjà régularisé dès sa création.
   - dans `C[f]` le `datak` est créé à partir des données contenues dans le `datax` du row `parrain`.
 - l'ardoise des `contact` de P et de F contient l'ardoise de l'acceptation (`ardc`).
-- Le row `parrain` a son `st` à 1 et sera supprimé à l'expiration de la `dlv`. 
+- Le row `parrain` a son `st` à 2 ou 3 et sera supprimé à l'expiration de la `dlv`. 
 
 Dans tous les cas le GC sur `dlv` supprime le row `parrain`. Les quotas ne sont restitués au parrain que si le statut est resté 0 (en attente).
 
@@ -827,7 +832,7 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
 
 **Identifiant de stockage :** `org/sid@sns/cle@idc`  
 - `org` : code de l'organisation.
-- `sid` : id du secret en base64 URL. Pour un secret de couple `id ns` est par convvention celui de l'id la plus faible du couple (la pièce jointe n'est pas dédoublée contrairement au secret lui-même).
+- `sid` : id du secret en base64 URL. Pour un secret de couple `id ns` est par convention celui de l'id la plus faible du couple (la pièce jointe n'est pas dédoublée contrairement au secret lui-même).
 - `sns` : ns du secret en base64 URL.
 - `cle` : hash court en base64 URL de nom.ext
 - `idc` : id complète de la pièce jointe, cryptée par la clé du secret et en base64 URL.

@@ -71,7 +71,7 @@ Compte tenu des bandes passantes actuelles, l'option est de ne pas le limiter ni
 
 **Principes retenus**
 - il n'y a pas de plafond impératif de transfert mensuel de volume v2.
-- le cumul du volume des transfert des pièces jointes est mémorisé sur les 31 derniers jours : plus il approche puis dépasse le volume v2, plus des temporisations (explicitées à l'écran) ralentissent _artificiellement_ le débit.
+- le cumul du volume des transfert des pièces jointes est mémorisé sur les 14 derniers jours : plus il approche puis dépasse le volume v2, plus des temporisations (explicitées à l'écran) ralentissent _artificiellement_ le débit.
 - le volume mensuel est mémorisé en historique pour information.
 
 >Ce procédé gêne les téléchargements massifs, mais impacte peu la lecture / mise à jour courante des pièces jointes.
@@ -83,9 +83,12 @@ La _ligne comptable_ est un enregistrement des données des forfaits et de l'his
 
 ### Gestion des secrets des groupes
 - un groupe est _hébergé_ par le compte d'un de ses membres (qui peut changer), son _hébergeur_.
-- un groupe dispose de compteurs `max1 / max2` fixés par son compte hébergeur et les volumes `v1 / v2` des secrets du groupe à l'instant t.
+- un groupe dispose de compteurs `f1 / f2` fixés par son compte hébergeur et les volumes `v1 / v2` des secrets du groupe à l'instant t.
 
->La mise à jour d'un secret d'un groupe entraîne la mise à jour : a) éventuellement de la ligne comptable du compte du demandeur pour le volume v2 transféré, b) de la ligne comptable du compte hébergeur du groupe pour les volumes v1 et v2, c) du groupe lui-même pour les volumes effectivement occupés.
+>La mise à jour d'un secret d'un groupe entraîne la mise à jour : 
+- a) éventuellement de la ligne comptable du compte du demandeur pour le volume v2 transféré,
+- b) de la ligne comptable du compte hébergeur du groupe pour les volumes v1 et v2,
+- c) du groupe lui-même pour les volumes effectivement occupés.
 
 La ou les deux lignes comptables impactées dans une opération sur un secret de groupe sont retournée en résultat de l'opération, ce qui est particulièrement utile si l'opération a échoué en raison de forfaits insuffisants (sur une ligne et / ou au niveau du groupe).
 
@@ -106,16 +109,19 @@ Chaque compte a deux forfaits mensuels respectivement pour les volumes v1 et v2 
 - les transferts de pièces jointes sont ralentis, sans être bloqués, dès que leur cumul sur les 31 derniers jours approche puis dépasse le volume du forfait v2.
 
 Chaque ligne comptable dispose des compteurs suivants :
-- **la date du dernier calcul enregistré** : par exemple le 17 Mai de l'année A
+- `j` : **la date du dernier calcul enregistré** : par exemple le 17 Mai de l'année A
 - **pour le mois en cours**, celui de la date ci-dessus :
-  - _en Mo_, volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
-  - _en Mo_, volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
-  - _en Mo_, volume tr de cumul des transferts de pièces jointes : 31 compteurs pour les 31 derniers jours.
-- **forfaits v1 et v2** : les plus élevés appliqués le mois en cours.
-- **pour les 11 mois antérieurs** (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
-  - les forfaits v1 et v2 appliqués dans le mois.
-  - le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
-  - le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
+  - _en Mo_, `v1 v1m` volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
+  - _en Mo_, `v2 v2m` volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
+  - _en Mo_, `trm` cumul des volumes des transferts de pièces jointes : 14 compteurs pour les 14 derniers jours.
+- **forfaits v1 et v2** `f1 f2` : les plus élevés appliqués le mois en cours.
+- `rtr` : ratio de la moyenne des tr / forfait v2
+- **pour les 12 mois antérieurs** `hist` (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
+  - `f1 f2` les forfaits v1 et v2 appliqués dans le mois.
+  - `r1 r2` le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
+  - `r3` le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
+- `res1 res2` : pour un parrain, réserve de forfaits v1 et v2.
+- `t1 t2` : pour un parrain, total des forfaits 1 et 2 attribués aux filleuls.
 
 Une ligne comptable en base de données n'est pas forcément calculée par rapport à l'instant t du fait des notions de _mois en cours, 31 derniers jours, 11 mois antérieurs_. Un calcul de _normalisation_ est effectué en fonction de l'instant t et de la date du dernier calcul de normalisation :
 - à l'ouverture d'une session par un compte.
@@ -125,16 +131,10 @@ Une ligne comptable en base de données n'est pas forcément calculée par rappo
 ## Parrains et filleuls
 La création d'un compte est assurée par parrainage d'un compte _parrain_. 
 - les comptes filleul et parrain sont **contact** par l'intermédiaire d'un de leurs avatars respectifs.
-- la parrain a attribué des forfaits v1 et v2 au filleul à la création. C'est lui qui peut ensuite :
+- la parrain a attribué des forfaits f1 et f2 au filleul à la création. C'est lui qui peut ensuite :
   - augmenter le niveau des forfaits en cours.
   - réduire le niveau des forfaits en cours mais toujours au-dessus du volume courant.
 - la ligne comptable du filleul porte le numéro de compte du parrain.
-
-La ligne comptable d'un parrain comporte deux parties :
-- l'une porte ses propres compteurs.
-- l'autre porte le cumul des compteurs de ses comptes filleul :
-  - total des volumes forfaitaires v1 et v2 actuellement attribués.
-  - limites v1 / v2 des volumes attribuables aux filleuls (actuels et futurs).
 
 ## Comptables de l'organisation
 Ce sont quelques comptes normaux mais dont le _hash_ de leurs phrases secrètes est pré-enregistré dans la configuration de l'application (avec un numéro court) ce qui leur confère quelques possibilités d'actions :
