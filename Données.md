@@ -416,6 +416,7 @@ Table :
     "ic"	INTEGER,
     "v"  	INTEGER,
     "st" INTEGER,
+    "nccc"	BLOB,
     "ardc"	BLOB,
     "datap"  BLOB
     "datak"	BLOB,
@@ -429,11 +430,12 @@ Table :
 - `id` : id de l'avatar A
 - `ic` : indice de contact de B pour A.
 - `v` :
-- `st` : statut entier de 2 chiffres, `x y` : **les valeurs < 0 indiquent un row supprimé (les champs après sont null)**. `xy` dans le contact de A est `yx` dans le contact de B.
-  - `x` :
+- `st` : statut entier de 2 chiffres, `xy` : **les valeurs < 0 indiquent un row supprimé (les champs après sont null)**. `xy` dans le contact de A est `yx` dans le contact de B.
+  - `x` : x c'est LE COMPTE, y c'est l'autre (le contact)
     - 0 : n'accepte pas le partage de secrets.
     - 1 : accepte le partage de secrets.
     - 2 : présumé disparu
+- `nccc` : numéro de compte de l'avatar contact **si le contact accepte le partage de secrets** (y vaut 1, redondance assumée), crypté par la clé `cc`. 
 - `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B. Couple `[dh, texte]`.
 - `datak` : information cryptée par la clé K de A.
   - `nom rnd ic` : nom complet du contact (B) et son indice chez lui.
@@ -482,10 +484,13 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
 - `dlv` : la date limite de validité permettant de purger les parrainages (quels qu'en soient les statuts).
 - `st` : < 0: supprimé,
   - 0: en attente de décision de F
-  - 1 : accepté
-  - 2 : refusé
+  - 1 : refusé
+  - 2 : accepté avec partage
+  - 3 : accepté sans partage
 - `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
 - `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
+  - `idcp` : id du compte parrain.
+  - `idcf` : id du compte filleul.
   - `nomp, rndp, icp` : nom complet et indice de l'avatar P.
   - `nomf, rndf, icf` : nom complet et indice du filleul F (donné par P).
   - `cc` : clé `cc` générée par P pour le couple P / F.
@@ -495,16 +500,12 @@ Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pou
 - `data2k` : c'est le `datak` du futur contact créé en cas d'acceptation.
   - `nom rnd` : nom complet du contact (B).
   - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
-  - `icb` : indice de A dans les contacts de B
+  - `icb` : indice de A dans les contacts de B.
   - `idcf` : id du compte filleul.
 - `ardc` : ardoise (couple `[dh, texte]` cryptée par la clé `cc`).
   - du parrain, mot de bienvenue écrit par le parrain (cryptée par la clé `cc`).
   - du filleul, explication du refus par le filleul (cryptée par la clé `cc`) quand il décline l'offre. Quand il accepte, ceci est inscrit sur l'ardoise de leur contact afin de ne pas disparaître.
 - `vsh`
-
-Après création les seuls champs pouvant changer, avant acceptation ou refus explicite, sont  :
-- `f1 f2` : que le parrain peut ajuster.
-- `ardc` : permettant un dialogue simplifié entre parrain et filleul.
 
 **Les forfaits sont prélevés sur la réserve du parrain lors de l'acceptation.** 
 
@@ -526,7 +527,7 @@ Après création les seuls champs pouvant changer, avant acceptation ou refus ex
 - la ligne `compta` du parrain est mise à jour (total des forfaits et réserve).
 - sa ligne `ardoise` est créée vide.
 - il créé un double contact C[p] et C[f] avec P.
-  - dans `C[p]` le `datak` est le `datak2` transmis dans le row `parrain` : ce contact est déjà régularisé dès sa création.
+  - dans `C[p]` le `datak` est le `datak2` transmis dans le row `parrain` : ce contact est déjà _régularisé_ dès sa création.
   - dans `C[f]` le `datak` est créé à partir des données contenues dans le `datax` du row `parrain`.
 - l'ardoise des `contact` de P et de F contient l'ardoise de l'acceptation (`ardc`).
 - Le row `parrain` a son `st` à 2 ou 3 et sera supprimé à l'expiration de la `dlv`. 
