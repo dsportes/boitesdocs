@@ -267,31 +267,44 @@ Table :
 
     CREATE TABLE "ardoise" (
     "id"	INTEGER,
-    "dh"  INTEGER,
+    "v"  INTEGER,
+    "dhl"  INTEGER,
+    "mcp"	TEXT,
+    "mcc"	TEXT,
     "data"	BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
+    CREATE INDEX "id_mcp_ardoise" ON "ardoise" ( "id", "mcp" ) WHERE mcp NOTNULL;
+    CREATE INDEX "v_mcc_ardoise" ON "ardoise" ( "v", "mcc" ) WHERE mcc NOTNULL;
 
 - `id` : du compte.
-- `dh` : date-heure de dernière mise à jour.
-- `data`: contenu sérialisé _crypté soft_ de l'ardoise.
+- `v` : date-heure d'insertion du dernier échange
+- `dhl` : date-heure de dernière lecture par le titulaire
+- `mcp` : mots clés du parrain - String de la forme `245/232/114/`
+- `mcc` : mots clés du comptable
+- `data`: contenu sérialisé _crypté soft_ de l'ardoise. Array des échanges :
+  - `dh` : date-heure d'écriture de l'échange
+  - `aut`: auteur : 0:titulaire du compte, 1:parrain du compte, 2:comptable
+  - `texte`: texte
 - `vsh`:
 
-L'ardoise est une séquence chronologique d'échanges. Chacun concerne,
-- un compte,
-- son compte parrain éventuel,
-- les comptables : toujours concernés, ils lisent les ardoises en fonction de la date-heure de dernière modification.
+**Sélections pour un parrain :**
+- ardoises des filleuls (par `compta`) dont mcp contient nnn/
 
-Quand un compte a un parrain, l'échange est **dédoublé** sur les deux ardoises du filleul et du parrain.
-- `dh` : date-heure de l'échange
-- `idp` : id du parrain
-- `idf` : id du filleul
-- `em` : émis par, 0 - le compte, 1 - son parrain, 2 - le comptable
-- `texte` : court.
+**Sélections pour un comptable :**
+- ardoises dont les dh sont comprises entre d1 et d2 et dont mcc contient nnn/
+
+**Opérations :**
+- insertion d'un échange. dh est mis à jour
+  - par le titulaire : insère 255/ (nouveau) dans mcp et mcc 
+  - par le parrain : insère 255/ (nouveau) dans mcc
+  - par le comptable : insère 255/ (nouveau) dans mcp
+- lecture par le titulaire : change dhl
+- par un parrain / comptable : mots-clés dans mcp / mcc
 
 Une ardoise conserve,
-- tous les échanges de moins de 6 semaines,
+- tous les échanges de moins de 90 jours,
 - au moins les 10 derniers quels qu'en soit la date.
 
 ## Table `avrsa` : CP `id`. Clé publique RSA des avatars
