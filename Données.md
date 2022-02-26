@@ -659,7 +659,7 @@ Dans une session de A dès que cette invitation parvient, soit par synchronisati
 - `id` : id du membre invité.
 - `ni` : hash du numéro d'invitation.
 - `datap` : crypté par la clé publique du membre invité.
-	- `nom rnd im` : nom complet du groupe (donne sa clé).
+	- `[nom, rnd, im]` : nom complet du groupe (donne sa clé).
 
 ## Table `membre` : CP `id nm`. Membre d'un groupe
 Chaque membre d'un groupe a une entrée pour le groupe identifiée par son indice de membre `im`.  
@@ -683,7 +683,6 @@ Table
     PRIMARY KEY("id", "im"));
     CREATE INDEX "id_v_membre" ON "membre" ( "id", "v" );
     CREATE INDEX "st_membre" ON "membre" ( "st" ) WHERE "st" < 0;
-
 
 - `id` : id du groupe.
 - `im` : numéro du membre dans le groupe.
