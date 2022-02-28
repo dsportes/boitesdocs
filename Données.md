@@ -689,7 +689,7 @@ Table
 - `v` :
 - `st` : statut. `xp` : < 0 signifie supprimé.
   - `x` : 0:pressenti, 1:invité, 2:actif (invitation acceptée), 3: inactif (invitation refusée), 4: inactif (résilié), 5: inactif (disparu).
-  - `p` : 0:lecteur, 1:auteur, 2:administrateur.
+  - `p` : 0:lecteur, 1:auteur, 2:animateur.
 - `vote` : vote de réouverture.
 - `mc` : mots clés du membre à propos du groupe.
 - `infok` : commentaire du membre à propos du groupe crypté par la clé K du membre.
