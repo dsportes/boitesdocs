@@ -607,6 +607,7 @@ Table :
     "stxy"  INTEGER,
     "cvg"  BLOB,
     "idhg"  BLOB,
+    "imh"  INTEGER,
     "v1"  INTEGER,
     "v2"  INTEGER,
     "f1"  INTEGER,
@@ -633,6 +634,7 @@ Table :
   - `y` : 0-en écriture, 1-archivé
 - `cvg` : carte de visite du groupe `[photo, info]` cryptée par la clé G du groupe.
 - `idhg` : id du compte hébergeur crypté par la clé G du groupe.
+- `imh` : indice im du membre dont le compte est hébergeur.
 - `v1 v2` : volumes courants des secrets du groupe.
 - `f1 f2` : forfaits v1 v2 attribués par le compte hébergeur.
 - `mcg` : liste des mots clés définis pour le groupe cryptée par la clé du groupe cryptée par la clé G du groupe.
