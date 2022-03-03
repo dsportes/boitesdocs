@@ -630,7 +630,7 @@ Table :
     - 1 : détecté par le GC, _le groupe_ est resté plusieurs mois sans connexion.
     - J : auto-détruit le jour J: c'est un délai de remord. Quand un compte détruit un groupe, il a N jours depuis la date courante pour se rétracter et le réactiver.
 - `stxy` : Deux chiffres `x y`
-  - `x` : 1-ouvert, 2-fermé, 3-ré-ouverture en vote
+  - `x` : 1-ouvert, 2-fermé
   - `y` : 0-en écriture, 1-archivé
 - `cvg` : carte de visite du groupe `[photo, info]` cryptée par la clé G du groupe.
 - `idhg` : id du compte hébergeur crypté par la clé G du groupe.
