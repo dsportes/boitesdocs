@@ -1,19 +1,4 @@
-## Parrain
-- affichage
-- suppression
-- prolongation
-- maj du texte
-
-## Contact
-- filtrage : 
-  - mots clés + et -, 
-  - texte dans nom / ardoise / note perso
-  - date-heure ardoise
-- panel pour affichage / maj
-  - statut
-  - ardoise
-  - note perso
-  - mots clés
+Mettre MdEditeur sur TXT si modifiable
 
 ## Secrets
 - gestion exclusivité / protection. Dialogue : affiche les membres pour secrets de groupe
@@ -30,8 +15,16 @@
   - nouveau contact
   - existe déjà
 
+## Transfert de parrainage
+- table transfert (phrase, cédant, liste des filleuls)
+- option : plus parrain après transfert
+- déclenchable aussi par comptable
+
+## Extensions / réductions des forfaits
+- par un parrain
+- par comptable
+
 ## Mots clés
-- fixer les mots clés impératifs : nouveau, liste noire, confiance, favori
 - ne pas sélectionner d'obsolètes, les enlever sur OK.
 
 ## Partout : bloquer les maj en mode avion
@@ -47,16 +40,12 @@
   - suppression de celles non pointées
   - affectation d'un libellé local ?
   - calcul des volumes _utiles_ des bases
-- au login synchronisé, option reset de l'IDB (en cas de bugs)
 
 ## Groupes
-- page Groupe ?
-  - si oui décorrélé de l'avatar membre
-  - si non, empilage de boîtes de dialogues : boîte groupe avec tabs général et membres et dialogue membre
-- création / maj des mots clés et carte de visite
-- invitations
-- membres
-- revisiter les secrets
+- pressenti (ajout / effacement)
+- invitation (acceptation / refus / résiliation)
+- maj f1 f2
+- transfert d'hébergement : retrait d'hébergement / figeage (RO) / reprise / destruction
 
 ## Gestion comptable
 - gestion affichage ardoise : dh de lecture. Popup à la connexion, icône rouge en cours de session
@@ -69,6 +58,7 @@
 ## Démons serveur
 - quotidiens
   - détection des disparus
+  - détection des groupes sans hébergement, disparition
   - gestion des suppressions
 - scan des pièces jointes orphelines
 
@@ -81,6 +71,3 @@
   - modele / store / operation
 - API du serveur
 - Aide en ligne
-
-## Bugs en cours
-- succès d'opération apparaissant en succès partiel ?
