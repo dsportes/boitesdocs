@@ -597,14 +597,21 @@ Un groupe est caractérisé par :
 - la liste de ses membres : des rows de `membre`.
 - la liste de ses secrets : des rows de `secret`.
 
+Un groupe est hébergé par un compte (ses volumes sont décomptés de ce compte). Le compte peut mettre fin à son hébergement:
+- `dfh` indique le jour de la fin d'hébergement.
+- les secrets ne peuvent plus être mis à jour ou créés (comme un état archivé).
+- le groupe sera détruit par le GC quotidien N jours après `dfh` :
+  - le row groupe et les rows membres seront marqués `suppr`
+  - tous les rows avatars qui le référencent dans `lgrk` seront mis à jour (`regulAv`), soit suite à une synchro, soit au prochain login (leurs entrées dans `lgrk` seront détruites).
+
 Table :
 
     CREATE TABLE "groupe" (
     "id"  INTEGER,
     "v"   INTEGER,
     "dds" INTEGER,
+    "dfh" INTEGER,
     "st"  INTEGER,
-    "stxy"  INTEGER,
     "cvg"  BLOB,
     "idhg"  BLOB,
     "imh"  INTEGER,
@@ -623,15 +630,12 @@ Table :
 - `id` : id du groupe.
 - `v` :
 - `dds` :
+- `dfh` : date (jour) de fin d'hébergement du groupe par son hébergeur
 - `st` : statut
-  - négatif : l'avatar est supprimé / disparu (les autres colonnes sont à null).
-  - 0 : OK
-  - N : alerte.
-    - 1 : détecté par le GC, _le groupe_ est resté plusieurs mois sans connexion.
-    - J : auto-détruit le jour J: c'est un délai de remord. Quand un compte détruit un groupe, il a N jours depuis la date courante pour se rétracter et le réactiver.
-- `stxy` : Deux chiffres `x y`
-  - `x` : 1-ouvert, 2-fermé
-  - `y` : 0-en écriture, 1-archivé
+  - négatif : le groupe est supprimé / disparu (les autres colonnes sont à null).
+  - Deux chiffres `x y`
+    - `x` : 1-ouvert, 2-fermé (ré-ouverture en vote)
+    - `y` : 0-en écriture, 1-archivé
 - `cvg` : carte de visite du groupe `[photo, info]` cryptée par la clé G du groupe.
 - `idhg` : id du compte hébergeur crypté par la clé G du groupe.
 - `imh` : indice im du membre dont le compte est hébergeur.
