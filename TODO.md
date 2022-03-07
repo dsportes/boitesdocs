@@ -1,4 +1,6 @@
-Mettre MdEditeur sur TXT si modifiable
+Invitation : "Mon invité !" sur un avatar du compte
+
+Rubriques "contact de :" et "membre de :" sur les contacts et les membres
 
 ## Secrets
 - gestion exclusivité / protection. Dialogue : affiche les membres pour secrets de groupe
