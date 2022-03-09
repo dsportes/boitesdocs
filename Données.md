@@ -663,7 +663,7 @@ Dans une session de A dès que cette invitation parvient, soit par synchronisati
     PRIMARY KEY ("id", "ni"));
 
 - `id` : id du membre invité.
-- `ni` : hash du numéro d'invitation.
+- `ni` : numéro d'invitation.
 - `datap` : crypté par la clé publique du membre invité.
 	- `[nom, rnd, im]` : nom complet du groupe (donne sa clé).
 
@@ -694,7 +694,7 @@ Table
 - `im` : numéro du membre dans le groupe.
 - `v` :
 - `st` : statut. `xp` : < 0 signifie supprimé.
-  - `x` : 0:pressenti, 1:invité, 2:actif (invitation acceptée), 3: inactif (invitation refusée), 4: inactif (résilié), 5: inactif (disparu).
+  - `x` : 0:contact, 1:invité, 2:actif (invitation acceptée), 3: inactif (invitation refusée), 4: inactif (résilié), 5: inactif (disparu).
   - `p` : 0:lecteur, 1:auteur, 2:animateur.
 - `vote` : vote de réouverture.
 - `mc` : mots clés du membre à propos du groupe.
