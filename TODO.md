@@ -1,4 +1,4 @@
-Invitation : "Mon invité !" sur un avatar du compte
+**Revoir toutes les pages** pour intégrer le mode cnx de PanelGroupe
 
 Rubriques "contact de :" et "membre de :" sur les contacts et les membres
 
