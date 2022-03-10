@@ -1,5 +1,7 @@
 **Revoir toutes les pages** pour intégrer le mode cnx de PanelGroupe
 
+Suppression d'un avatar (volontairement) : ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement. Bref récupérer l'espace pour le compte.
+
 Rubriques "contact de :" et "membre de :" sur les contacts et les membres
 
 ## Secrets

@@ -665,7 +665,7 @@ Dans une session de A dès que cette invitation parvient, soit par synchronisati
 - `id` : id du membre invité.
 - `ni` : numéro d'invitation.
 - `datap` : crypté par la clé publique du membre invité.
-	- `[nom, rnd, im]` : nom complet du groupe (donne sa clé).
+	- `[nom, rnd, im]` : nom complet du groupe (donne sa clé) + indice de l'invité dans le groupe.
 
 ## Table `membre` : CP `id nm`. Membre d'un groupe
 Chaque membre d'un groupe a une entrée pour le groupe identifiée par son indice de membre `im`.  
@@ -702,7 +702,7 @@ Table
 - `datag` : données cryptées par la clé du groupe. (immuable)
   - `nom, rnd` : nom complet de l'avatar.
   - `ni` : numéro d'invitation du membre dans `invitgr`. Permet de supprimer l'invitation et d'effacer le groupe dans son avatar (clé de `lmbk`).
-	- `idi` : id du premier membre qui l'a pressenti / invité.
+	- `idi` : id du membre qui l'a inscrit en contact.
 - `ardg` : ardoise du membre vis à vis du groupe. Couple `[dh, texte]` crypté par la clé du groupe. Contient le texte d'invitation puis la réponse de l'invité cryptée par la clé du groupe. Ensuite l'ardoise peut être écrite par le membre (actif) et les animateurs.
 - `vsh`
 
@@ -930,7 +930,7 @@ Les ouvertures de session *signent* dans les tables `compta avatar groupe`, colo
 Une disparition est détectée dès lors que le GC quotidien détecte des `dds` trop vieilles.
 
 ## Disparition des comptes
-La détection par `dds` trop ancienne d'un **compte** détruit son row dans `compte compta prefs`.
+La détection par `dds` trop ancienne d'un **compte** détruit son row dans `compte compta prefs ardoise`.
 
 Un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures.
 
