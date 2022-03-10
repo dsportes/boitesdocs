@@ -4,6 +4,10 @@ Suppression d'un avatar (volontairement) : ré-héberger les groupes hébergés 
 
 Rubriques "contact de :" et "membre de :" sur les contacts et les membres
 
+Clavier virtuel optionnel pour saisie de la phrase secrète.
+
+A l'écran le nom est affiché sous la forme `nom@abgh` ou `ab` sont les deux premiers caractères de l'id en base64 et `gh` les deux derniers.
+
 ## Secrets
 - gestion exclusivité / protection. Dialogue : affiche les membres pour secrets de groupe
 - suppression. Pour un couple affichage que l'autre exemplaire est supprimé
