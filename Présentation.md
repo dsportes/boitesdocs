@@ -379,38 +379,62 @@ Les volumes des secrets ne peuvent pas dépasser leurs forfaits.
 Le transfert sur le réseau des pièces jointes (upload / download) est ralenti dès qu'il s'approche ou dépasse sur les 31 derniers jours le volume v2 : la temporisation est d'autant plus forte que cet écart l'est.
 
 ### Décomptes des secrets
-Les secrets personnels sont décomptés sur le compte de l'avatar qui les détient.
+A chaque compte est associée une fiche comptable dont l'identifiant est celui du compte et qui donne :
+- s'il a un parrain :
+  - son identifiant et une référence de contact qui permet au parrain d'identifier le contact avec son filleul,
+  - une référence de contact avec son parrain utilisable par lui-même pour l'identifier en tant que contact.
+- un statut de blocage éventuel,
+- un enregistrement de compteurs de consommation,
+- une _ardoise_, un court texte de communication avec les _comptables de l'organisation_.
 
-Les secrets d'un couple de contacts sont décomptés sur chacun des comptes des deux avatars en contact.
+**Les secrets personnels** sont décomptés sur la fiche comptable du compte de l'avatar qui les détient.
 
-Pour les secrets de groupe :
+**Les secrets d'un couple** de contacts sont décomptés sur chacune des fiches comptables des comptes des deux avatars en contact.
+
+**Pour les secrets de groupe :**
 - un compte est _hébergeur_ du groupe : il peut fixer deux limites v1 / v2 de volume maximal pour les secrets du groupe.
-- les secrets lui sont décomptés.
+- les secrets sont décomptés sur la fiche comptable du compte de l'hébergeur du groupe.
 - le compte hébergeur peut changer : les volumes occupés sont transférés du compte antérieur au compte repreneur.
 - si le compte hébergeur décide d'arrêter son hébergement, la mise à jour secrets est suspendue tant qu'un repreneur ne s'est pas manifesté. Si la situation perdure au delà d'un an le groupe est déclaré disparu, les secrets sont effacés.
 
 ### Attribution des forfaits
-Pour se créer un compte, il faut être parrainé par un compte parrain :
+Pour se créer un compte, il faut être parrainé par **un compte parrain** :
+- les parrain et filleul forme un couple de contacts dès la création du filleul
 - c'est lui qui fixe le niveau des forfaits initiaux en prenant sur sa _réserve_.
 - c'est auprès de son parrain qu'un compte peut demander l'augmentation de son forfait. Le compte peut réduire son forfait lui-même, sans tomber en dessous des volumes qu'il atteint à cet instant.
 
->Dans une organisation où les coûts seraient répartis, les comptes _parrains_ pourraient être responsables des coûts de leurs filleuls.
+>Dans une organisation où les coûts seraient répartis, les comptes _parrains_ pourraient supporter les coûts monétaires de leurs filleuls.
 
-### Communication parrain / filleul et avec un _comptable_
-Quelques comptes ont une fonction _comptable_ :
-- ce sont eux qui allouent des réserves aux comptes parrains.
-- ils peuvent aussi, 
-  - basculer un compte filleul d'un parrain vers un autre,
-  - déclarer un compte filleul _parrain_ et lui attribuer une réserve,
-  - basculer un compte actuellement parrain comme filleul d'un autre en basculant également tous ses filleuls actuels.
+### Communication avec un _comptable_
+Quelques comptes ont un _pouvoir comptable_ :
+- ils ont pu se créer sans parrainage (mais peuvent avoir été parrainés).
+- ils peuvent parrainer un compte en lui conférant la qualité de _parrain_.
+- ils peuvent allouer des réserves aux comptes parrains.
+- tous les comptes peuvent écrire quelques lignes sur leur _ardoise_ que seul le titulaire du compte et les comptes ayant un _pouvoir comptable_ peuvent lire et écrire.
+  - un compte ayant un _pouvoir comptable_ peut par exemple communiquer sur cette ardoise une _phrase de rencontre_ avec un avatar qu'il connaît pour mettre en contact un filleul et un futur parrain.
 
-Tout compte peut communiquer avec son compte parrain et les comptables par des messages courts **non cryptés** : les quelques derniers sont accessibles.
+Un compte _comptable_ est un donc compte normal mais référencé en tant que tel dans la configuration de l'organisation: en conséquence ce n'est pas un caractère, 
+- ni immuable : on peut _devenir_ comptable et ne plus l'être,
+- ni unique : plusieurs comptes peuvent être comptables.
+
+Ils ont simplement, tant qu'ils sont référencés dans la configuration de l'organisation, le _pouvoir_ d'exercer les quelques actions listées ci-dessus.
+
+### Changement de parrain
+Un filleul peut changer de parrain :
+- il établit un contact avec un avatar prêt à se substituer à son parrain actuel.
+- il indique dans ce contact son numéro de compte : le futur parrain muni de cette _autorisation_ peut se substituer au parrain actuel.
+
+Un comptable peut promouvoir un _filleul_ au rang de _parrain_ en lui attribuant des forfaits pour lui-même et à redistribuer à ses filleuls. Ceci dégage l'ex filleul de son ancien parrain qui récupère les forfaits correspondants.
+
+Un _parrain_ peut devenir filleul d'un compte prêt à le parrainer, à condition qu'il n'ait plus de filleuls lui-même.
 
 ### Mise en sursis et blocage des comptes
-Un comptable a également quelques leviers de contrainte sur les comptes que l'organisation peut faire appliquer,
+Un comptable a quelques leviers de contrainte sur les comptes parrains,
 - soit parce qu'un compte n'acquitte plus sa part de cotisation correspondant à son usage de l'application si l'organisation a prévu que c'était dans sa politique.
 - soit parce que le compte a quitté l'organisation et que la politique de celle-ci prévoit qu'au bout d'un certain temps le compte soit bloqué.
 - soit sur injonction judiciaire ...
+
+De même un parrain peut appliquer ces contraintes à ses filleuls, pour des raisons voisines de celles ci-dessus.
 
 Il y a trois niveaux de suspension.
 
@@ -426,6 +450,8 @@ Le compte est bloqué et ne peut rien consulter. Il ne conserve que de la possib
 Selon la politique de l'organisation et la raison de la suspension,
 - le niveau de suspension peut être différent,
 - le temps de passage d'un niveau au suivant également.
+
+Pour un compte filleul le niveau de blocage est le plus restrictif entre le sien propre et celui de son parrain.
 
 # A propos des organisations
 Des organisations bien différentes peuvent décider d'héberger l'application pour leurs adhérents. 
@@ -476,9 +502,9 @@ La question n'est donc pas pour les autres comptes de se _mettre à l'abri_ d'un
 
 Cette question se pose moins dans le cadre d'une organisation _par cotisation_ où finalement c'est l'indésirable lui-même qui paye pour disposer de secrets.
 
-L'organisation aura besoin qu'un compte _témoin_ ayant accès aux secrets de groupe litigieux accède physiquement à ceux-ci (par une manipulation claire) pour mettre en évidence le caractère inapproprié de certains secrets justifiant une mise en sursis voire un blocage.
+L'organisation aura besoin qu'un compte _lanceur d'alerte_ ayant accès aux secrets de groupe litigieux accède physiquement à ceux-ci (par une manipulation claire) pour mettre en évidence le caractère inapproprié de certains secrets justifiant une mise en sursis voire un blocage.
 
->L'application permet de facto une modération par exclusion d'un compte, en aucun cas par retrait des textes litigieux, sauf à ce qu'un compte lanceur d'alerte le fasse.
+>L'application permet de facto une modération par exclusion d'un compte, en aucun cas par retrait des textes litigieux, sauf à ce que le compte _lanceur d'alerte_ le fasse (s'il le peut).
 
 >Une organisation peut aussi déclarer dans ses conditions qu'elle ne procède jamais à un blocage de compte pour raisons éthiques, les autres comptes ayant facilement les moyens de se protéger d'écrits inappropriés.
 

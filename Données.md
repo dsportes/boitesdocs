@@ -90,15 +90,15 @@ _**Tables aussi persistantes sur le client (IDB)**_
 - `compte` (id) : authentification et liste des avatars d'un compte 
 - `prefs` (id) : données et préférences d'un compte
 - `compta` (id) : ligne comptable du compte
-- `ardoise` (id) : ardoise du compte avec parrain / comptables
 - `avatar` (id) : données d'un avatar et liste de ses contacts
-- `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
-- `contact` (id, ic) : données d'un contact d'un avatar    
+- `invitct` (id, ni) : invitation reçue par un avatar à former un couple de contacts avec un autre avatar
+- `couple` (id) : données d'un couple de contacts entre deux avatars    
 - `rencontre` (prh) id : communication par A de son nom complet à un avatar B non connu de A dans l'application
 - `parrain` (pph) id : parrainage par un avatar A de la création d'un nouveau compte
-- `groupe` (id) : données du groupe et liste de ses avatars, invités ou ayant été pressentis, un jour à être membre.
+- `groupe` (id) : données du groupe
+- `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
 - `membre` (id, im) : données d'un membre du groupe
-- `secret` (id, ns) : données d'un secret d'un avatar ou groupe
+- `secret` (id, ns) : données d'un secret d'un avatar, couple ou groupe
 
 ## Singletons id / valeur
 Ils sont identifiés par un numéro de singleton.  
@@ -108,7 +108,7 @@ Ils sont identifiés par un numéro de singleton.
 
 ## Table `versions` - CP : `id`
 
-Au lieu d'un compteur par avatar / groupe / compte on a 100 compteurs, un compteur pour plusieurs avatars / groupe (le reste de la division de l'id par 99 + 1). Le compteur 0 est celui de la séquence universelle.
+Au lieu d'un compteur par avatar / couple / groupe / compte on a 100 compteurs, un compteur pour plusieurs avatars / groupe (le reste de la division de l'id par 99 + 1). Le compteur 0 est celui de la séquence universelle.
 
 La colonne `v` est un array d'entiers.
 
@@ -135,7 +135,6 @@ Table :
     "dpbh"	INTEGER,
     "pcbh"	INTEGER,
     "kx"   BLOB,
-    "cpriv" BLOB,
     "mack"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -146,12 +145,10 @@ Table :
 - `v` :
 - `dpbh` : hashBin (53 bits) du PBKFD du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbh` : hashBin (53 bits) du PBKFD de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
-- `cpriv` : clé asymétrique privée du compte (pour gérer les rencontres entre comptes). La clé publique est dans la table `avrsa`.
-- `kx` : clé K du compte, crypté par la X (phrase secrète courante).
+- `kx` : clé K du compte, cryptée par la X (phrase secrète courante).
 - `mack` {} : map des avatars du compte cryptée par la clé K. Clé: id, valeur: `[nom, rnd, cpriv]`
-  - `nom rnd` : nom complet.
+  - `nom rnd` : nom et clé de l'avatar.
   - `cpriv` : clé privée asymétrique.
-première ligne s'affiche en haut de l'écran.
 - `vsh`
 
 **Remarques :** 
@@ -169,7 +166,7 @@ Afin que le row compte qui donne la liste des avatars ne soit mis à jour que ra
 - le row est juste un couple `[id, map]` où map est la sérialisation d'une map ayant :
   - une entrée pour chacun des codes courts ci-dessus : la map est donc extensible sans modification du serveur.
   - pour valeur la sérialisation cryptée par la clé K du compte de l'objet Javascript en donnant le contenu.
-- le row est chargé lors de l'identification du compte, conjointement avec le row compte.
+- le row est chargé lors de l'identification du compte, conjointement avec le row `compte`.
 - une mise à jour ne correspond qu'à un seul code court afin de réduire le risque d'écrasements entre sessions parallèles.
 
 Table :
@@ -185,21 +182,29 @@ Table :
 - `id` : id du compte.
 - `v` :
 - `mapk` {} : map des préférences.
+  - _clé_ : code court (`mp, mc ...`)
+  - _valeur_ : sérialisation cryptée par la clé K du compte de l'objet JSON correspondant.
 - `vsh`
 
 ## Table `compta` : CP `id`. Ligne comptable d'un compte
 Il y a une ligne par compte, l'id étant l'id du compte. `idp` est l'id du parrain pour un filleul : un parrain a donc `null` dans cette colonne.
+
+**L'ardoise** est une zone de texte partagé entre le titulaire du compte et les comptes comptables : elle est cryptée _soft_ c'est à dire avec une clé figurant dans le code source, ce qui empêche juste de lire le texte en base de données. Rien de confidentiel ne doit y figurer.
 
 Table :
 
     CREATE TABLE "compta" (
     "id"	INTEGER,
     "idp"	INTEGER,
+    "refp"  BLOB,
+    "reff"  BLOB,
     "v"	INTEGER,
     "dds"	INTEGER,
     "st"	INTEGER,
     "dst" INTEGER,
     "data"	BLOB,
+    "dhard" INTEGER,
+    "ard" BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
@@ -209,6 +214,8 @@ Table :
 
 - `id` : du compte.
 - `idp` : pour un filleul, id du parrain (null pour un parrain).
+- `refp` : id du couple avec le filleul cryptée par la clé K du parrain (null pour un parrain).
+- `reff` : id du couple avec le parrain cryptée par la clé K du filleul (null pour un parrain).
 - `v` :
 - `dds` : date de dernière signature du compte (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
 - `st` :
@@ -218,6 +225,8 @@ Table :
   - 3 : bloqué.
 - `dst` : date du dernier changement de st.
 - `data`: compteurs sérialisés (non cryptés)
+- `dard` : date-heure de dernière écriture sur l'ardoise.
+- `ard` : texte de l'ardoise _crypté soft_.
 - `vsh` :
 
 **data**
@@ -252,55 +261,8 @@ Les codes _numériques_ des forfaits tiennent sur 1 octet : c'est le facteur mul
 
 Les _ratios_ sont exprimés en pourcentage de 1 à 255% : mais 1 est le minimum (< 1 fait 1) et 255 le maximum.
 
-## Table `ardoise` : CP `id`. Ardoise supportant les échanges d'administration d'un compte
-Il y a une ardoise par compte, l'id étant l'id du compte.
-
-Table :
-
-    CREATE TABLE "ardoise" (
-    "id"	INTEGER,
-    "v"  INTEGER,
-    "dhl"  INTEGER,
-    "mcp"	TEXT,
-    "mcc"	TEXT,
-    "data"	BLOB,
-    "vsh"	INTEGER,
-    PRIMARY KEY("id")
-    ) WITHOUT ROWID;
-    CREATE INDEX "id_mcp_ardoise" ON "ardoise" ( "id", "mcp" ) WHERE mcp NOTNULL;
-    CREATE INDEX "v_mcc_ardoise" ON "ardoise" ( "v", "mcc" ) WHERE mcc NOTNULL;
-
-- `id` : du compte.
-- `v` : date-heure d'insertion du dernier échange
-- `dhl` : date-heure de dernière lecture par le titulaire
-- `mcp` : mots clés du parrain - String de la forme `245/232/114/`
-- `mcc` : mots clés du comptable
-- `data`: contenu sérialisé _crypté soft_ de l'ardoise. Array des échanges :
-  - `dh` : date-heure d'écriture de l'échange
-  - `aut`: auteur : 0:titulaire du compte, 1:parrain du compte, 2:comptable
-  - `texte`: texte
-- `vsh`:
-
-**Sélections pour un parrain :**
-- ardoises des filleuls (par `compta`) dont mcp contient nnn/
-
-**Sélections pour un comptable :**
-- ardoises dont les dh sont comprises entre d1 et d2 et dont mcc contient nnn/
-
-**Opérations :**
-- insertion d'un échange. dh est mis à jour
-  - par le titulaire : insère 255/ (nouveau) dans mcp et mcc 
-  - par le parrain : insère 255/ (nouveau) dans mcc
-  - par le comptable : insère 255/ (nouveau) dans mcp
-- lecture par le titulaire : change dhl
-- par un parrain / comptable : mots-clés dans mcp / mcc
-
-Une ardoise conserve,
-- tous les échanges de moins de 90 jours,
-- au moins les 10 derniers quels qu'en soit la date.
-
 ## Table `avrsa` : CP `id`. Clé publique RSA des avatars
-Cette table donne la clé RSA (publique) obtenue à la création de l'avatar : elle permet d'inviter un avatar à être contact fort ou à devenir membre d'un groupe.
+Cette table donne la clé RSA (publique) obtenue à la création de l'avatar : elle permet d'inviter un avatar à être contact ou à devenir membre d'un groupe.
 
 Table :
 
@@ -321,6 +283,7 @@ Chaque avatar a un row dans cette table :
 - sa dernière signature de connexion,
 - sa carte de visite,
 - la liste de ses groupes (avec leur nom et clé).
+- la liste des couples dont il fait partie (avec leur clé).
 
 **Un avatar supprimé logiquement** n'a plus que les colonnes:
 - `id`
@@ -340,6 +303,7 @@ Table :
     "mxic"  INTEGER,
     "cva"	BLOB,
     "lgrk" BLOB,
+    "lcck"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
@@ -353,19 +317,77 @@ Table :
 - `st` : négatif : l'avatar est supprimé / disparu (les autres colonnes sont à null). 
 - `vcv` : version de la carte de visite (séquence 0).
 - `dds` :
-- `mxic` : indice du dernier contact (attribution en séquence croissante).
 - `cva` : carte de visite de l'avatar cryptée par la clé de l'avatar `[photo, info]`.
 - `lgrk` : map :
   - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue sur `invitgr`.
   - _valeur_ : cryptée par la clé K du compte de `[nom, rnd, im]` reçu sur `invitgr`.
   - une entrée est effacée par la résiliation du membre au groupe ou sur refus de l'invitation (ce qui lui empêche de continuer à utiliser la clé du groupe).
+- `lcck` : map :
+  - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue sur `invitct`.
+    - un `ni` impair signifie que l'avatar est représentée par la partie (1) du couple, sinon c'est la partie (2).
+  - _valeur_ : cryptée par la clé K du compte de `[cc]` reçu sur `invitct`.
 - `vsh`
 
-La lecture de `avatar` permet d'obtenir la liste des groupes dont il est membre.
+La lecture de `avatar` permet d'obtenir,
+- la liste des groupes dont il est membre,
+- la liste des couples dont il fait partie.
 
 Sur GC quotidien sur `dds` : 
 - mise à jour du statut `st` : jour (en négatif) de sa disparition logique.
-- purge / suppression des rows `contact secret parrain rencontre avrsa` pour les disparus.
+- purge / suppression des rows `secret parrain rencontre avrsa` pour les disparus.
+
+### Table `couple` : CP id. Couple de deux avatars
+Deux avatars A1 et A2 peuvent décider de former un **couple** dès lors que A1 a invité A2 et que A2 a accepté :
+- un couple constitué cesse d'exister quand :
+  - les deux avatars sont détectés disparus,
+  - l'un _puis_ l'autre ont décidé de rompre.
+- dans le cas d'une rupture explicite de A1 (par exemple) ou de sa disparition, A2 reste le seul dans le couple : 
+  - il conserve l'accès aux secrets du couple.
+  - le couple disparaît si lui-même A2 le décide ou qu'il disparaît à son tour.
+- A1 et A2 peuvent au cours du temps ou à un instant donné, former plus d'un couple (pourquoi pas un couple _amical_ et un couple _professionnel_).
+
+En début de session l'avatar A1 (par exemple) signe son accès au couple qui restera donc vivant pendant N jours (les secrets sont conservés).
+
+**Un couple partage :**
+- une **ardoise** commune de quelques lignes (toujours active),
+- des **secrets** de couple :
+  - les deux parties peuvent a priori en créer et les mettre à jour, sauf décision d'exclusivité (voir les secrets).
+  - si l'une ou l'autre partie refuse le partage de secrets, ceux existants restent lisibles mais il n'est pas possible de les mettre à jour, ni d'en créer de nouveaux.
+  - un secret est décompté sur les deux comptes (du moins tant que le couple a toujours deux parties).
+
+La partie (1) d'un couple est celle qui a invité la partie (2) : un couple peut donc avoir à instant donné,
+- une partie (1) et une partie (2),
+- une partie (1) seulement,
+- une partie (2) seulement.
+
+Un couple est déclaré avec :
+- une clé `cc` (aléatoire de 32 bytes) cryptant les données communes dont les secrets du couple.
+- une `id` qui est le hash de cette clé.
+
+Un couple est connu dans chaque avatar A1 et A2 par une entrée dans leurs maps respectives `lcck` : les clés dans ces maps sont des numéros aléatoires dit _d'invitation_.
+
+
+
+- `id` : id du couple
+- `v` :
+- `st` : 
+  - _négatif_ : suppression logique au jour J par le GC.
+  - _positif_ : deux chiffres `st1 st2` relatifs chacun à A1 et A2. Par exemple pour `st1` :
+    - 0 : non existant - toutes les données marquées "2" sont absentes
+    - 1 : existant mais n'accepte pas le partage de secrets.
+    - 2 : existant et accepte le partage de secrets.
+- `dds` : dernière date de signature de A1 ou A2 (maintient le couple envie).
+- `datac` : données cryptées par la clé `cc` du couple :
+  - `[[nom rnd idc ni], [nom rnd idc ni]]`. Pour le premier terme, l'invitant A1 par exemple :
+    - `nom rnd` : de A2, donne aussi la clé d'accès à la carte de visite de **A2**.
+    - `idc` : id du compte de A2 afin d'imputer les secrets aussi au compte de **A2**,
+    - `ni` : numéro d'invitation, clé d'entrée de la map `lcck` pour le couple dans l'avatar **A1**.
+  - on peut avoir `[[...], [...]]` ou `[null, [...]]` ou `[[...], null]`
+- `infok1 infok2` : commentaires cryptés par leur clé K, respectivement de A1 et A2.
+- `mc1 mc2` : mots clé définis respectivement par A1 et A2.
+- `ardc` : ardoise commune cryptée par la clé cc.
+
+
 
 ### Table `contact` : CP `id ic`. Contact d'un avatar A
 Un contact entre A et B est créé par exemple à l'initiative de A et a deux exemplaires : l'un dont l'id est celle de A, l'autre dont l'id est celle de B :
@@ -939,60 +961,53 @@ Pour utilisation pour filtrer une liste de secrets dans un groupe :
 - sinon ce sont les mots clés du groupe.
 - ainsi le groupe peut avoir indiqué que le secret est _nouveau_ et _important_, mais si le compte A a indiqué que le secret est _lu_ et _sans intérêt_ c'est ceci qui sera utilisé pour filtrer les listes.
 
-# Gestion des disparitions
-Les ouvertures de session *signent* dans les tables `compta avatar groupe`, colonne `dds`, les rows relatifs aux compte, avatars du compte et groupes accédés par le compte.
+# Gestion des disparitions / résilations
+**Les ouvertures de session** *signent* dans les tables `compta avatar groupe`, colonne `dds`, les rows relatifs aux compte, avatars du compte et groupes accédés par le compte. Cette signature toutefois n'a pas lieu si dans le row `compta` le groupe est marqué _en sursis_.
 
-Une disparition est détectée dès lors que le GC quotidien détecte des `dds` trop vieilles.
+**La fin d'hébergement d'un groupe** provoque l'inscription de la date du jour dans la propriété `dfh` du row groupe (sinon elle est à zéro).
 
-## Disparition des comptes
-La détection par `dds` trop ancienne d'un **compte** détruit son row dans `compte compta prefs ardoise`.
+Enfin les rows parrain rencontre ont une date-limite de validité `dlv`.
 
-Un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures.
+## GC quotidien
+Le GC quotidien effectue les activités de nettoyage suivantes :
+- purge physique des rows compte compta prefs ardoise sur dépassement de la dds + N1 jours du row compte. Ceci empêche le login sur ces comptes.
+- suppression logique des rows avatar sur dépassement de leur dds + N1 jours et purge physique des rows contact secret de même id.
+- suppression logique des rows groupe sur dépassement de leur dds + N1 jours ou de leur dfh + N2 jours et purge physique des rows membre secret de même id.
+- suppression physique des rows parrain rencontre sur dépassement de leur dlv.
 
-Le compte n'étant plus accessible, ses avatars ne seront plus signés ni les groupes auxquels il accédait.
+**_Remarque_** : un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures. Le compte n'étant plus accessible, ses avatars ne seront plus signés ni les groupes auxquels il accédait.
 
-## Disparition des groupes
-Par construction s'il avait existé encore un avatar dont l'accès au groupe n'est pas résilié, le groupe aurait été signé lors de la connexion du compte de cet avatar : un groupe de signature ancienne n'est donc par principe plus référencé.
+#### Rows `secret` et leurs pièces jointes
+Pour chaque secret détruit il faut aussi détruire ses pièces jointes. Or ceci ne peut pas s'effectuer dans la même transaction puisque affectant un espace de stockage séparé non lés au commit de la base.
+- un row portant l'identification du secret [id, ns] est inséré dans une table d'attente dès lors que son volume v2 n'est pas 0.
+- le GC purge ensuite toutes les pièces jointes de l'espace secondaire.
 
-La détection par `dds` trop ancienne d'un **groupe** détruit ses rows dans les tables `groupe membre secret`.
+**_Remarque_** : concernant les secrets de couple comment faire puisque les pièces jointes peuvent être référencées sous l'id de l'autre dans le couple ?
 
-_Remarque_ : quand le dernier avatar ayant accès à un groupe _disparaît_, le groupe va finir par disparaître faute de ne plus être signé. Les données vont finir par être purgées, mais ça va prendre du temps. Avec la résiliation explicitement demandée (suppression du groupe), c'est différent : la purge des données ci-dessus peut être immédiate.
+#### Rows contact membre et le statut _disparu_
+La disparition d'un contact ou d'un membre est constaté en session quand la carte de visite du contact ou du membre est demandée : elle revient alors à null avec un statut _disparu_.
+- cette constatation n'est pas pérenne sur le long terme: au bout d'un certain temps, la carte de visite ne revient pas du tout du serveur et il est impossible à une session de discerner si c'est parce qu'elle est inchangée ou disparue.
+- chaque session constatant une carte de visite _disparu_ pour un contact ou un membre, fait inscrire sur le serveur le statut disparu sur le contact ou le membre :
+  - ceci évite aux autres sessions de procéder à la même opération.
+  - les cartes de visite des contact membre disparus ne sont plus demandées par les sessions (ce qui réduit le trafic et les recherches inutiles en base centrale).
 
-## Disparition des avatars
-La détection s'effectue par le GC quotidien sur recherche des `dds` trop ancienne dans la table `avatar`.
+## Disparition _explicite_ d'un groupe
+Il n'y a pas d'opération de destruction d'un groupe mais des résiliations et auto-résiliations : quand il ne reste plus de membres _actifs_ dans un groupe,
+- il ne peut plus être signé au login : il disparaîtrait de lui-même, à minima sur dépassement de dds / dfh.
+- cette disparition peut être _accélérée_ en fixant une dds fictive -1 qui provoquera la disparition au prochain GC.
 
-Par principe un avatar est détecté disparu après la détection de la disparition de son compte. Il s'agit donc de purger les données.
+## Disparition _explicite_ d'un avatar
+C'est une opération _longue_ :
+- fin / transfert d'hébergement sur tous les groupes hébergés par le compte de l'avatar :
+  - soit un transfert sur un autre avatar du même compte pour autant qu'il y en ait un qui soit aussi membre du groupe.
+  - soit une fin d'hébergement.
+  - le choix (quand il y en un) est interactif.
+- mise à jour de son statut disparu sur les groupes dont il est membre.
+- mise à jour de son statut disparu sur ses contacts.
 
-### Purge des données identifiées par l'id de l'avatar
-- destruction des rows les tables `avrsa avatar contact invitgr parrain rencontre secret`.
+Le row avatar peut être mis en suppression logique : si possible fait par le prochain GC
 
-Dès cet instant le volume occupé est récupéré.
-
-### Mise à jour des références chez les autres comptes
-Un avatar _disparu_ D reste toutefois encore _référencé_ dans des rows :
-- `parrain rencontre invitgr` : la date limite de validité a déjà résolu la question, les rows ont _déjà_ été détruits.
-- `contact` : autres avatars l'ayant en contact.
-- `membre` : groupes l'ayant pour membre.  
-
-#### contacts
-Quand une session d'un avatar A synchronise les cartes de visite elle a connaissance par la carte de visite de D que cet avatar a disparu : le row `contact` correspondant a son statut mis à jour (disparu). 
-
-Il n'y a pas de raisons pour que les secrets partagés avec D (et dédoublés) disparaissent aussi.
-
-Le row contact garde une trace historique mais sur demande du compte, un contact _disparu_ peut être _oublié_ :
-- le row `contact` a un statut supprimé (`st` < 0).
-- tous les `secret` de l'avatar portant ce numéro de contact sont détruits.
-
-#### membres
-Pour chaque groupe accédé par l'avatar :
-- le row `membre` de D (s'il existe) a son statut mis à jour à _disparu_. 
-- sur demande d'un compte animateur du groupe, le row pourrait être marqué _supprimé_ pour _nettoyer_ la liste des membres : mais des secrets du groupe peuvent continuer à référencer ce membre comme auteur. Ne pas nettoyer dans ce cas ?
-
-Dans la session la carte de visite est supprimée, elle ne sera plus synchronisée.
-
-Les références peuvent mettre longtemps a être mises à jour, tous les comptes référençant l'avatar D ayant à être ouverts (ou disparaissant eux-mêmes).
-
-## Secrets de couple A / B
+# Secrets de couple A / B
 ### A et B acceptent le partage de secrets
 Les volumes sont décomptés sur A et sur sur B, pour v1 comme pour v2, justement parce qu'ils peuvent en toute indépendance détruire leur exemplaire.
 
@@ -1009,42 +1024,3 @@ Si B **détruit** son exemplaire :
 - seuls les mots-clés de chacun peuvent changer afin de pouvoir les filtrer en sélection.
 
 Le secret ne redevient normal que si les A et B acceptent le partage de secrets.
-
-## Echanges sur les ardoises des comptes
-
-Un échange est identifié par :
-- idt : le titulaire de l'ardoise,
-- idp : son parrain au moment de l'écriture (s'il en avait un) - celui qui en a eu copie ou qui l'a écrit
-- dh : sa date-heure d'écriture
-- em: son auteur. 0:titulaire de l'ardoise, 1:parrain du compte, 2:comptable
-
-Propriétés
-- dhlt: dh de lecture par le titulaire : 0 quand c'est le titulaire qui est l'auteur
-- dhlp: dh de lecture par le parrain : 0 quand idp est 0 (pas de parrain)
-- dhlc: dh de lecture par comptable : 0 quand le comptable est l'auteur
-- texte: son texte
-
-L'inscription d'un échange d'une ardoise d'un compte ayant un parrain, est dupliquée sur l'ardoise du parrain;
-
-Sur l'ardoise d'un compte ayant un parrain:
-- tous les échanges ont pour idt le numéro de son compte : 0 pour simplifier.
-
-Sur l'ardoise d'un parrain:
-- les échanges ayant pour idt le numéro du compte sont ceux du compte : 0 pour simplifier.
-- les échanges ayant pour idt nf, sont des copies d'échanges de l'ardoise du compte filleul nf (dont il était parrain à dh).
-
-La lecture d'un message :
-  - écrit par le titulaire
-    - lecture par un compatble : notée sur l'ardoise du titulaire + l'ardoise de son parrain s'i le titulaire en avait un
-    - lecture par le parrain: notée sur l'ardoise du titulaire + l'ardoise du parrain
-  - écrit par le parrain
-    - lecture par le titulaire : notée sur l'ardoise du titulaire + l'ardoise du parrain
-    - lecture par un comptable : notée sur l'ardoise du titulaire + l'ardoise du parrain
-  - écrit par un comptable
-    - lecture par le titulaire : notée sur l'ardoise du titulaire + l'ardoise de son parrain s'i le titulaire en avait un
-    - lecture par le parrain : notée sur l'ardoise du titulaire + l'ardoise du parrain
-
-Quand un compte déclare avoir lu son ardoise :
-- scan de tous les échanges non lus par lui et actions ci-dessus
-- pour un _filleul_ deux ardoises (au moins) : la sienne et celle(s) de son(ses) parrain(s)
-- pour un parrain : N ardoises. La sienne + toutes celles des filleuls dont il n'avait pas encore lu les échanges.
