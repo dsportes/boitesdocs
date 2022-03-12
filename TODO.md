@@ -8,6 +8,8 @@ Clavier virtuel optionnel pour saisie de la phrase secrète.
 
 A l'écran le nom est affiché sous la forme `nom@abgh` ou `ab` sont les deux premiers caractères de l'id en base64 et `gh` les deux derniers.
 
+Sur création d'un groupe le dialogue ne se ferme pas après création.
+
 ## Secrets
 - gestion exclusivité / protection. Dialogue : affiche les membres pour secrets de groupe
 - suppression. Pour un couple affichage que l'autre exemplaire est supprimé

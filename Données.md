@@ -300,7 +300,6 @@ Table :
     "st"  INTEGER,
     "vcv" INTEGER,
     "dds" INTEGER,
-    "mxic"  INTEGER,
     "cva"	BLOB,
     "lgrk" BLOB,
     "lcck"  BLOB,
@@ -323,9 +322,9 @@ Table :
   - _valeur_ : cryptée par la clé K du compte de `[nom, rnd, im]` reçu sur `invitgr`.
   - une entrée est effacée par la résiliation du membre au groupe ou sur refus de l'invitation (ce qui lui empêche de continuer à utiliser la clé du groupe).
 - `lcck` : map :
-  - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue sur `invitct`.
+  - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue à la création ou prise de contact.
     - un `ni` impair signifie que l'avatar est représentée par la partie (1) du couple, sinon c'est la partie (2).
-  - _valeur_ : cryptée par la clé K du compte de `[cc]` reçu sur `invitct`.
+  - _valeur_ : cryptée par la clé K du compte de la clé du couple `cc`.
 - `vsh`
 
 La lecture de `avatar` permet d'obtenir,
@@ -337,25 +336,27 @@ Sur GC quotidien sur `dds` :
 - purge / suppression des rows `secret parrain rencontre avrsa` pour les disparus.
 
 ### Table `couple` : CP id. Couple de deux avatars
-Deux avatars A1 et A2 peuvent décider de former un **couple** dès lors que A1 a invité A2 et que A2 a accepté :
+Deux avatars A1 et A2 peuvent décider de former un **couple** dès lors que A1 a pris contact avec A2 et que A2 a accepté :
 - un couple constitué cesse d'exister quand :
   - les deux avatars sont détectés disparus,
   - l'un _puis_ l'autre ont décidé de rompre.
 - dans le cas d'une rupture explicite de A1 (par exemple) ou de sa disparition, A2 reste le seul dans le couple : 
   - il conserve l'accès aux secrets du couple.
-  - le couple disparaît si lui-même A2 le décide ou qu'il disparaît à son tour.
+  - le couple disparaît si A2 décide de quitter le couple ou qu'il disparaît à son tour.
 - A1 et A2 peuvent au cours du temps ou à un instant donné, former plus d'un couple (pourquoi pas un couple _amical_ et un couple _professionnel_).
+- un couple qui a été formé (ou pris contact) entre 2 avatars A1 et A2 ne peut jamais se reformer avec un troisième avatar A3.
 
-En début de session l'avatar A1 (par exemple) signe son accès au couple qui restera donc vivant pendant N jours (les secrets sont conservés).
+**Signature de début de session**  
+En début de session l'avatar A1 (par exemple) signe son accès au couple qui restera donc vivant pendant N jours (les secrets sont conservés). Quand une signature est récente, une nouvelle session ne signe pas.
 
 **Un couple partage :**
 - une **ardoise** commune de quelques lignes (toujours active),
 - des **secrets** de couple :
   - les deux parties peuvent a priori en créer et les mettre à jour, sauf décision d'exclusivité (voir les secrets).
-  - si l'une ou l'autre partie refuse le partage de secrets, ceux existants restent lisibles mais il n'est pas possible de les mettre à jour, ni d'en créer de nouveaux.
-  - un secret est décompté sur les deux comptes (du moins tant que le couple a toujours deux parties).
+  - si l'une ou l'autre partie _refuse le partage de secrets_, ceux existants restent lisibles mais il ne lui est plus possible de les mettre à jour, ni d'en créer de nouveaux.
+  - les volumes d'un secret sont décomptés sur les deux comptes (du moins tant que le couple a toujours deux parties). Le couple conserve le total courant des volumes de secrets.
 
-La partie (1) d'un couple est celle qui a invité la partie (2) : un couple peut donc avoir à instant donné,
+La partie (1) d'un couple est celle qui a pris l'initiative du contact : un couple peut donc avoir à instant donné,
 - une partie (1) et une partie (2),
 - une partie (1) seulement,
 - une partie (2) seulement.
@@ -366,241 +367,232 @@ Un couple est déclaré avec :
 
 Un couple est connu dans chaque avatar A1 et A2 par une entrée dans leurs maps respectives `lcck` : les clés dans ces maps sont des numéros aléatoires dit _d'invitation_.
 
+#### Prises de contact
+Il y a 3 moyens pour A1 de prendre contact :
+- standard: A1 connaît l'identification de A2, 
+  - soit parce que A2 est un membre d'un groupe G dont A1 est membre aussi,
+  - soit parce que A2 est membre d'un groupe G dont un autre avatar du compte de A1 est membre,
+  - soit parce que A2 est en couple avec un autre avatar du compte de A1.
+- par phrase de contact : déclarée par A1, elle permet,
+  - à A1 d'identifier le couple potentiel qu'il va former avec A2 dans sa liste de couple,
+  - à A2 de retrouver ce couple en saisissant la phrase,
+  - par sécurité la phrase a une durée de vie limitée : faute d'avaoir été citée par A2 dans le délai imparti elle est caduque et le couple n'est pas confirmé.
 
+Le contact par phrase de contact est utilisé dans les deux cas suivants :
+- parrainage : de A2 par A1. A2 _est connu_ de A1 qui lui a créé son identification de compte et de premier avatar, mais rien ne dit que A2 va effectivement valider la création de son compte. 
+- rencontre : 
+  - soit A1 a rencontré A2 dans la vraie vie et ils ont convenu d'une phrase de contact,
+  - soit un intermédiaire qui connaît A1 et A2 et leur a communiqué à chacun la même phrase de prise de contact. 
+
+#### Phases de vie d'un couple
+- **(1) prise de contact par A1**. A1 est bien connu mais A2 est, soit encore inconnu (_rencontre_), soit connu, et dans les deux cas n'a (encore) validé sa participation au couple.
+  - le refus amène le couple en phase 2.
+  - l'acceptation amène le couple en phase 3.
+- **(2) fin de vie de A1 seul après refus de A2**. A1 et A2 se sont bien identifiés mais A2 a _refusé_ ce contact initial. A1 peut prendre connaissance de la cause de refus dans l'ardoise du couple puis quittera le couple. Cette phase est passive, le couple est figé.
+- **(3) vie à deux**. A1 et A2 se connaissent et participent à la vie du couple :
+  - en écrivant sur l'ardoise,
+  - en créant et mettant à jour des secrets partagés si les deux l'acceptent.
+  - la sortie de cette phase peut être causée par :
+    - le fait que l'un des deux quitte le couple : phase 4.
+    - le fait que l'un des deux disparaisse : phase 5
+- **(4) vie de A1 OU A2 seul après _départ_ de l'autre**. Celui qui a quitté ne _connaît plus le couple_. Celui qui reste le connaît encore et peut :
+  - continuer à faire vivre les secrets,
+  - tenter une _reprise de contact_ avec celui qui a quitté (mais ce dernier n'est pas obligé d'accepter), ce qui ramènerait le couple en phase 3.
+- **(5) vie de A1 OU A2 seul après _disparition_ de l'autre**. Celui qui reste connaît encore son identité (bien que disparu) mais plus sa carte de visite. Il peut continuer à faire vivre les secrets.
+  - si celui qui reste quitte le couple, celui-ci est détruit.
+  - si celui qui reste disparaît pour non activité, le couple s'auto-détruira au bout d'un certain temps (il n'est plus signé).
+
+Dans certaines de ces phases il y a des états particuliers différents (sinon 0).
+- **(1) prise de contact par A1**
+  - (1) : prise de contact standard en cours
+  - (2) : parrainage en cours
+  - (3) : rencontre en cours
+- **(4) vie de A1 OU A2 seul après _départ_ de l'autre**
+  - (1) : reprise de contact en cours
+
+
+#### Partage de secrets
+**En phase 3** A1 et A2 partagent les secrets dont les volumes sont supportées par **les deux**.
+
+Chacun peut fixer une limite maximale de v1 et v2 : les créations et mises à jour de secrets sont bloquées dès qu'elles risquent de dépasser la plus faible des deux limites.
+
+#### Départ d'un couple et reprise de contact
+En phase 3, le départ, par exemple de A1 a les conséquences suivantes :
+- A1 récupère le volume courant du couple,
+- A1 ne connaît plus le couple et ne peut plus ni lire ni accéder aux secrets du couple,
+- les volumes maximum de A1 sont non significatifs (remis à 0)
+
+En phase 4, une _reprise de contact_ (acceptée) par exemple de A1 a les conséquences suivantes :
+- A1 se voit imputer les volumes courants,
+- A1 refixe ses contraintes de volumes maximaux ce qui peut bloquer les créations et les mises à jour en expansion des secrets.
+
+Table :
+
+    CREATE TABLE "couple" (
+    "id"   INTEGER,
+    "v"  	INTEGER,
+    "st" INTEGER,
+    "dds" INTEGER,
+    "v1"  INTEGER,
+    "v2"  INTEGER,
+    "mx11"  INTEGER,
+    "mx21"  INTEGER,
+    "mx12"  INTEGER,
+    "mx22"  INTEGER,
+    "dlv"	INTEGER,
+    "datap"  BLOB,
+    "infok1"	BLOB,
+    "infok2"	BLOB,
+    "mc1"	BLOB,
+    "mc2"  BLOB,
+    "ardc"	BLOB,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id"));
+    CREATE INDEX "id_v_couple" ON "couple" ( "id", "v" );
+    CREATE INDEX "st_couplet" ON "couple" ( "st" ) WHERE "st" < 0;
 
 - `id` : id du couple
 - `v` :
 - `st` : 
   - _négatif_ : suppression logique au jour J par le GC.
-  - _positif_ : deux chiffres `st1 st2` relatifs chacun à A1 et A2. Par exemple pour `st1` :
-    - 0 : non existant - toutes les données marquées "2" sont absentes
-    - 1 : existant mais n'accepte pas le partage de secrets.
-    - 2 : existant et accepte le partage de secrets.
+  - _positif_ : deux chiffres `phase / état`
 - `dds` : dernière date de signature de A1 ou A2 (maintient le couple envie).
+- `v1 v2` : volumes actuels des secrets.
+- `mx11 mx21` : maximum des volumes autorisés pour A1
+- `mx12 mx22` : maximum des volumes autorisés pour A2
+- `dlv` : date limite de validité éventuelle de la phase 1.
 - `datac` : données cryptées par la clé `cc` du couple :
-  - `[[nom rnd idc ni], [nom rnd idc ni]]`. Pour le premier terme, l'invitant A1 par exemple :
-    - `nom rnd` : de A2, donne aussi la clé d'accès à la carte de visite de **A2**.
-    - `idc` : id du compte de A2 afin d'imputer les secrets aussi au compte de **A2**,
-    - `ni` : numéro d'invitation, clé d'entrée de la map `lcck` pour le couple dans l'avatar **A1**.
-  - on peut avoir `[[...], [...]]` ou `[null, [...]]` ou `[[...], null]`
+  - `nom1 rnd1 nom2 rnd2` : nom et clé d'accès à la carte de visite de A1 et A2.
+  - `idc1 idc2` : id des comptes de A1 et A2 afin d'imputer les volumes des secrets.,
+  - `ni1 ni2` : numéro d'invitation, clé d'entrée de la map `lcck` pour le couple dans les avatars A1 et A2.
+  - `phrase` : phrase de contact en phases 1-2 et 1-3 (nécessite une phrase).
+  - `f1 f2` : en phase 1-2 (parrainage), forfaits attribués par le parrain A1 à son filleul A2.
 - `infok1 infok2` : commentaires cryptés par leur clé K, respectivement de A1 et A2.
 - `mc1 mc2` : mots clé définis respectivement par A1 et A2.
 - `ardc` : ardoise commune cryptée par la clé cc.
+- `vsh` :
 
+La **suppression (logique)** d'un couple consiste à ne laisser que les propriétés suivantes :
+- `id`
+- `v`
+- `st` : contient en négatif le jour de suppression.
+- toutes les autres sont null
+- le row est désormais immuable (`v` ne changera plus).
+- tous les row `secret` ayant pour id le couple supprimé sont physiquement supprimés à la suppression logique du couple
 
+La **purge physique** d'un row supprimé logiquement intervient N2 jours après `st` (jour de suppression logique).
 
-### Table `contact` : CP `id ic`. Contact d'un avatar A
-Un contact entre A et B est créé par exemple à l'initiative de A et a deux exemplaires : l'un dont l'id est celle de A, l'autre dont l'id est celle de B :
-- `ic` de `C[a]`, l'indice du contact B chez A.
-- `ic` de `C[b]`, l'indice du contact de A chez B.
+Quand c'est le GC qui a effectué le row `avatar` qui le référence dans `lcck` est mis à jour (opération `regulCC`),
+- soit suite à une synchro,
+- soit au prochain login,
+- l'entrée dans `lcck` correspondant au couple supprimé est détruite.
 
-L'opération de création vérifie que le contact C[b] n'existe pas afin de se prémunir contre une création parallèle de deux sessions du compte A. 
-- les ic respectifs sont égaux aux mxic + 1 des deux avatars.
-- la clé `cc` du couple est tirée au hasard.
-- deux contacts `C[a]` et `C[b]` sont créés :
-  - dans `C[b]` `data` contient :
-    - le `nom rnd` de A,
-    - la clé `cc`,
-    - l'indice `ic` du contact chez A qui permet donc à B d'accéder au contact `C[a]`
-    - `data` est crypté par la **clé publique de B**.
-    - `mc` contient une seule valeur 255 qui signifie *nouveau*.
-  - dans `C[a]` `data` contient :]
-    - le `nom rnd` de B,
-    - la clé `cc`,
-    - l'indice `ic` du contact chez B qui permet à A d'accéder au contact `C[b]`
-    - `data` est crypté par la **clé K du compte de A**.
-
-Juste avant d'émettre une opération de création, la session du compte de A vérifie qu'il n'existe aucun contact C dont le `data.[nom rnd]` correspond à l'id de B : en effet B *pourrait* avoir devancé de peu A et créé le contact qui est parvenu par synchronisation à A pendant le processus de création.
-
-Quand une session de B obtient par chargement initial ou synchronisation le *nouveau* contact `C[b]` elle poste immédiatement une opération `regulCT` qui remplace le `datap` par le même contenu crypté par sa clé K `datak`, `datap` passant à null.
-- `datap / datak` sont immuables après création, de même que l'identifiant `id ic`.
-- en session et en base locale, `datap` n'existe jamais et `datak` est décryptée en `data`.
-
-
-**Statuts réciproques x/y**
-- le statut `xy` de C[a] est égal au statut `yx` de C[b]
-- `x` prend 3 valeurs (par exemple pour C[a]):
-  0: A n'accepte pas le partage de secrets avec B.
-  1: A accepte le partage de secrets avec B.
-  2: A a disparu. Ce statut ne peut apparaître qu'en position `y` (l'avatar disparu n'ayant plus de contacts).
-
-Tant que A et B n'ont pas disparu, un contact reste éternel, mais A par exemple :
-- peut arrêter d'accepter de partager des secrets (voir n'avoir jamais accepté),
-- peut ne pas lire l'ardoise commune,
-- peut mettre sur le contact un mot clé *liste noire* qui fait que le contact avec B n'apparaîtra plus dans ses listes à l'écran (jusqu'à levée éventuelle de ce mot clé). 
-
-> La clé `cc` relative à un couple A/B ne doit jamais disparaître avant que A et B n'aient disparu : elle crypte leurs secrets partagés.
-
-Un contact permet de partager par **l'ardoise** un court texte entre A et B pour justifier d'un changement de statut ou n'importe quoi d'autre : en particulier quand A n'accepte pas / plus le partage de secrets avec B par exemple, c'est le seul moyen pour passer une courte information mutuelle qui n'encombre pas leurs volumes respectifs.
+### Table `contactstd` : CP `id ni`. Prise / reprise de contact standard de A1 avec A2
+Les contacts standard en attente sont visibles en session pour l'avatar cible qui peut les afficher (en particulier les données du couple en attente), l'accepter ou la refuser.
+- dans les deux cas le row `contactstd` est détruit.
+- en cas de non réponse, le GC détruit le row après dépassement de la `dlv`.
 
 Table :
 
-    CREATE TABLE "contact" (
+    CREATE TABLE "contactstd" (
     "id"   INTEGER,
-    "ic"	INTEGER,
-    "v"  	INTEGER,
-    "st" INTEGER,
-    "nccc"	BLOB,
-    "ardc"	BLOB,
-    "datap"  BLOB
-    "datak"	BLOB,
-    "mc"  BLOB,
-    "infok"	BLOB,
-    "vsh"	INTEGER,
-    PRIMARY KEY("id", "ic"));
-    CREATE INDEX "id_v_contact" ON "contact" ( "id", "v" );
-    CREATE INDEX "st_contact" ON "contact" ( "st" ) WHERE "st" < 0;
+    "ni"  	INTEGER,
+    "v" INTEGER,
+    "dlv"	INTEGER,
+    "ccp"  BLOB,
+    PRIMARY KEY("id", "ni"));
+    CREATE INDEX "dlv_contactstd" ON "contactstd" ( "dlv" );
 
-- `id` : id de l'avatar A
-- `ic` : indice de contact de B pour A.
+- `id` : id de A2
+- `ni` : ni de A2 dans le couple
 - `v` :
-- `st` : statut entier de 2 chiffres, `xy` : `xy` dans le contact de A est `yx` dans le contact de B.
-  - `x` : `x` c'est LE COMPTE, `y` c'est l'autre (le contact).
-    - 0 : n'accepte pas le partage de secrets.
-    - 1 : accepte le partage de secrets.
-    - 2 : présumé disparu
-- `nccc` : numéro de compte de l'avatar contact **si le contact accepte le partage de secrets** (y vaut 1, redondance assumée), crypté par la clé `cc`. 
-- `ardc` : **ardoise** partagée entre A et B cryptée par la clé `cc` associée au contact _fort_ avec un avatar B. Couple `[dh, texte]`.
-- `datak` : information cryptée par la clé K de A.
-  - `nom rnd ic` : nom complet du contact (B) et son indice chez lui.
-  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B.
-  - `idcf` : si ce contact est un avatar d'un compte filleul, `id` du compte filleul.
-- `datap` : mêmes données que `datak` mais cryptées par la clé publique de A.
-- `mc` : mots clés à propos du contact.
-- `infok` : commentaire à propos du contact crypté par la clé K du membre.
-- `vsh`
+- `dlv`
+- `ccp` : clé du couple (donne son id) cryptée par la clé publique de A2
 
-Un contact est **purgé** quand son avatar est supprimé logiquement.
+#### Prise de contact initiale par A1 avec A2
+- A1 peut détruire physiquement son row avant acceptation / refus (remord).
+- A1 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
 
-### Table `parrain` : CP `pph`. Parrainage par P de la création d'un compte F 
+**Si A2 refuse le contact :** 
+- L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
+- Le row `contactstd` est supprimé. 
 
-F est un *inconnu* n'ayant pas encore de compte.
+**Si A2 ne fait rien à temps :** 
+- Lors du GC sur la `dlv`, le row `contactstd` sera supprimé par GC de la `dlv`.
+- la phase du couple sera automatiquement mutée à 2 (détection dans `couple` de `dlv` dépassée) lors d'un login de A1.
 
-Comme il va y avoir un don de forfaits du *parrain* vers son *filleul*, ces deux-là vont être contact. Toutefois,
-- P peut indiquer que son contact est sans partage de secrets.
-- F pourra indiquer que son contact est sans partage de secrets.
+**Si A2 accepte le contact :** 
+- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixées.
 
-Le parrain fixe l'avatar filleul (donc son nom). Le filleul établira le contact lors de son acceptation du parrainage.
+#### Reprise de contact par A1 avec A2
+- A1 peut détruire physiquement son row avant acceptation / refus (remord).
+- A1 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
 
-Un parrainage est identifié par le hash du PBKFD de la phrase de parrainage pour être retrouvée par le filleul.
+**Si A2 refuse la reprise de contact :** 
+- L'ardoise du `couple` contient une justification / remerciement du refus, la phase repasse à 4-0.
+- Le row `contactstd` est supprimé. 
 
-    CREATE TABLE "parrain" (
-    "pph"  INTEGER,
-    "id" INTEGER,
-    "v"   INTEGER,
-    "dlv"  INTEGER,
-    "st"  INTEGER,
-    "f1" INTEGER,
-    "f2" INTEGER,
-    "datak"  BLOB,
-    "datax"  BLOB,
-    "data2k"  BLOB,
-    "ardc"  BLOB,
-    "vsh"	INTEGER,
-    PRIMARY KEY("pph")
-    ) WITHOUT ROWID;
-    CREATE INDEX "dlv_parrain" ON "parrain" ( "dlv" );
-    CREATE INDEX "id_parrain" ON "parrain" ( "id" );
+**Si A2 ne fait rien à temps :** 
+- Lors du GC sur la `dlv`, le row `contactstd` sera supprimé par GC de la `dlv`.
+- la phase du couple sera automatiquement mutée à 4-0 (détection dans `couple` de `dlv` dépassée) lors d'un login de A1.
 
-- `pph` : hash du PBKFD de la phrase de parrainage.
-- `id` : id du parrain.
-- `v`
-- `dlv` : la date limite de validité permettant de purger les parrainages (quels qu'en soient les statuts).
-- `st` : < 0: supprimé,
-  - 0: en attente de décision de F
-  - 1 : refusé
-  - 2 : accepté avec partage
-  - 3 : accepté sans partage
-  - 4 : remord du parrain, le parrainage est suspendu.
-- `datak` : cryptée par la clé K du parrain, **phrase de parrainage et clé X** (PBKFD de la phrase). La clé X figure afin de ne pas avoir à recalculer un PBKFD en session du parrain pour qu'il puisse afficher `datax`.
-- `datax` : données de l'invitation cryptées par le PBKFD de la phrase de parrainage.
-  - `idcp` : id du compte parrain.
-  - `idcf` : id du compte filleul.
-  - `nomp, rndp` : nom complet de l'avatar P.
-  - `nomf, rndf` : nom complet du filleul F.
-  - `cc` : clé `cc` générée par P pour le couple P / F.
-  - `aps` : `true` si le parrain accepte le partage de secrets.
-  - `f: [f1 f2]` : forfaits attribués par P à F.
-  - `r: [r1 r2]` : si non null, réserve attribuable aux filleuls si le compte _parrainé_ est en fait un _parrain_ lui-même.
-- `data2k` : c'est le `datak` du futur contact créé en cas d'acceptation.
-  - `nom rnd` : nom complet du contact (B).
-  - `cc` : 32 bytes aléatoires donnant la clé `cc` d'un contact avec B (en attente ou accepté).
-  - `icb` : indice de A dans les contacts de B : toujours 1, le parrain est par principe toujours le premier contact du filleul.
-  - `idcf` : id du compte filleul.
-- `ardc` : ardoise (couple `[dh, texte]` cryptée par la clé `cc`).
-  - du parrain, mot de bienvenue écrit par le parrain (cryptée par la clé `cc`).
-  - du filleul, explication du refus par le filleul (cryptée par la clé `cc`) quand il décline l'offre. Quand il accepte, ceci est inscrit sur l'ardoise de leur contact afin de ne pas disparaître.
-- `vsh`
+**Si A2 accepte le contact :** 
+- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixées.
 
-**Les forfaits sont prélevés sur la réserve du parrain lors de l'acceptation.** 
+### Table `contactphc` : CP `phh`. Prise de contact par phrase de contact de A2 par A1
+Les rows `contactphc` ne sont pas synchronisés en session : ils sont,
+- lus sur demande par A2,
+- supprimés physiquement éventuellement par A1 sur remord.
 
-**Si le filleul ne fait rien à temps : (`st` toujours à 0)** 
-- Lors du GC sur la `dlv`, le row `parrain` sera supprimé par GC de la `dlv`. 
+Ceci couvre les deux cas de parrainage et de rencontre.
+- pour un parrainage c'est sur la page de login que le filleul peut accéder à son parrainage, l'accepter ou le refuser.
+- pour une rencontre sur la page de l'avatar souhaitant la rencontre un bouton permet d'accéder à la rencontre et aux détails du couple pour accepter ou refuser.
+- dans les deux cas (acceptation / refus) le row `contactphc` est détruit.
+- en cas de non réponse, le GC détruit le row après dépassement de la `dlv`.
+
+Table :
+
+    CREATE TABLE "contactphc" (
+    "phch"   INTEGER,
+    "dlv"	INTEGER,
+    "ccx"  BLOB,
+    PRIMARY KEY("id", "ni"));
+    CREATE INDEX "dlv_contactphc" ON "contactphc" ( "dlv" );
+
+- `phch` : hash de la phrase de contact convenue entre le parrain A1 et son filleul A2 (s'il accepte)
+- `dlv`
+- `ccx` : clé du couple (donne son id) cryptée par le PBKFD de la phrase de contact
+
+#### Parrainage
+- Le parrain peut détruire physiquement son row avant acceptation / refus (remord).
+- Le parrain peut prolonger la date-limite d'un parrainage** (encore en attente), sa `dlv` est augmentée.
 
 **Si le filleul refuse le parrainage :** 
-- L'ardoise contient une justification / remerciement du refus.
-- Le row `parrain` sera supprimé à l'expiration de la `dlv`. 
+- L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
+- Le row `contactphc` est supprimé. 
 
-**Le parrain peut annuler son row avant acceptation / refus :** 
-- son `st` passe à 4.
-
-**Le parrain peut prolonger la date-limite d'un parrainage** (encore en attente), sa `dlv` est augmentée.
+**Si le filleul ne fait rien à temps :** 
+- Lors du GC sur la `dlv`, le row `contactphc` sera supprimé par GC de la `dlv`. 
 
 **Si le filleul accepte le parrainage :** 
-- Le filleul crée son compte et son premier avatar (dont il a reçu `nom rnd`).
+- Le filleul crée son compte et son premier avatar (il a dans couple l'id de son compte, `nom rnd ni` de son avatar).
 - sa ligne `compta` est créée et crédités des forfaits attribués par le parrain.
 - la ligne `compta` du parrain est mise à jour (total des forfaits et réserve).
-- sa ligne `ardoise` est créée vide.
-- il créé un double contact C[p] et C[f] avec P.
-  - dans `C[p]` le `datak` est le `data2k` transmis dans le row `parrain` : ce contact est déjà _régularisé_ dès sa création.
-  - dans `C[f]` le `datak` est créé à partir des données contenues dans le `datax` du row `parrain`: l'indice ic chez le parrain est obtenu depuis le `mxic` de l'avatar parrain.
-- l'ardoise des `contact` de P et de F contient l'ardoise de l'acceptation (`ardc`).
-- Le row `parrain` a son `st` à 2 ou 3 et sera supprimé à l'expiration de la `dlv`. 
+- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixées.
 
-Dans tous les cas le GC sur `dlv` supprime le row `parrain`.
+#### Rencontre initiée par A1 avec A2
+- A1 peut détruire physiquement son row avant acceptation / refus (remord).
+- A1 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
 
-## Table `rencontre` : CP `prh`. Rencontre entre les avatars A et B
-A et B se sont rencontrés dans la *vraie* vie mais ni l'un ni l'autre n'a les coordonnées de l'autre pour,
-- soit s'inviter à créer un contact,
-- soit pour B inviter A à participer à un groupe.
+**Si A2 refuse la rencontre :** 
+- L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
+- Le row `contactphc` est supprimé. 
 
-Une rencontre est juste un row qui va permettre à A de transmettre à B son `nom rnd` en utilisant une phrase de rencontre convenue entre eux.  
-En accédant à cette rencontre B pourra inscrire A comme contact personnel ou d'un groupe.
+**Si A2 ne fait rien à temps :** 
+- Lors du GC sur la `dlv`, le row `contactphc` sera supprimé par GC de la `dlv`. 
 
-Une rencontre est identifiée par `prh` le hash de la **clé X (PBKFD de la phrase de rencontre)**.
-
-    CREATE TABLE "rencontre" (
-    "prh" INTEGER,
-    "id" INTEGER,
-    "v"   INTEGER,
-    "dlv" INTEGER,
-    "st"  INTEGER,
-    "datak" BLOB,
-    "nomax" BLOB,
-    "nombx" BLOB,
-    "ardx"  BLOB,
-    "vsh"	INTEGER,
-    PRIMARY KEY("prh")
-    ) WITHOUT ROWID;
-    CREATE INDEX "dlv_rencontre" ON "rencontre" ( "dlv" );
-    CREATE INDEX "id_v_rencontre" ON "rencontre" ( "id", "v" );
-
-- `prh` : hash du PBKFD de la phrase de rencontre.
-- `id` : id de l'avatar A ayant initié la rencontre.
-- `v` :
-- `dlv` : date limite de validité permettant de purger les rencontres.
-- `st` : 0:en attente. 1: annulée
-- `datak` : **phrase de rencontre et son PBKFD** (clé X) cryptée par la clé K du compte A pour que A puisse retrouver les rencontres qu'il a initiées avec leur phrase.
-- `nomax` : nom complet `[nom, rnd]` de A crypté par la clé X.
-- `nombx` : nom complet de B nom rnd quand B a lu la rencontre.
-- `ardx` : ardoise de A (mot de bienvenue). Couple `[dh, texte]` crypté par la clé X.
-- `vsh`
-
-Quand B *ouvre* la rencontre, il laisse son `nom rnd` dans cette rencontre : A comme B peuvent décider ensuite de créer un contact.
-
-Le GC sur `dlv` purge le row `rencontre`.
-
-A peut annuler la rencontre (remord), `st` passe à 1.
+**Si A2 accepte la rencontre :** 
+- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les données `idc2 nom2 rnd2 ni2` sont fixées. Les volumes maximum sont fixées.
 
 ## Table `groupe` : CP: `id`. Entête et état d'un groupe
 Un groupe est caractérisé par :
@@ -627,16 +619,16 @@ La **suppression (logique)** d'un groupe consiste à ne laisser que les proprié
 - `st` : contient en négatif le jour de suppression.
 - toutes les autres sont null
 - le row est désormais immuable (`v` ne changera plus).
-- tous les row secret et membre ayant pour id le groupe supprimé sont physiquement supprimés à la suppression logique du groupe
+- tous les row `secret` et `membre` ayant pour id le groupe supprimé sont physiquement supprimés à la suppression logique du groupe
 
-La **purge physique** d'un row supprimé logiquement intervient N2 jours après st (jour de suppression logique).
+La **purge physique** d'un row supprimé logiquement intervient N2 jours après `st` (jour de suppression logique).
 
 Tous les rows avatars qui le référencent dans `lgrk` seront mis à jour (opération `regulAv`), 
 - soit suite à une synchro,
 - soit au prochain login,
 - les entrées dans `lgrk` correspondant au groupe supprimé seront détruites.
 
-**Les membres d'un groupe** reçoivent lors de leur création (opération de création d'un contact d'un groupe) un indice membre im :
+**Les membres d'un groupe** reçoivent lors de leur création (opération de création d'un contact d'un groupe) un indice membre `im` :
 - cet indice est attribué en séquence : le premier membre est celui du créateur du groupe a pour indice 1 (il est animateur et hébergeur).
 - les rows membres ne sont jamais supprimés, sauf par purge physique à la suppression logique de leur groupe.
 
@@ -709,7 +701,7 @@ Table
 - `im` : indice du membre dans le groupe.
 - `v` :
 - `st` : `x p`
-  - `x` : 0:contact, 1:invité, 2:actif (invitation acceptée), 3: inactif (invitation refusée), 4: inactif (résilié), 5: inactif (disparu).
+  - `x` : 0:envisagé, 1:invité, 2:actif (invitation acceptée), 3: inactif (invitation refusée), 4: inactif (résilié), 5: inactif (disparu).
   - `p` : 0:lecteur, 1:auteur, 2:animateur.
 - `vote` : vote de réouverture.
 - `mc` : mots clés du membre à propos du groupe.
@@ -722,7 +714,7 @@ Table
 - `vsh`
 
 **Remarques**
-- un membre _contact_ a un row `membre` de statut x `0`: (l'avatar contact ne le sait pas, n'a pas le groupe dans sa liste des groupes). Tous les membres commencent leur cycle de vie en tant que _contact_.
+- un membre _envisagé_ a un row `membre` de statut x `0`: (l'avatar ne le sait pas, n'a pas le groupe dans sa liste des groupes). Tous les membres commencent leur cycle de vie en tant que _envisagé_.
 - un membre _invité_ a un row `membre` de statut x `1`: l'avatar a le groupe dans sa liste des groupes, il peut répondre à l'invitation, accepter ou refuser et motiver sa réponse dans son ardoise..
 - quand un membre `invité` accepte son statut passe à `2`.
 - les membres de statut _invité_ et _actif_ peuvent accéder à la liste des membres et à leur _ardoise_ : ils ont la clé du groupe dans leur row `avatar`.
@@ -766,17 +758,11 @@ Un secret est identifié par:
  - multiple de 3 + 2 pour un secret de groupe.
 
 La clé de cryptage du secret `cles` est selon le cas :
-- (0) *secret personnel d'un avatar A* : la clé K de l'avatar. `ic` vaut 0.
-- (1) *secret d'un couple d'avatars A et B* : leur clé `cc` de contact mutuel. `ic` donne l'indice du contact ce qui permet d'obtenir `cc` dans la donnée de `contact`.
-- (2) *secret d'un groupe G* : la clé du groupe G. `ic` vaut 0.
+- (0) *secret personnel d'un avatar A* : la clé K de l'avatar.
+- (1) *secret d'un couple d'avatars A et B* : leur clé `cc` de contact mutuel.
+- (2) *secret d'un groupe G* : la clé du groupe G.
 
-**Un secret de couple A / B est matérialisé par 2 secrets de même contenu**
-- un pour A et un pour B (et la même clé de cryptage, celle `cc` du couple). 
-- chaque secret dans ce cas détient la référence de l'autre afin que la mise à jour de l'un puisse être répercutée sur l'autre (quand il existe encore).
-- A et B peuvent indépendamment l'un de l'autre détruire leur exemplaire : de facto il n'y a plus de copie synchronisée de l'autre.
-- A crée les deux exemplaires du secret en générant deux numéros `ns` afin que la relation entre A et B n'apparaisse pas dans la base.
-
-### Un secret a toujours un texte et possiblement une pièce jointe
+### Un secret a toujours un texte et possiblement des fichiers attachés
 Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est constituée des N3 premiers caractères de son texte ou moins (première ligne au plus).
 - le texte est stocké gzippé au delà d'une certaine taille.
 
@@ -784,33 +770,33 @@ Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est 
 - dans l'ordre de modification, le plus récent en tête,
 - sans doublon.
 
-### Pièces jointes
-Un secret _peut_ avoir plusieurs pièces jointes, chacune identifiée par : `nom.ext|type|dh`.
-- le `nom.ext` d'une pièce jointe est un _nom de fichier_, d'où un certain nombre de caractères interdits (dont le `/`). Pour un secret donné, ce nom est identifiant.
+### Fichier attachés
+Un secret _peut_ avoir plusieurs fichiers attachés, chacune identifiée par : `nom.ext|type|dh`.
+- `nom.ext` est un _nom de fichier_, d'où un certain nombre de caractères interdits (dont le `/`). Pour un secret donné, ce nom est identifiant.
 - `type` est le MIME type du fichier d'origine.
-- `dh` est la date-heure d'enregistrement de la pièce jointe (pas de la création ou dernière modification de son fichier d'origine).
+- `dh` est la date-heure d'enregistrement du fichier (pas de la création ou dernière modification de son fichier d'origine).
 - un signe `$` à la fin indique que le contenu est gzippé en stockage.
-- le volume de la pièce jointe est le volume NON gzippé. Seuls les fichiers de types `text/...` sont gzippés.
+- le volume retenu est le volume NON gzippé. Seuls les fichiers de types `text/...` sont gzippés.
 
-Une pièce jointe d'un nom donné peut être mise à jour / remplacée : le nouveau texte peut avoir un type différent et aura par principe une date-heure différente.
+Un fichier d'un nom donné peut être mise à jour / remplacé : le nouveau contenu peut avoir un type différent et aura par principe une date-heure différente d'enregistrement.
 
-> **Le contenu d'une pièce jointe sur stockage externe est crypté par la clé du secret.**
+> **Le contenu d'un fichier sur stockage externe est crypté par la clé du secret.**
 
 ### Mise à jour d'un secret
 Le droit de mise à jour d'un secret est contrôlé par le couple `xxxp` :
 - `xxx` indique quel avatar a l'exclusivité d'écriture et le droit de basculer la protection :
   - pour un secret personnel, x est implicitement l'avatar détenteur du secret.
-  - pour un secret de couple, 1 désigne celui des deux contacts du couple ayant l'id le plus bas, 2 désigne l'autre.
-  - pour un secret de groupe, x est l'indice du membre.
+  - pour un secret de couple, 1 ou 2.
+  - pour un secret de groupe, x est `im` l'indice du membre.
 - `p` indique si le texte est protégé contre l'écriture ou non.
 
 Celui ayant l'exclusivité peut décider :
 - de protéger le secret contre l'écriture (se l'interdire à lui-même),
 - de lever cette protection (se l'autoriser à lui-même),
-- de transférer l'exclusivité à un autre membre,
+- de transférer l'exclusivité à un autre membre (pour un groupe) ou à l'autre dans le couple,
 - de supprimer l'exclusivité.
 
-Un animateur a ces mêmes droits.
+Un animateur de groupe a ces mêmes droits.
 
 ### Secret temporaire et permanent
 Par défaut à sa création un secret est *temporaire* :
@@ -834,7 +820,6 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
     CREATE TABLE "secret" (
     "id"  INTEGER,
     "ns"  INTEGER,
-    "ic"  INTEGER,
     "v" INTEGER,
     "st"  INTEGER,
     "ora" INTEGER,
@@ -842,8 +827,7 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
     "v2"  INTEGER,
     "mc"   BLOB,
     "txts"  BLOB,
-    "mpjs"  BLOB,
-    "dups"  BLOB,
+    "mfas"  BLOB,
     "refs"  BLOB,
     "vsh" INTEGER,
     PRIMARY KEY("id", "ns");
@@ -852,17 +836,16 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
 
 - `id` : id du groupe ou de l'avatar.
 - `ns` : numéro du secret.
-- `ic` : indice du contact pour un secret de couple, sinon 0.
 - `v` :
 - `st` :
   - < 0 pour un secret _supprimé_.
   - `99999` pour un *permanent*.
   - `dlv` pour un _temporaire_.
-- `ora` : _xxxxxp_ (`p` reste de la division par 10)
-   - `xxxxx` : exclusivité : l'écriture et la gestion de la protection d'écriture sont restreintes au membre du groupe dont `im` est `x` (un animateur a toujours le droit de gestion de protection et de changement du `x`). Pour un secret de couple : 1 désigne celui des deux contacts du couple ayant l'id le plus bas, 2 désigne l'autre.
+- `xp` : _xxxp_ (`p` reste de la division par 10)
+   - `xxx` : exclusivité : l'écriture et la gestion de la protection d'écriture sont restreintes au membre du groupe dont `im` est `x` (un animateur a toujours le droit de gestion de protection et de changement du `x`). Pour un secret de couple : 1 ou 2.
     - `p` : 0: pas protégé, 1: protégé en écriture.
 - `v1` : volume du texte
-- `v2` : volume total des pièces jointes
+- `v2` : volume total des fichiers attachés
 - `mc` : 
   - secret personnel ou de couple : vecteur des index de mots clés.
   - secret de groupe : map sérialisée,
@@ -872,30 +855,29 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
   - `d` : date-heure de dernière modification du texte
   - `l` : liste des auteurs (pour un secret de couple ou de groupe).
   - `t` : texte gzippé ou non
-- `mpjs` : sérialisation de la map des pièces jointes.
-- `dups` : couple `[id, ns]` crypté par la clé du secret de l'autre exemplaire pour un secret de couple A/B.
+- `mfas` : sérialisation de la map des fichiers attachés.
 - `refs` : couple `[id, ns]` crypté par la clé du secret référençant un autre secret (référence de voisinage qui par principe, lui, n'aura pas de `refs`).
 - `vsh`
 
 **Suppression d'un secret :**
 `st` est mis en négatif : les sessions synchronisées suppriment d'elles-mêmes ces secrets en local avant `st` si elles elles se synchronise avant `st`, sinon ça sera fait à `st`.
 
-**Map des pièces jointes :**
+**Map des fichiers attachés :**
 - _clé_ : hash (court) de `nom.ext` en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
 - _valeur_ : `[idc, taille]`
-  - `idc` : id complète de la pièce jointe (`nom.ext|type|dh$`), cryptée par la clé du secret et en base64 URL.
+  - `idc` : id complète du fichier (`nom.ext|type|dh$`), cryptée par la clé du secret et en base64 URL.
   - `taille` : en bytes, avant gzip éventuel.
 
 **Identifiant de stockage :** `org/sid@sns/cle@idc`  
 - `org` : code de l'organisation.
-- `sid` : id du secret en base64 URL. Pour un secret de couple `id ns` est par convention celui de l'id la plus faible du couple (la pièce jointe n'est pas dédoublée contrairement au secret lui-même).
+- `sid` : id du secret en base64 URL.
 - `sns` : ns du secret en base64 URL.
 - `cle` : hash court en base64 URL de `nom.ext`
 - `idc` : id complète de la pièce jointe, cryptée par la clé du secret et en base64 URL.
 
-En imaginant un stockage sur file system, il y a un répertoire par secret : dans ce répertoire pour une valeur donnée de cle@ il n'y a qu'un fichier. Le suffixe `idc` permet de gérer les états intermédiaires lors d'un changement de version).
+En imaginant un stockage sur file system, il y a un répertoire par secret : dans ce répertoire pour une valeur donnée de `cle@` il n'y a qu'un fichier. Le suffixe `idc` permet de gérer les états intermédiaires lors d'un changement de version).
 
-_Une nouvelle version_ d'une pièce jointe est stockée sur support externe **avant** d'être enregistrée dans son secret.
+_Une nouvelle version_ d'un fichier attaché est stockée sur support externe **avant** d'être enregistrée dans son secret.
 - _l'ancienne version_ est supprimée du support externe **après** enregistrement dans le secret.
 - les versions crées par anticipation et non validées dans un secret comme celles qui n'ont pas été supprimées après validation du secret, peuvent être retrouvées par un traitement périodique de purge qui peut s'exécuter en ignorant les noms et date-heures réelles des fichiers scannés.
 
@@ -962,39 +944,36 @@ Pour utilisation pour filtrer une liste de secrets dans un groupe :
 - ainsi le groupe peut avoir indiqué que le secret est _nouveau_ et _important_, mais si le compte A a indiqué que le secret est _lu_ et _sans intérêt_ c'est ceci qui sera utilisé pour filtrer les listes.
 
 # Gestion des disparitions / résilations
-**Les ouvertures de session** *signent* dans les tables `compta avatar groupe`, colonne `dds`, les rows relatifs aux compte, avatars du compte et groupes accédés par le compte. Cette signature toutefois n'a pas lieu si dans le row `compta` le groupe est marqué _en sursis_.
+**Les ouvertures de session** *signent* dans les tables `compta avatar couple groupe`, colonne `dds`, les rows relatifs aux compte, avatars du compte, couples et groupes accédés par le compte. Cette signature toutefois n'a pas lieu si dans le row `compta` le groupe est marqué _en sursis_ ou si son parrain est lui-même _en sursis_.
 
 **La fin d'hébergement d'un groupe** provoque l'inscription de la date du jour dans la propriété `dfh` du row groupe (sinon elle est à zéro).
 
-Enfin les rows parrain rencontre ont une date-limite de validité `dlv`.
-
 ## GC quotidien
 Le GC quotidien effectue les activités de nettoyage suivantes :
-- purge physique des rows compte compta prefs ardoise sur dépassement de la dds + N1 jours du row compte. Ceci empêche le login sur ces comptes.
-- suppression logique des rows avatar sur dépassement de leur dds + N1 jours et purge physique des rows contact secret de même id.
-- suppression logique des rows groupe sur dépassement de leur dds + N1 jours ou de leur dfh + N2 jours et purge physique des rows membre secret de même id.
-- suppression physique des rows parrain rencontre sur dépassement de leur dlv.
+- purge physique des rows `compte compta prefs` sur dépassement de la `dds` + N1 jours du row `compta`. Ceci empêche le login sur ces comptes.
+- suppression logique des rows `avatar` sur dépassement de leur `dds` + N1 jours et purge physique des rows `secret avrsa` de même id.
+- suppression logique des rows `couple` sur dépassement de leur `dds` + N1 jours et purge physique des rows `secret` de même id.
+- suppression logique des rows `groupe` sur dépassement de leur `dds` + N1 jours ou de leur `dfh` + N2 jours et purge physique des rows `membre secret` de même id.
+- suppression physique des rows `contactstd contactphc` ayant une date-limite de validité `dlv` dépassée.
 
-**_Remarque_** : un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures. Le compte n'étant plus accessible, ses avatars ne seront plus signés ni les groupes auxquels il accédait.
+**_Remarque_** : un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures. Le compte n'étant plus accessible, ses avatars ne seront plus signés ni les groupes et couples auxquels il accédait.
 
-#### Rows `secret` et leurs pièces jointes
-Pour chaque secret détruit il faut aussi détruire ses pièces jointes. Or ceci ne peut pas s'effectuer dans la même transaction puisque affectant un espace de stockage séparé non lés au commit de la base.
-- un row portant l'identification du secret [id, ns] est inséré dans une table d'attente dès lors que son volume v2 n'est pas 0.
-- le GC purge ensuite toutes les pièces jointes de l'espace secondaire.
+#### Rows `secret` et leurs fichiers attachés
+Pour chaque secret détruit il faut aussi détruire ses fichiers attachés : ceci ne peut pas s'effectuer dans la même transaction puisque affectant un espace de stockage séparé non lés au commit de la base.
+- un row portant l'identification du secret `[id, ns]` est inséré dans une table d'attente `supprfa` dès lors que son volume v2 n'est pas 0.
+- le GC purge ensuite de l'espace secondaire tous les fichiers listés dans cette table.
 
-**_Remarque_** : concernant les secrets de couple comment faire puisque les pièces jointes peuvent être référencées sous l'id de l'autre dans le couple ?
-
-#### Rows contact membre et le statut _disparu_
-La disparition d'un contact ou d'un membre est constaté en session quand la carte de visite du contact ou du membre est demandée : elle revient alors à null avec un statut _disparu_.
+#### Rows `couple membre` et le statut _disparu_
+La disparition de A1 ou A2 d'un couple ou d'un membre est constaté en session quand sa carte de visite est demandée / rafraîchie : elle revient alors à `null` avec un statut _disparu_.
 - cette constatation n'est pas pérenne sur le long terme: au bout d'un certain temps, la carte de visite ne revient pas du tout du serveur et il est impossible à une session de discerner si c'est parce qu'elle est inchangée ou disparue.
-- chaque session constatant une carte de visite _disparu_ pour un contact ou un membre, fait inscrire sur le serveur le statut disparu sur le contact ou le membre :
+- chaque session constatant une carte de visite _disparu_ pour A1 / A2 d'un couple ou un membre d'un groupe, fait inscrire sur le serveur le statut _disparu_ sur le couple (passage en phase 5) ou le membre :
   - ceci évite aux autres sessions de procéder à la même opération.
-  - les cartes de visite des contact membre disparus ne sont plus demandées par les sessions (ce qui réduit le trafic et les recherches inutiles en base centrale).
+  - les cartes de visite ne sont plus demandées par les sessions (ce qui réduit le trafic et les recherches inutiles en base centrale).
 
 ## Disparition _explicite_ d'un groupe
 Il n'y a pas d'opération de destruction d'un groupe mais des résiliations et auto-résiliations : quand il ne reste plus de membres _actifs_ dans un groupe,
 - il ne peut plus être signé au login : il disparaîtrait de lui-même, à minima sur dépassement de dds / dfh.
-- cette disparition peut être _accélérée_ en fixant une dds fictive -1 qui provoquera la disparition au prochain GC.
+- cette disparition peut être _accélérée_ en fixant un `st` fictif -1 qui provoquera la disparition logique (et les effacements physique) au prochain GC.
 
 ## Disparition _explicite_ d'un avatar
 C'est une opération _longue_ :
@@ -1002,25 +981,7 @@ C'est une opération _longue_ :
   - soit un transfert sur un autre avatar du même compte pour autant qu'il y en ait un qui soit aussi membre du groupe.
   - soit une fin d'hébergement.
   - le choix (quand il y en un) est interactif.
-- mise à jour de son statut disparu sur les groupes dont il est membre.
-- mise à jour de son statut disparu sur ses contacts.
+- mise à jour de son statut `disparu` sur les groupes dont il est membre ou `st` à -1 s'il était le dernier membre actif.
+- mise à jour de son statut phase 5 sur ses couples ou `st` à -1 s'il était seul dans le couple.
 
-Le row avatar peut être mis en suppression logique : si possible fait par le prochain GC
-
-# Secrets de couple A / B
-### A et B acceptent le partage de secrets
-Les volumes sont décomptés sur A et sur sur B, pour v1 comme pour v2, justement parce qu'ils peuvent en toute indépendance détruire leur exemplaire.
-
-On sait chez A que B a détruit son exemplaire (sur `ora` xx vaut 0, 1 ou 2. 3 signifiant exemplaire unique, donc exclusivité au restant.
-
-Si B **détruit** son exemplaire :
-- A continue à agir sur le sien comme il l'entend : il retrouve de facto une exclusivité qu'il n'avait peut-être pas. De toutes les façons B n'a plus de moyens de s'en plaindre, il a abandonné le secret.
-- B récupère du volume v1 / v2.
-
-### B n'accepte plus le partage de secrets
-... mais ça _pourrait_ revenir.
-- le secret est gelè, aucune mise à jour ni de texte ni de pièces jointes.
-- changement d'exclusivité / protection impossible.
-- seuls les mots-clés de chacun peuvent changer afin de pouvoir les filtrer en sélection.
-
-Le secret ne redevient normal que si les A et B acceptent le partage de secrets.
+Le row avatar peut être mis en suppression logique : st à -1 pour éxécution effective au prochain GC.
