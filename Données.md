@@ -91,10 +91,9 @@ _**Tables aussi persistantes sur le client (IDB)**_
 - `prefs` (id) : données et préférences d'un compte
 - `compta` (id) : ligne comptable du compte
 - `avatar` (id) : données d'un avatar et liste de ses contacts
-- `invitct` (id, ni) : invitation reçue par un avatar à former un couple de contacts avec un autre avatar
-- `couple` (id) : données d'un couple de contacts entre deux avatars    
-- `rencontre` (prh) id : communication par A de son nom complet à un avatar B non connu de A dans l'application
-- `parrain` (pph) id : parrainage par un avatar A de la création d'un nouveau compte
+- `couple` (id) : données d'un couple de contacts entre deux avatars
+- `contactstd` (id, ni) : invitation de A0 vers A1 à former un couple. 
+- `contactphc` (phch) : parrainage ou rencontre de A0 vers un A1 à créer ou inconnu par une phrase de contact.
 - `groupe` (id) : données du groupe
 - `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
 - `membre` (id, im) : données d'un membre du groupe
@@ -196,14 +195,12 @@ Table :
     CREATE TABLE "compta" (
     "id"	INTEGER,
     "idp"	INTEGER,
-    "refp"  BLOB,
-    "reff"  BLOB,
     "v"	INTEGER,
     "dds"	INTEGER,
     "st"	INTEGER,
     "dst" INTEGER,
     "data"	BLOB,
-    "dhard" INTEGER,
+    "dh" INTEGER,
     "ard" BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -214,8 +211,6 @@ Table :
 
 - `id` : du compte.
 - `idp` : pour un filleul, id du parrain (null pour un parrain).
-- `refp` : id du couple avec le filleul cryptée par la clé K du parrain (null pour un parrain).
-- `reff` : id du couple avec le parrain cryptée par la clé K du filleul (null pour un parrain).
 - `v` :
 - `dds` : date de dernière signature du compte (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
 - `st` :
@@ -225,7 +220,7 @@ Table :
   - 3 : bloqué.
 - `dst` : date du dernier changement de st.
 - `data`: compteurs sérialisés (non cryptés)
-- `dard` : date-heure de dernière écriture sur l'ardoise.
+- `dh` : date-heure de dernière écriture sur l'ardoise.
 - `ard` : texte de l'ardoise _crypté soft_.
 - `vsh` :
 
@@ -243,21 +238,22 @@ Table :
 - `t1 t2` : pour un parrain, total des forfaits 1 et 2 attribués aux filleuls.
 
 #### Unités de volume
-- pour v1 : 1 MB
-- pour v2 : 100 MB
+- pour v1 : 0,25 MB
+- pour v2 : 25 MB
 
 Les forfaits, pour les comptes, pour les groupes, pour la réserve, peuvent être donnés en nombre d'unités ci-dessus.
 
-Les forfaits typiques s'étagent de 1 à 64 : (coût mensuel)
-- (1) - XXS - 1 MB / 100 MB - 0,35c
-- (2) - XS - 2 MB / 200 MB - 0,70c
-- (4) - SM - 4 MB / 400 MB - 1,40c
-- (8) - MD - 8 MB / 800 MB - 2,80c
-- (16) - LG - 16 MB / 1,6GB - 5,60c
-- (32) - XL - 32 MB / 3,2GB - 1,12€
-- (64) - XXL - 64 MB / 6,4GB - 2,24€
+Les forfaits typiques s'étagent de 1 à 255 : (coût mensuel)
+- (1) - XXS - 0,25 MB / 25 MB - 0,09c
+- (4) - XS - 1 MB / 100 MB - 0,35c
+- (8) - SM - 2 MB / 200 MB - 0,70c
+- (16) - MD - 4 MB / 400 MB - 1,40c
+- (32) - LG - 8 MB / 0,8GB - 2,80c
+- (64) - XL - 16 MB / 1,6GB - 5,60c
+- (128) - XXL - 32 MB / 3,2GB - 11,20c
+- (255) - MAX - 64 MB / 6,4GB - 22,40c
 
-Les codes _numériques_ des forfaits tiennent sur 1 octet : c'est le facteur multiplicateur du forfait le plus petit (1MB / 100MB). Des codes symboliques peuvent être ajoutés, voire modifiés, sans affecter les données.
+Les codes _numériques_ des forfaits tiennent sur 1 octet : c'est le facteur multiplicateur du forfait le plus petit (0,25MB / 25MB). Des codes symboliques peuvent être ajoutés, voire modifiés, sans affecter les données.
 
 Les _ratios_ sont exprimés en pourcentage de 1 à 255% : mais 1 est le minimum (< 1 fait 1) et 255 le maximum.
 
@@ -321,33 +317,30 @@ Table :
   - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue sur `invitgr`.
   - _valeur_ : cryptée par la clé K du compte de `[nom, rnd, im]` reçu sur `invitgr`.
   - une entrée est effacée par la résiliation du membre au groupe ou sur refus de l'invitation (ce qui lui empêche de continuer à utiliser la clé du groupe).
-- `lcck` : map :
-  - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue à la création ou prise de contact.
-    - un `ni` impair signifie que l'avatar est représentée par la partie (1) du couple, sinon c'est la partie (2).
-  - _valeur_ : cryptée par la clé K du compte de la clé du couple `cc`.
+- `lcck` : liste cryptée par la clé K des clés `cc` des couples dont l'avatar fait partie. Le hash d'une clé d'un couple donne son.
 - `vsh`
 
 La lecture de `avatar` permet d'obtenir,
-- la liste des groupes dont il est membre,
-- la liste des couples dont il fait partie.
+- la liste des groupes dont il est membre (avec leur nom, id et clé),
+- la liste des couples dont il fait partie (avec leur id et clé).
 
 Sur GC quotidien sur `dds` : 
 - mise à jour du statut `st` : jour (en négatif) de sa disparition logique.
-- purge / suppression des rows `secret parrain rencontre avrsa` pour les disparus.
+- purge / suppression des rows `compta prefs`.
 
 ### Table `couple` : CP id. Couple de deux avatars
-Deux avatars A1 et A2 peuvent décider de former un **couple** dès lors que A1 a pris contact avec A2 et que A2 a accepté :
+Deux avatars A0 et A1 peuvent décider de former un **couple** dès lors que A0 a pris contact avec A1 et que A1 a accepté :
 - un couple constitué cesse d'exister quand :
   - les deux avatars sont détectés disparus,
   - l'un _puis_ l'autre ont décidé de rompre.
-- dans le cas d'une rupture explicite de A1 (par exemple) ou de sa disparition, A2 reste le seul dans le couple : 
+- dans le cas d'une rupture explicite de A0 (par exemple) ou de sa disparition, A1 reste le seul dans le couple : 
   - il conserve l'accès aux secrets du couple.
-  - le couple disparaît si A2 décide de quitter le couple ou qu'il disparaît à son tour.
-- A1 et A2 peuvent au cours du temps ou à un instant donné, former plus d'un couple (pourquoi pas un couple _amical_ et un couple _professionnel_).
-- un couple qui a été formé (ou pris contact) entre 2 avatars A1 et A2 ne peut jamais se reformer avec un troisième avatar A3.
+  - le couple disparaît si A1 décide de quitter le couple ou qu'il disparaît à son tour.
+- A0 et A1 peuvent au cours du temps ou à un instant donné, former plus d'un couple (pourquoi pas un couple _amical_ et un couple _professionnel_).
+- un couple qui a été formé (ou pris contact) entre 2 avatars A0 et A1 ne peut jamais se reformer avec un troisième avatar A3.
 
 **Signature de début de session**  
-En début de session l'avatar A1 (par exemple) signe son accès au couple qui restera donc vivant pendant N jours (les secrets sont conservés). Quand une signature est récente, une nouvelle session ne signe pas.
+En début de session l'avatar A0 (par exemple) signe son accès au couple qui restera donc vivant pendant N jours (les secrets sont conservés). Quand une signature est récente, une nouvelle session ne signe pas.
 
 **Un couple partage :**
 - une **ardoise** commune de quelques lignes (toujours active),
@@ -365,66 +358,65 @@ Un couple est déclaré avec :
 - une clé `cc` (aléatoire de 32 bytes) cryptant les données communes dont les secrets du couple.
 - une `id` qui est le hash de cette clé.
 
-Un couple est connu dans chaque avatar A1 et A2 par une entrée dans leurs maps respectives `lcck` : les clés dans ces maps sont des numéros aléatoires dit _d'invitation_.
+Un couple est connu dans chaque avatar A0 et A1 par une entrée dans leurs maps respectives `lcck` : les clés dans ces maps sont des numéros aléatoires dit _d'invitation_.
 
 #### Prises de contact
-Il y a 3 moyens pour A1 de prendre contact :
-- standard: A1 connaît l'identification de A2, 
-  - soit parce que A2 est un membre d'un groupe G dont A1 est membre aussi,
-  - soit parce que A2 est membre d'un groupe G dont un autre avatar du compte de A1 est membre,
-  - soit parce que A2 est en couple avec un autre avatar du compte de A1.
-- par phrase de contact : déclarée par A1, elle permet,
-  - à A1 d'identifier le couple potentiel qu'il va former avec A2 dans sa liste de couple,
-  - à A2 de retrouver ce couple en saisissant la phrase,
-  - par sécurité la phrase a une durée de vie limitée : faute d'avaoir été citée par A2 dans le délai imparti elle est caduque et le couple n'est pas confirmé.
+Il y a 3 moyens pour A0 de prendre contact :
+- standard: A0 connaît l'identification de A1, 
+  - soit parce que A1 est un membre d'un groupe G dont A0 est membre aussi,
+  - soit parce que A1 est membre d'un groupe G dont un autre avatar du compte de A0 est membre,
+  - soit parce que A1 est en couple avec un autre avatar du compte de A0.
+- par phrase de contact : déclarée par A0, elle permet,
+  - à A0 d'identifier le couple potentiel qu'il va former avec A1 dans sa liste de couple,
+  - à A1 de retrouver ce couple en saisissant la phrase,
+  - par sécurité la phrase a une durée de vie limitée : faute d'avaoir été citée par A1 dans le délai imparti elle est caduque et le couple n'est pas confirmé.
 
 Le contact par phrase de contact est utilisé dans les deux cas suivants :
-- parrainage : de A2 par A1. A2 _est connu_ de A1 qui lui a créé son identification de compte et de premier avatar, mais rien ne dit que A2 va effectivement valider la création de son compte. 
+- parrainage : de A1 par A0. A1 _est connu_ de A0 qui lui a créé son identification de compte et de premier avatar, mais rien ne dit que A1 va effectivement valider la création de son compte. 
 - rencontre : 
-  - soit A1 a rencontré A2 dans la vraie vie et ils ont convenu d'une phrase de contact,
-  - soit un intermédiaire qui connaît A1 et A2 et leur a communiqué à chacun la même phrase de prise de contact. 
+  - soit A0 a rencontré A1 dans la vraie vie et ils ont convenu d'une phrase de contact,
+  - soit un intermédiaire qui connaît A0 et A1 et leur a communiqué à chacun la même phrase de prise de contact. 
 
 #### Phases de vie d'un couple
-- **(1) prise de contact par A1**. A1 est bien connu mais A2 est, soit encore inconnu (_rencontre_), soit connu, et dans les deux cas n'a (encore) validé sa participation au couple.
+- **(1) prise de contact par A0**. A0 est bien connu mais A1 est, soit encore inconnu (_rencontre_), soit connu, et dans les deux cas n'a (encore) validé sa participation au couple.
   - le refus amène le couple en phase 2.
   - l'acceptation amène le couple en phase 3.
-- **(2) fin de vie de A1 seul après refus de A2**. A1 et A2 se sont bien identifiés mais A2 a _refusé_ ce contact initial. A1 peut prendre connaissance de la cause de refus dans l'ardoise du couple puis quittera le couple. Cette phase est passive, le couple est figé.
-- **(3) vie à deux**. A1 et A2 se connaissent et participent à la vie du couple :
+- **(2) fin de vie de A0 seul après refus de A1**. A0 et A1 se sont bien identifiés mais A1 a _refusé_ ce contact initial. A0 peut prendre connaissance de la cause de refus dans l'ardoise du couple puis quittera le couple. Cette phase est passive, le couple est figé.
+- **(3) vie à deux**. A0 et A1 se connaissent et participent à la vie du couple :
   - en écrivant sur l'ardoise,
   - en créant et mettant à jour des secrets partagés si les deux l'acceptent.
   - la sortie de cette phase peut être causée par :
     - le fait que l'un des deux quitte le couple : phase 4.
     - le fait que l'un des deux disparaisse : phase 5
-- **(4) vie de A1 OU A2 seul après _départ_ de l'autre**. Celui qui a quitté ne _connaît plus le couple_. Celui qui reste le connaît encore et peut :
+- **(4) vie de A0 OU A1 seul après _départ_ de l'autre**. Celui qui a quitté ne _connaît plus le couple_. Celui qui reste le connaît encore et peut :
   - continuer à faire vivre les secrets,
   - tenter une _reprise de contact_ avec celui qui a quitté (mais ce dernier n'est pas obligé d'accepter), ce qui ramènerait le couple en phase 3.
-- **(5) vie de A1 OU A2 seul après _disparition_ de l'autre**. Celui qui reste connaît encore son identité (bien que disparu) mais plus sa carte de visite. Il peut continuer à faire vivre les secrets.
+- **(5) vie de A0 OU A1 seul après _disparition_ de l'autre**. Celui qui reste connaît encore son identité (bien que disparu) mais plus sa carte de visite. Il peut continuer à faire vivre les secrets.
   - si celui qui reste quitte le couple, celui-ci est détruit.
   - si celui qui reste disparaît pour non activité, le couple s'auto-détruira au bout d'un certain temps (il n'est plus signé).
 
 Dans certaines de ces phases il y a des états particuliers différents (sinon 0).
-- **(1) prise de contact par A1**
+- **(1) prise de contact par A0**
   - (1) : prise de contact standard en cours
   - (2) : parrainage en cours
   - (3) : rencontre en cours
-- **(4) vie de A1 OU A2 seul après _départ_ de l'autre**
+- **(4) vie de A0 OU A1 seul après _départ_ de l'autre**
   - (1) : reprise de contact en cours
 
-
 #### Partage de secrets
-**En phase 3** A1 et A2 partagent les secrets dont les volumes sont supportées par **les deux**.
+**En phase 3** A0 et A1 partagent les secrets dont les volumes sont supportés par **les deux**.
 
 Chacun peut fixer une limite maximale de v1 et v2 : les créations et mises à jour de secrets sont bloquées dès qu'elles risquent de dépasser la plus faible des deux limites.
 
 #### Départ d'un couple et reprise de contact
-En phase 3, le départ, par exemple de A1 a les conséquences suivantes :
-- A1 récupère le volume courant du couple,
-- A1 ne connaît plus le couple et ne peut plus ni lire ni accéder aux secrets du couple,
-- les volumes maximum de A1 sont non significatifs (remis à 0)
+En phase 3, le départ, par exemple de A0 a les conséquences suivantes :
+- le compte de A0 récupère le volume courant du couple,
+- A0 ne connaît plus le couple et ne peut plus ni lire ni accéder aux secrets du couple,
+- les volumes maximum de A0 étant non significatifs sont mis à 0.
 
-En phase 4, une _reprise de contact_ (acceptée) par exemple de A1 a les conséquences suivantes :
-- A1 se voit imputer les volumes courants,
-- A1 refixe ses contraintes de volumes maximaux ce qui peut bloquer les créations et les mises à jour en expansion des secrets.
+En phase 4, une _reprise de contact_ (acceptée) par exemple de A0 a les conséquences suivantes :
+- le compte de A0 se voit imputer les volumes courants,
+- A0 refixe ses contraintes de volumes maximaux ce qui peut bloquer les créations et les mises à jour en expansion des secrets.
 
 Table :
 
@@ -435,19 +427,20 @@ Table :
     "dds" INTEGER,
     "v1"  INTEGER,
     "v2"  INTEGER,
+    "mx10"  INTEGER,
+    "mx20"  INTEGER,
     "mx11"  INTEGER,
     "mx21"  INTEGER,
-    "mx12"  INTEGER,
-    "mx22"  INTEGER,
     "dlv"	INTEGER,
     "datap"  BLOB,
+    "infok0"	BLOB,
     "infok1"	BLOB,
-    "infok2"	BLOB,
-    "mc1"	BLOB,
-    "mc2"  BLOB,
+    "mc0"	BLOB,
+    "mc1"  BLOB,
     "ardc"	BLOB,
     "vsh"	INTEGER,
-    PRIMARY KEY("id"));
+    PRIMARY KEY("id")
+    ) WITHOUT ROWID;
     CREATE INDEX "id_v_couple" ON "couple" ( "id", "v" );
     CREATE INDEX "st_couplet" ON "couple" ( "st" ) WHERE "st" < 0;
 
@@ -456,19 +449,17 @@ Table :
 - `st` : 
   - _négatif_ : suppression logique au jour J par le GC.
   - _positif_ : deux chiffres `phase / état`
-- `dds` : dernière date de signature de A1 ou A2 (maintient le couple envie).
+- `dds` : dernière date de signature de A0 ou A1 (maintient le couple envie).
 - `v1 v2` : volumes actuels des secrets.
+- `mx10 mx20` : maximum des volumes autorisés pour A0
 - `mx11 mx21` : maximum des volumes autorisés pour A1
-- `mx12 mx22` : maximum des volumes autorisés pour A2
 - `dlv` : date limite de validité éventuelle de la phase 1.
 - `datac` : données cryptées par la clé `cc` du couple :
-  - `nom1 rnd1 nom2 rnd2` : nom et clé d'accès à la carte de visite de A1 et A2.
-  - `idc1 idc2` : id des comptes de A1 et A2 afin d'imputer les volumes des secrets.,
-  - `ni1 ni2` : numéro d'invitation, clé d'entrée de la map `lcck` pour le couple dans les avatars A1 et A2.
-  - `phrase` : phrase de contact en phases 1-2 et 1-3 (nécessite une phrase).
-  - `f1 f2` : en phase 1-2 (parrainage), forfaits attribués par le parrain A1 à son filleul A2.
-- `infok1 infok2` : commentaires cryptés par leur clé K, respectivement de A1 et A2.
-- `mc1 mc2` : mots clé définis respectivement par A1 et A2.
+  - `[idc, nom, rnd], [idc, nom, rnd]` : id du compte, nom et clé d'accès à la carte de visite respectivement de A0 et A1. Quand l'un des deux est inconnu, le triplet est `null`.
+  - `phrase` : phrase de contact en phases 1-2 et 1-3 (qui nécessitent une phrase).
+  - `f1 f2` : en phase 1-2 (parrainage), forfaits attribués par le parrain A0 à son filleul A1.
+- `infok0 infok1` : commentaires cryptés par leur clé K, respectivement de A0 et A1.
+- `mc0 mc1` : mots clé définis respectivement par A0 et A1.
 - `ardc` : ardoise commune cryptée par la clé cc.
 - `vsh` :
 
@@ -482,12 +473,7 @@ La **suppression (logique)** d'un couple consiste à ne laisser que les proprié
 
 La **purge physique** d'un row supprimé logiquement intervient N2 jours après `st` (jour de suppression logique).
 
-Quand c'est le GC qui a effectué le row `avatar` qui le référence dans `lcck` est mis à jour (opération `regulCC`),
-- soit suite à une synchro,
-- soit au prochain login,
-- l'entrée dans `lcck` correspondant au couple supprimé est détruite.
-
-### Table `contactstd` : CP `id ni`. Prise / reprise de contact standard de A1 avec A2
+### Table `contactstd` : CP `id ni`. Prise / reprise de contact standard de A0 avec A1
 Les contacts standard en attente sont visibles en session pour l'avatar cible qui peut les afficher (en particulier les données du couple en attente), l'accepter ou la refuser.
 - dans les deux cas le row `contactstd` est détruit.
 - en cas de non réponse, le GC détruit le row après dépassement de la `dlv`.
@@ -503,46 +489,46 @@ Table :
     PRIMARY KEY("id", "ni"));
     CREATE INDEX "dlv_contactstd" ON "contactstd" ( "dlv" );
 
-- `id` : id de A2
-- `ni` : ni de A2 dans le couple
+- `id` : id de A1
+- `ni` : numéro aléatoire en complément de `id`
 - `v` :
 - `dlv`
-- `ccp` : clé du couple (donne son id) cryptée par la clé publique de A2
+- `ccp` : clé du couple (donne son id) cryptée par la clé publique de A1
 
-#### Prise de contact initiale par A1 avec A2
-- A1 peut détruire physiquement son row avant acceptation / refus (remord).
-- A1 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
+#### Prise de contact initiale par A0 avec A1
+- A0 peut détruire physiquement son row avant acceptation / refus (remord).
+- A0 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
 
-**Si A2 refuse le contact :** 
+**Si A1 refuse le contact :** 
 - L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
 - Le row `contactstd` est supprimé. 
 
-**Si A2 ne fait rien à temps :** 
+**Si A1 ne fait rien à temps :** 
 - Lors du GC sur la `dlv`, le row `contactstd` sera supprimé par GC de la `dlv`.
-- la phase du couple sera automatiquement mutée à 2 (détection dans `couple` de `dlv` dépassée) lors d'un login de A1.
+- la phase du couple sera automatiquement mutée à 2 (détection dans `couple` de `dlv` dépassée) lors d'un login de A0.
 
-**Si A2 accepte le contact :** 
+**Si A1 accepte le contact :** 
 - le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixées.
 
-#### Reprise de contact par A1 avec A2
-- A1 peut détruire physiquement son row avant acceptation / refus (remord).
-- A1 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
+#### Reprise de contact par A0 avec A1
+- A0 peut détruire physiquement son row avant acceptation / refus (remord).
+- A0 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
 
-**Si A2 refuse la reprise de contact :** 
+**Si A1 refuse la reprise de contact :** 
 - L'ardoise du `couple` contient une justification / remerciement du refus, la phase repasse à 4-0.
 - Le row `contactstd` est supprimé. 
 
-**Si A2 ne fait rien à temps :** 
+**Si A1 ne fait rien à temps :** 
 - Lors du GC sur la `dlv`, le row `contactstd` sera supprimé par GC de la `dlv`.
-- la phase du couple sera automatiquement mutée à 4-0 (détection dans `couple` de `dlv` dépassée) lors d'un login de A1.
+- la phase du couple sera automatiquement mutée à 4-0 (détection dans `couple` de `dlv` dépassée) lors d'un login de A0.
 
-**Si A2 accepte le contact :** 
+**Si A1 accepte le contact :** 
 - le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixées.
 
-### Table `contactphc` : CP `phh`. Prise de contact par phrase de contact de A2 par A1
+### Table `contactphc` : CP `phh`. Prise de contact par phrase de contact de A1 par A0
 Les rows `contactphc` ne sont pas synchronisés en session : ils sont,
-- lus sur demande par A2,
-- supprimés physiquement éventuellement par A1 sur remord.
+- lus sur demande par A1,
+- supprimés physiquement éventuellement par A0 sur remord (ou prolongés par mise à jour de la `dlv`).
 
 Ceci couvre les deux cas de parrainage et de rencontre.
 - pour un parrainage c'est sur la page de login que le filleul peut accéder à son parrainage, l'accepter ou le refuser.
@@ -559,7 +545,7 @@ Table :
     PRIMARY KEY("id", "ni"));
     CREATE INDEX "dlv_contactphc" ON "contactphc" ( "dlv" );
 
-- `phch` : hash de la phrase de contact convenue entre le parrain A1 et son filleul A2 (s'il accepte)
+- `phch` : hash de la phrase de contact convenue entre le parrain A0 et son filleul A1 (s'il accepte)
 - `dlv`
 - `ccx` : clé du couple (donne son id) cryptée par le PBKFD de la phrase de contact
 
@@ -575,24 +561,24 @@ Table :
 - Lors du GC sur la `dlv`, le row `contactphc` sera supprimé par GC de la `dlv`. 
 
 **Si le filleul accepte le parrainage :** 
-- Le filleul crée son compte et son premier avatar (il a dans couple l'id de son compte, `nom rnd ni` de son avatar).
-- sa ligne `compta` est créée et crédités des forfaits attribués par le parrain.
-- la ligne `compta` du parrain est mise à jour (total des forfaits et réserve).
+- Le filleul crée son compte et son premier avatar (il a dans `couple` le triplet `[idc, nom, rnd]` qui donne l'id de son compte et de son avatar).
+- sa ligne `compta` du filleul est créée et crédités des forfaits attribués par le parrain.
+- la ligne `compta` du parrain est mise à jour (réserve).
 - le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixées.
 
-#### Rencontre initiée par A1 avec A2
-- A1 peut détruire physiquement son row avant acceptation / refus (remord).
-- A1 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
+#### Rencontre initiée par A0 avec A1
+- A0 peut détruire physiquement son row avant acceptation / refus (remord).
+- A0 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
 
-**Si A2 refuse la rencontre :** 
+**Si A1 refuse la rencontre :** 
 - L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
 - Le row `contactphc` est supprimé. 
 
-**Si A2 ne fait rien à temps :** 
+**Si A1 ne fait rien à temps :** 
 - Lors du GC sur la `dlv`, le row `contactphc` sera supprimé par GC de la `dlv`. 
 
-**Si A2 accepte la rencontre :** 
-- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les données `idc2 nom2 rnd2 ni2` sont fixées. Les volumes maximum sont fixées.
+**Si A1 accepte la rencontre :** 
+- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les données `[idc, nom, rnd]` sont fixées. Les volumes maximum sont fixées.
 
 ## Table `groupe` : CP: `id`. Entête et état d'un groupe
 Un groupe est caractérisé par :
@@ -822,7 +808,7 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
     "ns"  INTEGER,
     "v" INTEGER,
     "st"  INTEGER,
-    "ora" INTEGER,
+    "xp" INTEGER,
     "v1"  INTEGER,
     "v2"  INTEGER,
     "mc"   BLOB,
@@ -964,9 +950,9 @@ Pour chaque secret détruit il faut aussi détruire ses fichiers attachés : cec
 - le GC purge ensuite de l'espace secondaire tous les fichiers listés dans cette table.
 
 #### Rows `couple membre` et le statut _disparu_
-La disparition de A1 ou A2 d'un couple ou d'un membre est constaté en session quand sa carte de visite est demandée / rafraîchie : elle revient alors à `null` avec un statut _disparu_.
+La disparition de A0 ou A1 d'un couple ou d'un membre est constaté en session quand sa carte de visite est demandée / rafraîchie : elle revient alors à `null` avec un statut _disparu_.
 - cette constatation n'est pas pérenne sur le long terme: au bout d'un certain temps, la carte de visite ne revient pas du tout du serveur et il est impossible à une session de discerner si c'est parce qu'elle est inchangée ou disparue.
-- chaque session constatant une carte de visite _disparu_ pour A1 / A2 d'un couple ou un membre d'un groupe, fait inscrire sur le serveur le statut _disparu_ sur le couple (passage en phase 5) ou le membre :
+- chaque session constatant une carte de visite _disparu_ pour A0 / A1 d'un couple ou un membre d'un groupe, fait inscrire sur le serveur le statut _disparu_ sur le couple (passage en phase 5) ou le membre :
   - ceci évite aux autres sessions de procéder à la même opération.
   - les cartes de visite ne sont plus demandées par les sessions (ce qui réduit le trafic et les recherches inutiles en base centrale).
 
