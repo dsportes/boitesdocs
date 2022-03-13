@@ -85,19 +85,20 @@ Afin de pouvoir rafraîchir uniquement les cartes de visites des avatars (porteu
 - `versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde) et autres singletons (id value)
 - `avrsa` (id) : clé publique d'un avatar
 
-_**Tables aussi persistantes sur le client (IDB)**_
+_**Tables transmises au client**_
 
-- `compte` (id) : authentification et liste des avatars d'un compte 
+- `compte` (id) : authentification et liste des avatars d'un compte
 - `prefs` (id) : données et préférences d'un compte
 - `compta` (id) : ligne comptable du compte
 - `avatar` (id) : données d'un avatar et liste de ses contacts
 - `couple` (id) : données d'un couple de contacts entre deux avatars
-- `contactstd` (id, ni) : invitation de A0 vers A1 à former un couple. 
-- `contactphc` (phch) : parrainage ou rencontre de A0 vers un A1 à créer ou inconnu par une phrase de contact.
 - `groupe` (id) : données du groupe
-- `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
 - `membre` (id, im) : données d'un membre du groupe
 - `secret` (id, ns) : données d'un secret d'un avatar, couple ou groupe
+- `contact` (phch) : parrainage ou rencontre de A0 vers un A1 à créer ou inconnu par une phrase de contact
+- NON persistantes en IDB
+- `invitcp` (id, ni) : invitation de A0 vers A1 à former un couple
+- `invitgr` (id, ni) : invitation reçue par un avatar à devenir membre d'un groupe
 
 ## Singletons id / valeur
 Ils sont identifiés par un numéro de singleton.  
@@ -309,7 +310,7 @@ Table :
 
 - `id` : id de l'avatar
 - `v` :
-- `st` : négatif : l'avatar est supprimé / disparu (les autres colonnes sont à null). 
+- `st` : négatif : l'avatar est supprimé / disparu (les autres colonnes sont à null).
 - `vcv` : version de la carte de visite (séquence 0).
 - `dds` :
 - `cva` : carte de visite de l'avatar cryptée par la clé de l'avatar `[photo, info]`.
@@ -317,7 +318,9 @@ Table :
   - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue sur `invitgr`.
   - _valeur_ : cryptée par la clé K du compte de `[nom, rnd, im]` reçu sur `invitgr`.
   - une entrée est effacée par la résiliation du membre au groupe ou sur refus de l'invitation (ce qui lui empêche de continuer à utiliser la clé du groupe).
-- `lcck` : liste cryptée par la clé K des clés `cc` des couples dont l'avatar fait partie. Le hash d'une clé d'un couple donne son.
+- `lcck` : map :
+  - _clé_ : `ni`, numéro pseudo aléatoire. Hash de cc en hexa suivi de 0 ou 1.
+  - _valeur_ : clé `cc` cryptée par la clé K de l'avatar cible. Le hash d'une clé d'un couple donne son id.
 - `vsh`
 
 La lecture de `avatar` permet d'obtenir,
@@ -432,7 +435,7 @@ Table :
     "mx11"  INTEGER,
     "mx21"  INTEGER,
     "dlv"	INTEGER,
-    "datap"  BLOB,
+    "datac"  BLOB,
     "infok0"	BLOB,
     "infok1"	BLOB,
     "mc0"	BLOB,
@@ -442,14 +445,14 @@ Table :
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
     CREATE INDEX "id_v_couple" ON "couple" ( "id", "v" );
-    CREATE INDEX "st_couplet" ON "couple" ( "st" ) WHERE "st" < 0;
+    CREATE INDEX "st_couple" ON "couple" ( "st" ) WHERE "st" < 0;
 
 - `id` : id du couple
 - `v` :
-- `st` : 
+- `st` :
   - _négatif_ : suppression logique au jour J par le GC.
   - _positif_ : deux chiffres `phase / état`
-- `dds` : dernière date de signature de A0 ou A1 (maintient le couple envie).
+- `dds` : dernière date de signature de A0 ou A1 (maintient le couple en vie).
 - `v1 v2` : volumes actuels des secrets.
 - `mx10 mx20` : maximum des volumes autorisés pour A0
 - `mx11 mx21` : maximum des volumes autorisés pour A1
@@ -460,7 +463,7 @@ Table :
   - `f1 f2` : en phase 1-2 (parrainage), forfaits attribués par le parrain A0 à son filleul A1.
 - `infok0 infok1` : commentaires cryptés par leur clé K, respectivement de A0 et A1.
 - `mc0 mc1` : mots clé définis respectivement par A0 et A1.
-- `ardc` : ardoise commune cryptée par la clé cc.
+- `ardc` : ardoise commune cryptée par la clé cc. [dh, texte]
 - `vsh` :
 
 La **suppression (logique)** d'un couple consiste à ne laisser que les propriétés suivantes :
@@ -473,60 +476,30 @@ La **suppression (logique)** d'un couple consiste à ne laisser que les proprié
 
 La **purge physique** d'un row supprimé logiquement intervient N2 jours après `st` (jour de suppression logique).
 
-### Table `contactstd` : CP `id ni`. Prise / reprise de contact standard de A0 avec A1
-Les contacts standard en attente sont visibles en session pour l'avatar cible qui peut les afficher (en particulier les données du couple en attente), l'accepter ou la refuser.
-- dans les deux cas le row `contactstd` est détruit.
-- en cas de non réponse, le GC détruit le row après dépassement de la `dlv`.
+## Table `invitcp`. Invitation d'un avatar A1 par un avatar A0 à former un couple
+Un avatar A connaît la liste des couples dont il est membre par son row `avatar.lcck` qui reprend les identités des couples cryptées par la clé K du compte.
 
-Table :
+Les rows sont synchronisés en session mais n'y font l'objet d'aucun stockage, ils provoquent juste la mise à jour de `couple` et une opération `regulCp`.
 
-    CREATE TABLE "contactstd" (
-    "id"   INTEGER,
-    "ni"  	INTEGER,
-    "v" INTEGER,
-    "dlv"	INTEGER,
-    "ccp"  BLOB,
-    PRIMARY KEY("id", "ni"));
-    CREATE INDEX "dlv_contactstd" ON "contactstd" ( "dlv" );
+Une invitation est un row qui **notifie** une session de A0 qu'il a été inscrit comme membre invité d'un groupe :
+- elle porte l'id de l'invité.
+- elle porte un numéro d'invitation `ni`  qui est le hash du string formé de la clé `cc` en hexa suive de 1 (si c'est A1 qui est invité) ou 0 (si c'est A0 qui est réinvité -après avoir quitté-).
+- elle porte `cc` identifiant le couple et sa clé cryptée par la clé publique de l'avatar.
 
-- `id` : id de A1
-- `ni` : numéro aléatoire en complément de `id`
-- `v` :
-- `dlv`
-- `ccp` : clé du couple (donne son id) cryptée par la clé publique de A1
+Dans une session de A dès que cette invitation parvient, soit par synchronisation, soit au chargement initial, la session poste une opération `regulCp` qui va inscrire dans le row `avatar.lcck` de A le nouveau couple `cc` mais crypté par la clé K du compte de A. Ceci détruit l'invitation devenu inutile.
 
-#### Prise de contact initiale par A0 avec A1
-- A0 peut détruire physiquement son row avant acceptation / refus (remord).
-- A0 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
+    CREATE TABLE "invitcp" (
+    "id"  INTEGER,
+    "ni" INTEGER,
+    "ccp" BLOB,
+    PRIMARY KEY ("id", "ni"));
 
-**Si A1 refuse le contact :** 
-- L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
-- Le row `contactstd` est supprimé. 
+- `id` : id du membre invité.
+- `ni` : numéro d'invitation.
+- `ccp` : clé `cc` du couple cryptée par la clé publique de l'avatar invité.
 
-**Si A1 ne fait rien à temps :** 
-- Lors du GC sur la `dlv`, le row `contactstd` sera supprimé par GC de la `dlv`.
-- la phase du couple sera automatiquement mutée à 2 (détection dans `couple` de `dlv` dépassée) lors d'un login de A0.
-
-**Si A1 accepte le contact :** 
-- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixées.
-
-#### Reprise de contact par A0 avec A1
-- A0 peut détruire physiquement son row avant acceptation / refus (remord).
-- A0 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
-
-**Si A1 refuse la reprise de contact :** 
-- L'ardoise du `couple` contient une justification / remerciement du refus, la phase repasse à 4-0.
-- Le row `contactstd` est supprimé. 
-
-**Si A1 ne fait rien à temps :** 
-- Lors du GC sur la `dlv`, le row `contactstd` sera supprimé par GC de la `dlv`.
-- la phase du couple sera automatiquement mutée à 4-0 (détection dans `couple` de `dlv` dépassée) lors d'un login de A0.
-
-**Si A1 accepte le contact :** 
-- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixées.
-
-### Table `contactphc` : CP `phh`. Prise de contact par phrase de contact de A1 par A0
-Les rows `contactphc` ne sont pas synchronisés en session : ils sont,
+### Table `contact` : CP `phch`. Prise de contact par phrase de contact de A1 par A0
+Les rows `contact` ne sont pas synchronisés en session : ils sont,
 - lus sur demande par A1,
 - supprimés physiquement éventuellement par A0 sur remord (ou prolongés par mise à jour de la `dlv`).
 
@@ -538,16 +511,18 @@ Ceci couvre les deux cas de parrainage et de rencontre.
 
 Table :
 
-    CREATE TABLE "contactphc" (
+    CREATE TABLE "contact" (
     "phch"   INTEGER,
     "dlv"	INTEGER,
     "ccx"  BLOB,
+    "vsh" INTEGER,
     PRIMARY KEY("id", "ni"));
-    CREATE INDEX "dlv_contactphc" ON "contactphc" ( "dlv" );
+    CREATE INDEX "dlv_contact" ON "contact" ( "dlv" );
 
 - `phch` : hash de la phrase de contact convenue entre le parrain A0 et son filleul A1 (s'il accepte)
 - `dlv`
-- `ccx` : clé du couple (donne son id) cryptée par le PBKFD de la phrase de contact
+- `ccx` : clé du couple (donne son id) cryptée par le PBKFD de la phrase de contact.
+- `vsh` :
 
 #### Parrainage
 - Le parrain peut détruire physiquement son row avant acceptation / refus (remord).
@@ -572,10 +547,10 @@ Table :
 
 **Si A1 refuse la rencontre :** 
 - L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
-- Le row `contactphc` est supprimé. 
+- Le row `contact` est supprimé. 
 
 **Si A1 ne fait rien à temps :** 
-- Lors du GC sur la `dlv`, le row `contactphc` sera supprimé par GC de la `dlv`. 
+- Lors du GC sur la `dlv`, le row `contact` sera supprimé par GC de la `dlv`. 
 
 **Si A1 accepte la rencontre :** 
 - le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les données `[idc, nom, rnd]` sont fixées. Les volumes maximum sont fixées.
