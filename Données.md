@@ -505,7 +505,6 @@ Table :
     "id"   INTEGER,
     "v"  	INTEGER,
     "st" INTEGER,
-    "dds" INTEGER,
     "v1"  INTEGER,
     "v2"  INTEGER,
     "mx10"  INTEGER,
@@ -523,7 +522,6 @@ Table :
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
     CREATE INDEX "id_v_couple" ON "couple" ( "id", "v" );
-    CREATE INDEX "st_couple" ON "couple" ( "st" ) WHERE "st" < 0;
 
 - `id` : id du couple
 - `v` :
@@ -637,10 +635,8 @@ Table :
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
-    CREATE INDEX "dds_groupe" ON "groupe" ( "dds" );
     CREATE INDEX "dfh_groupe" ON "groupe" ( "dfh" ) WHERE "dfh" > 0;
     CREATE INDEX "id_v_groupe" ON "groupe" ( "id", "v" );
-    CREATE INDEX "st_groupe" ON "groupe" ( "st" ) WHERE "st" < 0;
 
 - `id` : id du groupe.
 - `v` :
@@ -677,7 +673,6 @@ Table
     "vsh"	INTEGER,
     PRIMARY KEY("id", "im"));
     CREATE INDEX "id_v_membre" ON "membre" ( "id", "v" );
-    CREATE INDEX "st_membre" ON "membre" ( "st" ) WHERE "st" < 0;
 
 - `id` : id du **groupe**.
 - `im` : indice du membre dans le groupe.
@@ -814,7 +809,6 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
     "vsh" INTEGER,
     PRIMARY KEY("id", "ns");
     CREATE INDEX "id_v_secret" ON "secret" ("id", "v");
-    CREATE INDEX "st_secret" ON "secret" ( "st" ) WHERE "st" < 0;
 
 - `id` : id du groupe ou de l'avatar.
 - `ns` : numéro du secret.
