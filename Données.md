@@ -61,7 +61,7 @@ Les comptes sont censés avoir au maximum N0 jours entre 2 connexions faute de q
 ### Signatures des comptes, avatars, couples et groupes
 A chaque connexion d'un compte, le compte signe si la `dds` actuelle n'est pas _récente_ (sinon les signatures ne sont pas mises à jour) :
 - pour lui-même dans `compte` : jour de signature tiré aléatoirement entre j-28 et j-14.
-- dans `repertoire` : jour de signature tiré aléatoirement pour chacun entre j-14 et j.
+- dans `cv` : jour de signature tiré aléatoirement pour chacun entre j-14 et j.
   - pour ses avatars.
   - pour les groupes auxquels ses avatars sont invités ou actifs.
   - pour ses couples.
@@ -80,7 +80,7 @@ Les rows des tables devant être présents sur les clients ont une version, de m
 
 Tous les objets synchronisables sont identifiés, au moins en majeur, par une id de compte, d'avatar, de couple ou de groupe : d'où l'option de gérer **une séquence de versions**, pas par id de ces objets mais par hash de cet id.
 
-La table `repertoire` ne suit pas cette règle et a une séquence unique afin de synchroniser tous les états d'existence et les cartes de visite de tous les objets majeurs. **Sa séquence de versions est 0.**
+La table `cv` ne suit pas cette règle et a une séquence unique afin de synchroniser tous les états d'existence et les cartes de visite de tous les objets majeurs. **Sa séquence de versions est 0.**
 
 ## Tables
 
@@ -92,7 +92,7 @@ _**Tables transmises au client**_
 - `compte` (id) : authentification et liste des avatars d'un compte
 - `prefs` (id) : données et préférences d'un compte
 - `compta` (id) : ligne comptable du compte
-- `repertoire` (id) : staut d'existence, signature et carte de visite des avatars, couples et groupes.
+- `cv` (id) : staut d'existence, signature et carte de visite des avatars, couples et groupes.
 - `avatar` (id) : données d'un avatar et liste de ses contacts
 - `couple` (id) : données d'un couple de contacts entre deux avatars
 - `groupe` (id) : données du groupe
@@ -277,7 +277,7 @@ Table :
 - `clepub` : clé publique.
 - `vsh`
 
-### Table `repertoire` : CP `id`. Répertoire des avatars, couples et groupes
+### Table `cv` : CP `id`. Répertoire des avatars, couples et groupes
 Cette table a pour objectifs :
 - `dds` : **de garder trace des signes de vie des objets** dans la propriété `dds`, dernière date de signature, remplie à chaque login à l'ouverture d'une session pour signaler que les avatars, couples et groupes de l'espace de données du compte de la session sont toujours _en vie_ (utiles) et se prémunir contre leur destruction pour non usage.
 - `x` : **de conserver le statut d'existence de ces objets** et en conséquence de tracer leur inexistence / disparition:
@@ -297,7 +297,7 @@ Cette table est elle-même purgée des objets disparus depuis plus de N1 jours (
 
 Table :
 
-    CREATE TABLE "repertoire" (
+    CREATE TABLE "cv" (
     "id"	INTEGER,
     "v" INTEGER,
     "x" INTEGER,
@@ -306,9 +306,9 @@ Table :
     "vsh" INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
-    CREATE INDEX "id_v_repertoire" ON "repertoire" ( "id", "v");
-    CREATE INDEX "dds_repertoire" ON "repertoire" ( "dds" ) WHERE "dds" > 0;
-    CREATE INDEX "x_repertoire" ON "repertoire" ( "x" ) WHERE "x" = 1;
+    CREATE INDEX "id_v_cv" ON "cv" ( "id", "v");
+    CREATE INDEX "dds_cv" ON "cv" ( "dds" ) WHERE "dds" > 0;
+    CREATE INDEX "x_cv" ON "cv" ( "x" ) WHERE "x" = 1;
 	
 - `id` : id de l'avatar / du couple / du groupe.
 - `v` : version du dernier changement de `x` ou `cv`.
@@ -609,9 +609,14 @@ Un groupe est hébergé par un compte _hébergeur_ (ses volumes sont décomptés
 - `dfh`, la date de fin d'hébergement, qui vaut 0.
 
 Le compte peut mettre fin à son hébergement:
-- `dfh` indique le jour de la fin d'hébergement : `idhg` est null, `imh` est 0.
+- `dfh` indique le jour de la fin d'hébergement.
 - les secrets ne peuvent plus être mis à jour ou créés (comme un état archivé).
-- le groupe sera détruit par le GC quotidien N1 jours après `dfh`.
+- à dfh + N jours, le GC plonge le groupe en état _zombi_
+  - `dfh` vaut 99999 et toutes les propriétés autres que `id v` sont 0 / null.
+  - les secrets et membres sont purgés.
+  - le groupe est _ignoré_ en session, comme s'il n'existait plus et est retiré au fil des login des maps `lgrk` des avatars qui le référencent (ce qui peut prendre jusqu'à un an).
+  - le row `groupe` sera effectivement détruit par le GC quotidien seulement sur dépassement de `dds`.
+  - ceci permet aux sessions de ne pas risquer de trouver un groupe dans des `lgrk` d'avatar sans row `groupe` (sur dépassement de `dds`, les login sont impossibles).
 
 **Les membres d'un groupe** reçoivent lors de leur création (opération de création d'un contact d'un groupe) un indice membre `im` :
 - cet indice est attribué en séquence : le premier membre est celui du créateur du groupe a pour indice 1 (il est animateur et hébergeur).
@@ -797,6 +802,7 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
     CREATE TABLE "secret" (
     "id"  INTEGER,
     "ns"  INTEGER,
+    "x" INTEGER,
     "v" INTEGER,
     "st"  INTEGER,
     "xp" INTEGER,
@@ -812,6 +818,7 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
 
 - `id` : id du groupe ou de l'avatar.
 - `ns` : numéro du secret.
+- `x` : jour de suppression (0 si existant).
 - `v` :
 - `st` :
   - `99999` pour un *permanent*.
@@ -833,6 +840,8 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
 - `mfas` : sérialisation de la map des fichiers attachés.
 - `refs` : couple `[id, ns]` crypté par la clé du secret référençant un autre secret (référence de voisinage qui par principe, lui, n'aura pas de `refs`).
 - `vsh`
+
+**_Remarque :_** un secret peut être explicitement supprimé. Afin de synchroniser cette forme particulière de mise à jour pendant un an (le délai maximal entre deux login), le row est conservé jusqu'à la date x + 400 avec toutes les colonnes (sauf `id ns x v`) à 0 / null.
 
 **Map des fichiers attachés :**
 - _clé_ : hash (court) de `nom.ext` en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
@@ -916,15 +925,15 @@ Pour utilisation pour filtrer une liste de secrets dans un groupe :
 - ainsi le groupe peut avoir indiqué que le secret est _nouveau_ et _important_, mais si le compte A a indiqué que le secret est _lu_ et _sans intérêt_ c'est ceci qui sera utilisé pour filtrer les listes.
 
 # Gestion des disparitions / résiliations
-**Les ouvertures de session** *signent* dans les tables `compta repertoire`, colonne `dds`, les rows relatifs aux compte, avatars du compte, couples et groupes accédés par le compte. Cette signature toutefois n'a pas lieu si dans le row `compta` le groupe est marqué _en sursis_ ou si son parrain est lui-même _en sursis_.
+**Les ouvertures de session** *signent* dans les tables `compta cv`, colonne `dds`, les rows relatifs aux compte, avatars du compte, couples et groupes accédés par le compte. Cette signature toutefois n'a pas lieu si dans le row `compta` le groupe est marqué _en sursis_ ou si son parrain est lui-même _en sursis_.
 
 **La fin d'hébergement d'un groupe** provoque l'inscription de la date du jour dans la propriété `dfh` du row `groupe` (sinon elle est à zéro).
 
 ## GC quotidien
 Le GC quotidien effectue les activités de nettoyage suivantes :
-- suppression logique des rows `avatar` dans `repertoire` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `secret avrsa` de même id.
-- suppression logique des rows `couple` dans `repertoire` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `secret` de même id.
-- suppression logique des rows `groupe` dans `repertoire` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `membre secret` de même id.
+- suppression logique des rows `avatar` dans `cv` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `secret avrsa` de même id.
+- suppression logique des rows `couple` dans `cv` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `secret` de même id.
+- suppression logique des rows `groupe` dans `cv` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `membre secret` de même id.
 - suppression logique des rows `groupe` sur dépassement ou de leur `dfh` + N2 jours. Purge physique des rows `membre secret` de même id.
 - suppression physique des rows `contact` ayant une date-limite de validité `dlv` dépassée.
 
@@ -945,7 +954,7 @@ La disparition de A0 ou A1 d'un couple ou d'un membre est constaté en session q
 ## Disparition _explicite_ d'un groupe
 Il n'y a pas d'opération de destruction d'un groupe mais des résiliations et auto-résiliations : quand il ne reste plus de membres _actifs_ dans un groupe,
 - il ne peut plus être signé au login : il disparaîtrait de lui-même, à minima sur dépassement de dds / dfh.
-- cette disparition est _accélérée_ par suppression logique dans repertoire (x = 1) : la fin de la purge s'effectuera au prochain GC.
+- cette disparition est _accélérée_ par suppression logique dans cv (x = 1) : la fin de la purge s'effectuera au prochain GC.
 
 ## Disparition _explicite_ d'un avatar
 C'est une opération _longue_ :
