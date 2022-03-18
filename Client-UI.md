@@ -1,58 +1,208 @@
 # Boîtes à secrets - Client
 
-## Données en IDB
-En IDB on trouve la réplication de sélections selon l'id d'un compte, avatar ou groupe des rows des tables en base :
-- `compte` : LE row du compte. Donne la liste des ids `ida` des avatars du compte et leur nom complet (donc clé).
-- pour chaque `ida`, les rows de clé `ida` des tables :
-  - `invitgr` : invitations reçues par `ida` à être membre d'un groupe. L'union donne la **liste des groupes `idg` (id, clé, nom)** des comptes accédés.
-  - `avatar` : entête de l'avatar.
-  - `contact` : contacts de `ida`. Donne la **liste de ses contacts** avec leur nom complet (donc clé) pour les cartes de visite.
-  - `invitct` : invitations reçues par `ida` à être contact fort et encore en attente.
-  - `rencontre` : rencontres initiées par `ida`.
-  - `parrain` : parrainages accordés par `ida`.
-  - `secret` : secrets de `ida`.
-- les rows dont la clé `idg` fait partie de la liste des groupes d'un des `ida` :
-  - `groupe` : entête du groupe.
-  - `membre` : détails des membres de `idg`. Donne la **liste des membres** avec leur nom complet (donc clé) pour les cartes de visite.
-  - `secret` : secrets du groupe `idg`.
-- `cv` (issue de `avatar`, `st cva` seulement) : statut et carte de visite des rows dont la clé `id` est, soit un des contacts d'un des `ida`, soit un des membres des groupes `idg`.
+## Session d'un compte
+Une session est associée à un compte connecté (ou en connexion). Elle dispose de données :
+- en mémoire store/db, toujours,
+- sur IDB, seulement si la session est synchronisé ou avion.
 
-Les rows reçus par synchro ou par chargement explicite sur un POST :
-- sont décryptés à réception et transformés en objets dont tous les champs sont en clair. 
-  - pour les données des groupes (`groupe membre secret`), la clé du groupe a été obtenu depuis les rows `invitgr` qui sont toujours obtenus / chargés avant.
-  - pour les secrets des contacts, la clé `cc` est obtenue depuis les rows `contact` qui sont obtenus / chargés avant.
-- les objets en mémoire sont donc en clair dès leur réception depuis le serveur.
+Les tables suivantes se retrouvent :
+- trois singletons dont la clé est l'id du compte : `compte prefs compta`. L'id en IDB est par convention 1.
+- trois collections d'objets _maîtres_:
+  - les objets `avatar` cités dans le compte : la propriété `mack` donne leur nom / clé (donc id).
+  - les objets `couple` cités dans les avatars cités ci-dessus: la propriété lcpk donne leur clé (donc id).
+  - les objets `groupe`  cités dans les avatars cités ci-dessus: la propriété lgrk donne leur nom / clé (donc id).
+- des collections d'objets secondaires : leur propriété id est l'id d'un objet maître et ils ont une seconde partie de clé pour les distinguer :
+  - objets `membre` secondaires de `groupe`, clé secondaire `im` (indice membre).
+  - objets `secret` secondaires de `avatar, couple, groupe`, clé secondaire `ns` (numéro de secret).
 
-En IDB les contenus des tables sont formés :
-- d'une clé simple `id` ou `x`, ou d'un couple de clé `id+y`.
-- d'un numéro de version `vs` du schéma de data. Pour chaque objet, data est dé-sérialisé à la lecture, puis si la version actuelle du schéma est supérieure, l'objet est transformé dans le dernier schéma. Il est toujours écrit en IDB selon la version la plus récente.
-- d'un contenu `data` qui est l'objet en clair sérialisé PUIS crypté par,
-  - la clé K du compte pour tous les rows sauf `compte`,
-  - la clé X issue de la phrase secrète pour **le** row `compte`.
+Les objets `invitgr` secondaires de `avatar` sont transients en session : récupérés en synchronisation ils déclenchent une opération de mise à jour de leur avatar pour qu'il référence le groupe dans `lgrk`. Ces objets ne sont ni mémorisés, ni en store/db, ni en IDB.
 
-## Structure en mémoire
-C'est un _store_ (vuex) de nom `db` :
+Les objets contact sont demandés explicitement par une vue et ne sont ni mémorisés, ni en store/db, ni en IDB.
 
-    {
-    compte: null,
-    avatars: {},
-    contacts: {},
-    invitcts: {},
-    invitgrs: {},
-    groupes: {},
-    membres: {},
-    secrets: {},
-    parrains: {},
-    rencontres: {},
-    cvs: {}
-    }
+#### Les cartes de visite
+Tout objet maître `avatar / groupe / couple` a un objet `cv` de même id :
+- ils sont créés simultanément.
+- la propriété `x` de `cv` quand elle est > 0, indique que l'objet maître est _disparu_ et a été purgé.
 
-- `compte` : un objet dont la clé IDB est par convention 1 (et non l'id du compte).
-- `avatars` : une map d'objets, la clé étant l'id de chaque avatar du compte en base 64. La valeur est un objet de classe `Avatar` (voir plus loin).
-- `groupes` : une map d'objets , la clé étant l'id de chaque groupe en base 64. La valeur est un objet de classe `Groupe` (voir plus loin).
-- `cvs` : une map d'objets, la clé étant l'id en base 64 de chaque avatar référencé (avatar du compte, contact d'un avatar du compte, membre d'un groupe). La valeur est un objet de classe `Cv` (voir plus loin).
-- `contacts invitcts invitgrs secrets` : la map comporte un premier niveau par id de l'avatar et pour chaque id une map par l'identifiant complémentaire (ic ni ni ns).
-- `membres secrets` : la map comporte un premier niveau par id du groupe et pour chaque id une map par l'identifiant complémentaire (im ns).
+### Structure en mémoire : store/db
+Son `state` (vuex) détient:
+- les singletons : `compte prefs compta`
+- les collections d'objets maîtres : une map de clé id pour donner l'objet correspondant
+  - `avatars[1234]` : donne l'avatar d'id `1234`
+- les collections d'objets secondaires secret membre
+  - `secrets@1234[56]` donne le secret d'id `1234, 56`
+  - `secrets@1234` donne la map de tous les secrets du même maître `1234`
+- un singleton particulier `repertoire` (voir plus loin) qui est une map de toutes les cvs des `avatar / groupe / couple`.
+- un singleton particulier `sessionsync` (voir plus loin)).
+
+Son state détient aussi des _objets courants_ dans les vues :
+- `avatar`: l'avatar courant
+- `groupe`: le groupe courant
+- `groupeplus`: le couple courant [groupe, membre] ou membre est celui de l'avatar courant
+- `couple`: le couple courant
+- `secret`: le secret courant
+
+Si par exemple l'objet du groupe d'id `123` change,
+- `groupes[123]` change et référence la nouvelle valeur de l'objet,
+- `groupe` change et référence la nouvelle valeur de l'objet.
+
+#### Répertoire des CVs
+La classe `Repertoire` est une simple map avec entrée par carte de visite (de clé id de la carte de site).
+
+Chaque entrée a des propriétés additionnelles par rapport à cv :
+- **pour une cv d'avatar:**
+  - `na`: son `NomAvatar` (couple non / clé),
+  - `lgr`: la liste des ids des groupes dont l'avatar est membre,
+  - `lcp`: la liste des ids des couples dont l'avatar est, soit le conjoint _interne_ (avatar du compte), soit le conjoint _externe_ (l'avatar n'est pas un avatar du compte).
+  - `avc`: `true` si c'est un avatar du compte
+- **pour une cv de groupe:**
+  - `na`: son `NomAvatar` (couple non / clé)
+  - `lmb`: la liste des ids des avatars qui en sont membre.
+- **pour une cv de couple:**
+  - `na`: son `NomAvatar` (couple non / clé). Son nom est construit depuis ceux de son ou ses conjoints.
+  - `idE`: l'id du conjoint externe (s'il est connu),
+  - `idI`: l'id du conjoint interne.
+
+**La session détient un objet `rep` qui est l'image, non réactive** (de travail) du répertoire.
+
+**store/db détient la propriété `repertoire`, image réactive du répertoire, stable**, celle qui a été fixée par l'opération commit() du répertoire rep de la session.
+
+### La base locale IDB
+Il y a une base par compte.
+
+Elle contient les tables `compte prefs compta avatar groupe couple secret cv` :
+- la clé primaire de chacun est,
+  - pour les singletons `compte prefs compta` : `1`
+  - pour les objets maîtres `avatar groupe couple` le cryptage par la clé K du compte de leur id en base64.
+  - pour les objets secondaires le couple `id id2`:
+    - `id` : le cryptage par la clé K du compte de l'id en base64 de son maître.
+    - `id2` : le cryptage par la clé K du compte de son id relative (`ns` ou `im`) à son maître.
+- la propriété `data` est le cryptage par la clé K du compte de la sérialisation de l'objet.
+
+Les tables ont donc deux 2 propriétés `id data` ou 3 propriétés `id, id2,  data`.
+
+**IDB est toujours cohérente** : les opérations spéciales de mise à jour accumulent dans leur traitement les mises à jour pour IDB dans leur objet `OpBuf` et un seul commitRows() intervient à la fin pour enregistrer toutes les mises à jour en attente dans `OpBuf`.
+
+#### La table `sessionsync`
+Cette table enregistre les date-heures,
+- de la session synchronisée précédente correctement connectée puis terminée : `dhdebut dhfin`
+- de la session synchronisée en cours : 
+  - `dhlogin` : dh de fin de login,
+  - `dhsync` : date-heure de fin de la dernière opération de synchronisation,
+  - `dhpong` : date-heure de réception du dernier _pong_ reçu sur le websocket attestant que celui-ci n'est pas déconnecté.
+
+Cet objet est disponible dans store/db `sessionsync`, uniquement quand la session courante est _synchronisée_.
+
+## Opérations et cohérence des états store/db et IDB
+#### Trois opérations d'initialisation
+Il y a 3 opérations d'initialisation des données de session :
+- **`ConnexionCompte`**
+  - elle reconstitue en mémoire l'état des données du compte depuis,
+    - IDB si c'est une session _synchronisée_ ou _avion_,
+    - et le serveur si c'est une session _synchronisée_ ou _incognito_,
+    - l'état est cohérent et les objets inutiles ont été purgés,
+    - l'état des données est transcrit sur IDB par une unique transaction (commitRows()) et sur store/db par un unique appel de fonction.
+- **`CreationCompte`** (sans parrain) et **`AcceptationParrainage`** (avec parrain).
+  - elles sont plus simples puisqu'il n'y a par définition aucun état antérieur à prendre en compte et très peu d'objets à commiter dans IDB et store/db.
+
+La propriété state/ui `statutsession` vaut
+- 0 : avant exécution de ces initialisations de sessions,
+- 1 : pendant l'exécution de celles-ci,
+- 2 : après la fin de l'exécution (succès, sinon retour à 0 et pas de session)
+- 0 : en cas de déconnexion accidentelle ou explicite (plus de session).
+
+#### Unique opération de mise à jour : ProcessQueue
+Il n'y a qu'une seule opération de mise à jour (après initialisation), ProcessQueue :
+- elle ne s'exécute que quand l'initialisation complète de la session est faite (statutseesion à 2).
+- les messages de mise à jour reçus sur WebSocket sont stockées en queue dans l'ordre d'arrivée.
+- la queue est traitée (si elle n'est pas vide),
+  - dès que le statut de session passe à 2
+  - dès qu'un message de synchronisation est reçu et que le statut de session est 2.
+Comme pour les opérations d'initialisation, les modifications sont stockées dans OpBuf et validées en un seul appel à la fin.
+
+#### Autres opérations
+Aucune autre opération ne fait de mises à jour des données store/db et IDB, ni ne lit IDB.
+
+> _Remarque_ : les objets courants de navigation store/db avatar groupe ... peuvent changer au gré des navigations mais sans mise à jour de leur contenu.
+
+En conséquence les actions UI peuvent accéder à tout instant à un état cohérent des données en store/db qui n'évolue que par le commit de ProcessQueue (d'état cohérent en état cohérent).
+
+#### Début et fin d'une session, inter-session
+**Une session existe dès qu'une opération de connexion ou de création de compte débute :**
+- l'état de session est disponible dans la variable `data` de `modele.mjs`et subsiste dure jusqu'à la **déconnexion**, explicite ou accidentelle.
+- une session est caractérisée par un compte.
+- dès que l'initialisation (connexion / création de compte) s'est bien terminée l'état de ses données est cohérent.
+- le **traitement des notifications des mises à jour** du serveur par `ProcessQueue` maintient l'état store/db et IDB à jour et cohérent.
+
+Une session a quelques propriétés traduisant son état interne, en plus des données _métier_ en store/db et IDB.
+
+Durant une session les pages peuvent être : `synchro` (durant l'initialisation), puis `compte` ou `avatar`.
+
+#### Inter-session
+Entre 2 sessions, très peu d'information est disponible :
+- `org` : l'organisation choisie (quand elle l'a été).
+- `mode` : `synchronisé incognito avion` (quand il a été choisi).
+
+En inters-session les pages ne peuvent être que `org` ou `login`.
+
+#### Propriétés d'une session
+### Objet OpBuf
+Cet objet créé en début des opérations ci-dessus stocke les mises à jour en attente collectées pendant l'opération afin de pouvoir réaliser à la fin :
+- une mise à jour de store/db en un seul appel,
+- une écriture sur IDB en une seule transaction.
+
+Ceci permet d'éviter de faire apparaître,
+- en store/db des états intermédiaires incohérents propres à perturber l'affichage,
+- en IDB un état fonctionnellement incohérent résultant d'une mise à jour partielle.
+
+### Opération `ConnexionCompte`
+Elle a pour objectifs :
+- de s'assurer que le compte correspondant à la phrase secrète saisie existe,
+- d'alimenter en store/db et en IDB toutes les données du périmètre du compte.
+
+C'est la seule opération qui lit IDB afin de récupérer un maximum de données sans avoir à les obtenir du serveur.
+
+Elle écrit sur IDB les données récupérées du serveur de manière à ce que son état soit cohérent et propre à être utilisé par une connexion ultérieure en mode _avion_.
+
+Elle purge d'IDB les données _inutiles_ (obsolètes ou sorties du périmètre du compte).
+
+- **suppression éventuelle de IDB** si c'est l'option demandée au login.
+- si c'est une connexion en mode _avion_, vérifie qu'une propriété du `localstorage` donne le nom de la base du compte pour la phrase secrète saisie.
+- **connexion effective :**
+  - attribue à la session un `sessionId` aléatoire
+  - ouverture de IDB (sauf en mode _incognito_)
+  - création d'un websocket avec le serveur (sauf en mode _avion_), lancement du ping pong.
+- **phase itérative 0,1,2**
+  - tant que ces trois phases ne se sont pas déroulées sans incident, on boucle (5 fois avant exception).
+  - **phase 0 : récupération de `compte / prefs / compta`** : ceci donne une liste d'avatars (dans `lgrk` de compte). Signature (dans compta) et abonnement au compte.
+  - **phase 1 : pour tous les avatars cités dans le compte**
+    - récupération de `avatar`
+    - signature (dans cv) et abonnement
+    - _si la version du compte a changé_, donc qu'il a pu avoir un avatar en plus ou en moins depuis la phase 0, échec et on reprend la phase 0-1-2
+    - ceci donne la liste des groupes et couples du périmètre du compte.
+  - **phase 2 : pour tous les groupes et comptes du périmètre,**
+    - récupération du `couple groupe`
+    - signature (dans cv) et abonnement
+    - si l'une des versions, du compte ou d'un des avatars récupérés a changé (possibilité de groupe / couple en plus ou en moins), échec et on reprend la phase 0-1-2
+- **phase 3. Récupération des membres et secrets** rattachés aux `avatar / couple / groupe` récupérés ci-dessus. Comme on est abonné à ces objets, s'ils changent les modifications seront traitées en synchronisation.
+- **phase 4. Récupération des cv des objets maîtres et des membres rattachés.**
+  - l'objet `sessionsync` a une propriété `vcv` qui donne la plus haute version des cv récupérées et stockées en IDB.
+  - liste `vp` : ce sont les cv référencées dont on a déjà une copie (soit parce que son x indique une disparition, soit parce qu'une cv a été déclarée). On récupère du serveur celles ayant une version supérieure à `vcv`.
+  - liste `vz` : ce sont les cv référencées dont on n'a jamais eu copie antérieurement. On récupère du serveur celles ayant une version non 0. Une cv avec une version 0 indique seulement que l'objet existe et qu'il n'a jamais eu de cv.
+  - la plus haute version des cv récupérées donne le `vcv` pour la prochaine session.
+- **phase 5. Récupération des fichiers attachés déclarés stockés localement**, manquants ou ayant changé de version.
+- **phase 6. Récupération des invitations aux groupes (invitgr) concernant un des avatars du compte**. Ces objets ne sont pas stockés et donne lieu immédiatement à une requête pour modifier les avatars correspondants et leur faire référencer les avatars du compte.
+- **finalisation :**
+  - les mises à jour store/db sont validées,
+  - les mises à jour dans IDB sont soumises et commitées en une seule opération.
+  - la fin de la connexion est actée : la session passe en statutsession 2 (apte à fonctionner).
+
+### Opération de synchronisation `ProcessQueue`
+Chaque opération traite un ou plusieurs lots de notifications envoyées par le serveur sur websocket.
+- tous les objets modifiés sont collectés et seule la plus haute version pour chaque id est conservée pour traitement.
+- l'objectif est de mettre à jour :
+  - store/db en une seule fois à la fin.
+  - IDB en une seule transaction à la fin.
 
 ## Pages
 ### Org : `/`
@@ -69,12 +219,11 @@ Elle enchaîne,
 - b) soit en retour vars la page `Login` en cas de déconnexion.
 
 ### Compte : `/_org_/compte`
-Dès que les données du compte sont charhgées, voire partiellement, cette page s'affiche et donne la synthèse du compte, la liste de ses avatars et des groupes auxquels il accède.
+Dès que les données du compte sont complètement chargées, cette page s'affiche et donne la synthèse du compte, la liste de ses avatars...
 
 Navigations possible :
 - `Login` : en cas de déconnexion
 - `Avatar` : vers l'avatar _sélectionné_
-- `Groupe` : vers le groupe _sélectionné_
 
 ### Avatar : `/_org_/avatar`
 Détail d'un avatar du compte.
@@ -83,31 +232,22 @@ Navigations possibles :
 - `Login` : en cas de déconnexion
 - `Compte` : retour à la synthèse du compte.
 
-### Groupe : `/_org_/groupe`
-Détail d'un groupe accédé par le compte.
-
-Navigations possibles :
-- `Login` : en cas de déconnexion
-- `Compte` : retour à la synthèse du compte.
-
-### Panneaux latéraux
-#### Menu
+### Panneau latéral Menu
 Infos et boutons d'actions (affichage de boîtes de dialogue, etc.)
-
-#### Répertoire des contacts
-Tous les avatars connus en tant que contact ou membre participant aux groupes accédés par le compte.
 
 ## Actions et opérations
 ### Actions
 Elles n'affectent que l'affichage, la visualisation des données. Elles ne changent pas l'état des données du compte, ni sur IDB ni sur le serveur central.
 
-Elles ne font pas d'accès ni à IDB ni au réseau, sauf les actions spéciales de **ping** :
+Elles ne font pas d'accès ni à IDB ni au réseau, sauf l'action spéciale de **ping** :
 - _ping du serveur_ : pas en mode _avion_.
 - _ping DB de la base de l'organisation sur le serveur_ : il faut que cette organisation soit connue, pas en mode _avion_.
 - _sélectionné_ : il faut que le compte soit identifié, pas en mode _incognito_.
 
 ### Opérations
-Une opération modifie l'état des données du compte, en mémoire et **sur IDB et/ou le serveur** : il y a donc des opérations sensibles à l'interruption d'accès au serveur, d'autres sensibles à l'indisponibilité de IDB et enfin d'autres sensibles aux deux.
+Seules les 4 opérations spéciales vues antérieurement modifient l'état des données du compte, en mémoire et **sur IDB et/ou le serveur**.
+
+**Les opérations UI _standard_** ne changent pas létat store/db ni IDB : elles postent des requêtes au serveur.
 
 Une opération s'exécute toujours dans le cadre d'une **session**, c'est à dire avec un **compte identifié ou en cours d'identification** (donc pas forcément encore authentifié ni créé).
 - si la session est en mode synchronisé ou incognito, une session WebSocket est ouverte.
@@ -123,18 +263,11 @@ Trois événements peuvent interrompre une opération UI :
 - l'avis d'une impossibilité d'accès à IDB.
 - une demande d'interruption de l'utilisateur.
 
-La détection d'un de ces événements provoque une exception BREAK qui n'est traitée que sur le catch final de l'opération (elle doit être re-propagée telle quelle sans traitement sur les appels internes): dès détection l'opération ne fait rien qu'essayer d'en faire le moins possible - propager l'exception.
+La détection d'un de ces événements provoque une exception BREAK qui n'est traitée que sur le catch final de l'opération (en cas de _catch_ elle doit être re-propagée telle quelle).
 
 Le traitement final du BREAK consiste à dégrader le mode de la session en **Avion** ou **Visio** ou **Incognito** selon les états IDB et NET (s'il ne l'a pas déjà été).
 
-##### Opérations de chargement / synchronisation
-Ces opérations sont les premières à s'exécuter dans une session (et ne s'exécute plus dans la session). Elles ont deux phases :
-- authentification un compte : en cas d'échec c'est la clôture de la session et le retour à la page de Login.
-- chargement des données locales et / ou celles sur le serveur : en cas d'échec / interruption volontaire la session est dégradée.
-
-Il y a donc un moment où les opérations ont un comportement normal vis à vis des interruptions alors qu'avant la seule issue est la déconnexion.
-
-#### Opérations `WS` _WebSocket_ initiées par l'arrivée d'un message sur WebSocket
+#### Opération `ProcessQueue` `WS` _WebSocket_ initiées par l'arrivée d'un message sur WebSocket
 Une seule opération de ce type peut se dérouler à un instant donné.
 
 Elles ne sont pas interruptibles, sauf de facto par la rupture de la liaison WebSocket (voire en conséquence d'une action de déconnexion).
@@ -143,19 +276,36 @@ Deux événements peuvent interrompre une opération WS :
 - l'avis d'une rupture d'accès au réseau (WebSocket ou sur un accès POST / GET).
 - l'avis d'une impossibilité d'accès à IDB.
 
-La détection d'un de ces événements provoque une exception BREAK qui n'est traitée que sur le catch final de l'opération (elle doit être re-propagée telle quelle sans traitement sur les appels internes). 
+La détection d'un de ces événements provoque une exception BREAK qui n'est traitée que sur le catch final de l'opération (en cas de _catch_ elle doit être re-propagée telle quelle sans traitement). 
 
 Le traitement final du BREAK consiste à dégrader le mode de la session en **Avion** ou **Visio** selon les états IDB et NET (s'il ne l'a pas déjà été).
 
-#### Opérations avec demandes d'options à l'utilisateur
-Une opération `UI` peut bloquer sur un `await` de demande d'option à l'utilisateur : l'opération est débloquée derrière `await` avec le choix fermé que l'utilisateur a opéré parmi ceux proposés.
-
-> In fine les opérations ne sortent jamais en exception.
+> In fine `ProcessQueue` ne sort jamais en exception.
 
 ### Boîtes de dialogue
-Leur affichage est toujours commandée par une variable _vuex_ : dans n'importe quel endroit du code il suffit donc de basculer leur variable d'affichage pour que la boîte apparaisse.
+##### Publiques
+Elles peuvent être commandées d'ailleurs de la vue qui la contient : principalement celles du _layout_ mais aussi quelques autres.
 
-Leur contenu dépend pour l'essentiel de l'état de la session, en partie de son état dans _vuex_.
+**Leur affichage est toujours commandée par une variable de store/ui** : dans n'importe quel endroit du code il suffit donc de basculer leur variable d'affichage pour que la boîte apparaisse.
+
+Sur la mutation `majstatutsession` avec un statut non 2 (ok), toutes les boîtes publiques sont fermées.
+
+##### Spécifiques d'une vue
+Chaque boîte dépend d'une variable définie au setup() par def() :
+- la variable `sessionok` (ou plus `statutsession`) active est déclarée.
+- `watch` permet de fermer toutes les boîtes.
+
+    setup () {
+    const mcledit = ref(false)
+    const sessionok = computed(() => { return $store.state.ui.sessionok })
+    watch(() => sessionok.value, (ap, av) => {
+      if (ap) {
+        mcledit.value = false
+      }})
+
+Ainsi :
+- dans l'affichage des `v-if="sessionok"` permettent de ne rien afficher lors d'une fermeture de la vue quand les objets qu'elle affiche ont déjà disparu.
+- les boîtes de dialogues se ferment automatiquement en cas de déconnexion.
 
 ## Modes
 ### Avion
@@ -165,7 +315,7 @@ Leur contenu dépend pour l'essentiel de l'état de la session, en partie de son
 
 ### Incognito
 - pas d'accès à IDB, session WebSocket ouverte.
-- les seules opérations impossibles sont celles devant lire / écrire IDB (gestion des secrets à mise à jour différé à la prochaine synchronisation).
+- les seules opérations impossibles sont celles devant lire / écrire IDB (enregistrement de textes en attente, de fichiers à attacher plus tard et de fichiers attachés stockés localement).
 - en cas de perte d'accès au réseau (session WS fermée), le mode est dégradé en **Visio**. 
 
 ### Synchronisé
@@ -211,179 +361,6 @@ L'action de `reconnexion` sur une session source recrée une autre session :
 - la nouvelle session a le mode initial de la session source qui est détruite.
 - la nouvelle session a pour compte le compte de la session initiale (donc authentifié).
 
-## Phases d'une session
-
-### Phase 0 : non connecté - Page Accueil
-Aucun compte n'est authentifié. Possibilités :
-- authentifier un compte existant
-- créer un nouveau compte
-
-En cas de succès, ces deux actions ouvrent la page Synchro (phase 1).
-
-Aucune session WS.
-
-### Phase 1 : chargement / synchronisation des données - Page Synchro
-Les données sont obtenues localement (sauf mode incognito) puis depuis le serveur (sauf mode avions)
-
-Sauf mode avion, une session WS est en cours:
-- la page peut recevoir un appel `rupturesession` si la session courante est fermée sur erreur (ou volontairement à l'occasion d'une déconnexion explicite).
-- les requêtes POST/GET sont interrompues et se terminent au plus vite en exception `RUPTURESESSION`.
-- derrière chaque `await` les traitements testent l'état de la session et lancent un exception `RUPTURESESSION` pour se terminer au plus vite.
-
-En cas de succès du traitement la page Compte est ouverte (phase 2) et selon le cas avec un état `modeleactif` à vrai ou faux (en cas d'interruption de cette phase par choix de l'utilisateur).
-
-### Phase 2 : travail - Plusieurs pages
-L'état `modeleactif` peut être :
-- `vrai` : la page peut lancer des opérations (peu en mode avion) et les notifications sont reçues du serveur (sauf mode avion) et traitées.
-- `faux` : la page est uniquement passive, navigation visualisation sans modification de l'état interne du modèle.
-
-Des navigations sont possibles entre pages de phase 2.
-
-Les pages gèrent les `rupturesession` (comme ci-dessus).
-
-La sortie de ces pages de travail s'effectuent :
-- sur demande de déconnexion : retour à la page `Accueil`,
-  - explicite (j'ai fini),
-  - après des erreurs répétitives,
-  - suite à une _rupture de session_ avec demande de déconnexion.
-- sur demande de reconnexion sur _rupture de session_ : retour à la page `Synchro`.
-
-## Page Accueil : authentification / création d'un compte
-Soit par donnée de la phrase secrète, soit par création d'un compte : au retour de cette phase le row `compte` correspondant est connu et en mémoire, le nom de la base IDB est également connu.
-
-## Page Synchro 
-On peut arriver sur cette page par deux chemins :
-- juste après une authentification,
-- suite à une reprise de synchronisation : dans ce cas le row compte peut être ancien.
-
-Le row `compte` est relu (sauf mode avion) afin d'être certain d'avoir la dernière version.
-
-### Map `versions`
-La map `versions` comporte une entrée par avatar / groupe avec pour valeur une table de  N compteurs de version v : 
-- pour un avatar 7 compteurs donnant la plus haute version disponible dans le modèle pour chacun des tables liées à l'avatar `secret invitegr avatar contact invitct rencontre parrain`.
-- pour un groupe 3 compteurs donnant la plus haute version disponible dans le modèle pour chacun des tables liées au groupe `secret groupe membre`.
-
-Par exemple :
-
-    {
-    av1 : [436, 512, 434, 418, 517, 718, 932],
-    av2 : ... ,
-    gr1 : [65, 66, 933],
-    ...
-    }
-
-Cette map permet de savoir que pour remettre à niveau la table `contact` (la quatrième) de `av1` il faut demander tous les rows de versions postérieures à 418.
-
-versions n'est pas sauvegardée en IDB mais reconstruite lors du chargement de iDB en mémoire.
-
-### `vcv` : numéro de version des cartes de visite
-La valeur est conservée en IDB depuis la session antérieure et signifie que toutes les cartes de visite de `vcv` inférieure à cette valeur sont stockées en IDB / modèle. En mode incognito elle n'est pas lue depuis IDB mais mise à 0.
-
-A la fin complète de l'étape de chargement des cartes de visites, vcv est mise à jour avec la plus haute valeur reçue : toutes les cartes de visite sont en mémoire / IDB jusqu'à cette version. Sauf en mode incognito cette valeur est sauvegardée en IDB à ce moment là.
-
-### `dhsyncok dhdebutsync`
-`dhsyncok` : donne la date-heure de fin de la dernière synchronisation complète.
-- elle est enregistrée en fin de la dernière étape de phase de synchro (sauf en mode avion).
-- elle est remise à jour (sauf en mode avion) lors de la réception de chaque notification par WebSocket.
-- elle est sauvegardée en IDB (mode synchro).
-
-`dhdebutsync`
-- elle est inscrite au début de la phase de synchro et mémorisée en IDB (en mode sync).
-- elle est effacée en fin de la phase de synchro (si OK, pas interrompue).
-
-Si la session du compte est rouverte en mode avion, on sait ainsi si la dernière synchronisation a été interrompue (et quand) et que les données peuvent être inconsistantes.  
-Si `dhdebutsync` n'est pas présente, les données sont cohérentes à la date-heure `dhsyncok`.
-
-Le **modèle est passif** si `dhdebutsync` est présente données partiellement synchronisées).
-
-### Étape C :_chargement de IDB_ : mode _avion_ et _synchronisé_ seulement
-Toute la base IDB est lue et inscrite dans le modèle (en mémoire).
-
-Cette étape peut être interrompue,
-- par un incident IDB (ou bug).
-- par une rupture de session (sauf mode avion).
-- dans les deux cas les choix laissés sont,
-  - reprise de la phase chargement / synchronisation depuis le début (sans retourner à Accueil pour choisir / authentifier le compte).
-  - déconnexion du compte, retour à Accueil (phase 0).
-
-### Étape R : _remise à niveau_ : mode _synchronisé_ et _incognito_ seulement
-Elle consiste à obtenir du serveur les rows des tables mis à jour postérieurement à la version connue en IDB.
-
-#### Sous-étape _amorce_
-Le décryptage du row `compte` lors de l'authentification a donné la liste des avatars du compte.
-
-Envoi de 3 requêtes :
-- 1 - relecture row `compte` en mode synchronisé (la lecture de IDB a pu être longue) afin d'être certain d'avoir la dernière version et la bonne liste des avatars. Au retour, nettoyage éventuel dans le modèle en mémoire et en IDB (mode synchro) des avatars obsolètes.
-- 2 - obtention des rows `invitgr` de ces avatars : le décryptage en session de ces rows donne la liste des groupes (et leur clé de groupe). Au retour, nettoyage dans le modèle en mémoire et en IDB (mode synchro) des groupes obsolètes.
-- 3 - ouverture avec le serveur d'un contexte de synchronisation comportant :
-  - le compte avec signature de vie,
-  - la liste des avatars du compte avec signature,
-  - la liste des groupes accédés avec signature.
-  
-Après cette requête le Web Socket envoie des notifications dès que des rows sont changés en base de données et relatifs à un de ces éléments d'après leur id. Les listes des avatars du compte et des groupes accédés par le compte sont fixées et suivies.
-
-#### Sous-étapes _avatar / groupe_
-Il y a ensuite autant de sous étapes _avatar / groupe_ dans cette phase que, 
-- d'avatars du compte cités dans le row compte.
-- de groupes accédés cités dans les rows `invitgr` relatifs à chaque avatar avc. 
-
-Cette étape peut être interrompue,
-- par un incident IDB (ou bug).
-- par une rupture de session.
-- par demande explicite de l'utilisateur (prise en compte à chaque sous-étape)
-- dans tous les deux cas les choix laissés sont,
-  - reprise de la phase chargement / synchronisation depuis le début (sans retourner à Accueil pour choisir / authentifier le compte).
-  - déconnexion du compte, retour à Accueil (phase 0).
-
-### Étape CV : _synchronisation de cartes de visites_
-A la fin de l'étape R on connaît la liste des cartes de visites requises :
-- celles des avatars du compte, mais on les a déjà récupérées par principe.
-- celles de tous leurs contacts,
-- celles des membres des groupes accédés.
-
-Par ailleurs on a déjà en mémoire lues depuis IDB un certain nombre de cartes de visite dont on sait qu'elles sont toutes connues à la version `vcv`. On obtient deux listes :
-- celles des CV à rafraîchir si elles ont changé après `vcv`,
-- celles à obtenir impérativement.
-
-Cette requête :
-- enregistre dans le contexte de la session sur le serveur la fusion de ces deux listes : les CV seront désormais synchronisées.
-- récupère les CV de ces deux listes (après `vcv` et sans condition de version).
-
-**Enregistrement en une transaction IDB** des cartes de visites mises à jour et suppression des cartes de visite non référencées.
-
-A cet instant le modèle en mémoire est complet mais n'est pas encore cohérent : des transactions parallèles ont pu effectuer des mises à jour qui sont disponibles dans la queue des notifications du Web Socket.
-
-Cette étape peut être interrompue,
-- par un incident IDB (ou bug).
-- par une rupture de session.
-- dans les deux cas les choix laissés sont,
-  - reprise de la phase chargement / synchronisation depuis le début (sans retourner à Accueil pour choisir / authentifier le compte).
-  - déconnexion du compte, retour à Accueil (phase 0).
-
-### Étape N : _traitement des notifications reçues par Web Socket_
-Pendant toute le phase de remise à niveau des notifications de mises à jour ont pu être reçues : elles sont traitées.
-- prétraitement des cartes de visites : des contacts et des membres ont pu être ajoutés et n'ont pas (en général) de cartes de visites. Celles-ci sont demandées par GET au serveur qui les ajoutent à la liste des cartes à notifier.
-- une seule transaction IDB met à jour les rows reçus. 
-- la nouvelle `vcv` est connue (retournée par le serveur),
-- `dhsyncok` est fixée,
-- `dhdebutsync` est effacée,
-- cet état est sauvegardée en IDB (en mode synchro).
-
-## Pages de travail (phase 2)
-L'utilisateur peut effectuer des actions (si `modeleactif` est vrai) et naviguer.
-
-La session évolue selon :
-- les actions déclenchées par l'utilisateur qui vont envoyer des requêtes au serveur.
-- les notifications reçues du Web Socket comportant les rows mis à jour par les transactions du serveur et intéressant la session.
-
-Si `modeleactif` est vrai, l'état interne de la structure en mémoire reflète le dernier état de notification traité : la date-heure `dhsyncok` et `vcv` sont mises à jour en modèle mémoire et en IDB.
-
-Le traitement d'un bloc de notifications peut demander par GET des cartes de visite manquantes (nouveau contact ou nouveau membre)
-
-_**Remarques :**_
-- quand un traitement de notification débute, il récupère tous les blocs de notification reçus et an attente de traitement : les suivants sont accumulés en queue pour le traitement ultérieur.
-- quand il n'y a pas eu de traitement de notification pendant 5s, `dhsyncok` est écrite en IDB avec la date-heure courante.
-
 ## `localStorage` et IDB
 **En mode *avion*** dans le `localStorage` les clés `monorg-hhh` donne chacune le numéro de compte `ccc` associé à la phrase de connexion dont le hash est `hhh` : `monorg-ccc` est le nom de la base IDB qui contient les données de la session de ce compte pour l'organisation `monorg` dans ce browser.
 
@@ -407,94 +384,3 @@ A gauche :
     - rond vert : mode actif
     - verrou rouge : mode passif (mise à jour interdite).
   - un clic explique ce que signifie l'état
-
-## Classes
-
-## Opérations de mise à jour
-L'état des consommations d'un compte est une requête spéciale, sans synchro et qui réintègre les quotas des avatars : ça peut se faire à la connexion pour disposer des ressources dans la session (à rafraîchir explicitement donc en cours de session).
-
-#### Connexion et création de compte
-Créé / retourne les objets compte et de ses avatars. En session, ça met à jour ces objets en IDB, hors de toute synchro qui démarre après la connexion.
-
-Connexion  
-Création d'un compte privilégié + avatar  
-Acceptation d'un parrainage de création de compte + avatar -> cext du parrain
-Refus d'un parrainage  
-
-#### Compte
-Enregistrement / maj d'un parrainage -> cext du parrain
-
-Refus d'une proposition de contact externe -> cext du demandeur 
-Refus d'une invitation groupe externe -> cext de l'invitant 
-
-Changement de phrase secrète -> compte 
-Maj des mots clés -> compte 
-Don de quotas  
-- à un avatar -> compte C + avatar A2
-- à un groupe
-
-Suppression du compte
-
-#### Avatar
-Nouvel avatar
-Maj CV
-Connexion, maj de DMA  
-Destruction d'un avatar
-
-***Proposition de contact interne***   
-Proposition de contact  
-Maj message / dlv d'une proposition  
-Suppression d'une proposition  
-Refus d'une proposition de contact  
-
-***Proposition de contact externe***   
-Proposition de contact  
-Maj message / dlv d'une proposition  
-Suppression d'une proposition  
-
-***Invitation interne à un groupe***  
-Invitation  
-Maj message / dlv d'une invitation  
-Suppression d'une invitation  
-Refus d'invitation
-
-***Invitation externe à un groupe***  
-Invitation  
-Maj message / dlv d'une invitation  
-Suppression d'une invitation  
-
-#### Contact
-Acceptation d'une proposition de contact (création d'un contact)
-Acceptation d'une proposition externe de contact (création d'un contact)
-
-Maj d'un contact : info, notification, statut  
-Disparition d'un contact  
-
-#### Groupe
-Création d'un groupe  
-Fermeture d'un groupe  
-Vote d'ouverture  
-Archivage / désarchivage
-Don de quota
-
-***Membre***  
-Acceptation d'une invitation interne (création d'un membre)  
-Acceptation d'une invitation externe (création d'un membre)  
-
-Changement de statut  
-Maj de info, mots clés
-Résiliation  
-
-#### Secret
-Création d'un secret de groupe  
-Création d'un secret de groupe avec cc  
-Création d'un secret personnel avec / sans cc
-
-Maj du texte / pièce jointe  
-Maj mots clés
-Permanent groupe  
-Permanent cc  
-
-Destruction secret groupe
-Destruction d'une copie
-

@@ -1,3 +1,10 @@
+m1.mjs : creationCompte à reprendre (création CV, abonnement, signatures ...)
+
+**connexion compte : phase 4 récupérer les CVs**
+- traiter les CV qui reviennent avec un x > 0 :
+  - poster des requêtes qui changent le statut des membres
+  - poster les requêtes qui changent le statut des couples
+
 **Revoir toutes les pages** pour intégrer le mode cnx de PanelGroupe
 
 Suppression d'un avatar (volontairement) : ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement. Bref récupérer l'espace pour le compte.
