@@ -1,6 +1,13 @@
-m1.mjs : creationCompte à reprendre (création CV, abonnement, signatures ...)
+m1.mjs : creationCompte à réviser (abonnement, signatures ...)
+
+nom d'un couple : on connaît toujours les 2 au départ ?
+
+nomf à réviser sur : avatar groupe couple secret
+
+Dans un couple fixer le nom. Sur une rencontre, faire saisir un nom pour l'autre : si ce n'est pas le bon, la rencontre ne peut pas être acceptée.
 
 **connexion compte : phase 4 récupérer les CVs**
+- tout réviser
 - traiter les CV qui reviennent avec un x > 0 :
   - poster des requêtes qui changent le statut des membres
   - poster les requêtes qui changent le statut des couples

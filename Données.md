@@ -429,7 +429,7 @@ Il y a 2 moyens pour A0 de prendre contact :
 - **par phrase de contact** : déclarée par A0, elle permet,
   - à A0 d'identifier le couple potentiel qu'il va former avec A1 dans sa liste de couple,
   - à A1 de retrouver ce couple en saisissant la phrase,
-  - par sécurité la phrase a une durée de vie limitée : faute d'avaoir été citée par A1 dans le délai imparti elle est caduque et le couple n'est pas confirmé.
+  - par sécurité la phrase a une durée de vie limitée : faute d'avoir été citée par A1 dans le délai imparti elle est caduque et le couple n'est pas confirmé.
   - A0 crée le couple qui est incomplet, la partie A1 est partielle. Le couple reste en phase jusqu'à,
     - acceptation de A1 : il passe en phase 3.
     - refus de A1 : il passe en phase 2.
@@ -828,7 +828,7 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
     - `p` : 0: pas protégé, 1: protégé en écriture.
 - `v1` : volume du texte
 - `v2` : volume total des fichiers attachés
-- `mc` : 
+- `mc` :
   - secret personnel ou de couple : vecteur des index de mots clés.
   - secret de groupe : map sérialisée,
     - _clé_ : `im` de l'auteur (0 pour les mots clés du groupe),
