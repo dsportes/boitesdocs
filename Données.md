@@ -682,9 +682,11 @@ Table
 - `id` : id du **groupe**.
 - `im` : indice du membre dans le groupe.
 - `v` :
-- `st` : `x p`
+- `st` : `x p 0 1`
   - `x` : 0:envisagé, 1:invité, 2:actif (invitation acceptée), 3: inactif (invitation refusée), 4: inactif (résilié), 5: inactif (disparu).
   - `p` : 0:lecteur, 1:auteur, 2:animateur.
+  - `0` : 1 si le conjoint 0 est actif
+  - `1` : 1 si le conjoint 1 est actif
 - `vote` : vote de réouverture.
 - `mc` : mots clés du membre à propos du groupe.
 - `infok` : commentaire du membre à propos du groupe crypté par la clé K du membre.
