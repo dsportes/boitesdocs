@@ -419,6 +419,10 @@ Un couple est déclaré avec :
 
 Un couple est connu dans chaque avatar A0 et A1 par une entrée dans leurs maps respectives `lcck` : les clés dans ces maps sont des numéros aléatoires dit _d'invitation_ (hash de (`cc` en hexa suivi de `0` ou `1`)).
 
+**Un couple a un nom et une carte de visite**
+- le `nom` d'un couple est formé de l'accolement des deux noms de A0 et A1 : il est donc bien immuable. Même dans le cas d'une prise de contact A0 doit fournir le nom exact de l'avatar qu'il contacte à défaut d'avoir ni sa clé ni son id.
+- **un couple peut avoir une carte de visite**, une photo et un texte, que chacun des deux conjoints peut mettre à jour et qui ne sera visible que d'eux.
+
 #### Prises de contact
 Il y a 2 moyens pour A0 de prendre contact :
 - **par création du couple** : A0 connaît l'identification de A1, 
@@ -440,20 +444,20 @@ Il y a 2 moyens pour A0 de prendre contact :
 - **rencontre** : 
   - soit A0 a rencontré A1 dans la vraie vie et ils ont convenu d'une phrase de contact,
   - soit un intermédiaire qui connaît A0 et A1 et leur a communiqué à chacun la même phrase de prise de contact.
-  - A1 n'est PAS connu. 
+  - A1 n'est PAS connu, mais la rencontre collecte le nom de A1 (qui ne pourra accepter que si ce nom est bien le sien). 
 
 #### Phases de vie d'un couple
-- **(1) prise de contact par A0**. A0 et A1 sont connus mais A1 n'a pas (encore) validé sa participation au couple.
+- **(1) prise de contact par A0**. A0 est totalement identifié et A1 soit totalement, soit par son seul nom, mais A1 n'a pas (encore) validé sa participation au couple.
   - le refus amène le couple en phase 2.
   - l'acceptation amène le couple en phase 3.
-- **(2) fin de vie de A0 seul après refus de A1**. A0 et A1 se sont bien identifiés mais A1 a _refusé_ ce contact initial. A0 peut prendre connaissance de la cause de refus dans l'ardoise du couple puis quittera le couple. Cette phase est passive, le couple est figé.
+- **(2) fin de vie de A0 seul après refus de A1**. A1 a _refusé_ ce contact initial. A0 peut prendre connaissance de la cause de refus dans l'ardoise du couple puis quittera le couple. A0 fait vivre seul un couple qui n'a jamais démarré (mais A1 pourra être sollicité à nouveau plus tard).
 - **(3) vie à deux**. A0 et A1 se connaissent et participent à la vie du couple :
   - en écrivant sur l'ardoise,
   - en créant et mettant à jour des secrets partagés.
   - la sortie de cette phase peut être causée par :
     - le fait que l'un des deux quitte le couple : phase 4.
     - le fait que l'un des deux disparaisse : phase 5
-- **(4) vie de A0 OU A1 seul après _départ_ de l'autre**. Celui qui a quitté ne _connaît plus le couple_. Celui qui reste le connaît encore et peut :
+- **(4) vie de A0 OU A1 seul après _départ_ de l'autre**. A0 et A1 ont vécu une vis de couple. Celui qui a quitté ne _connaît plus le couple_. Celui qui reste le connaît encore et peut :
   - continuer à faire vivre les secrets,
   - tenter une _reprise de contact_ avec celui qui a quitté (mais ce dernier n'est pas obligé d'accepter), ce qui ramènerait le couple en phase 3.
 - **(5) vie de A0 OU A1 seul après _disparition_ de l'autre**. Celui qui reste connaît encore son identité (bien que disparu) mais plus sa carte de visite. Il peut continuer à faire vivre les secrets.
@@ -468,10 +472,10 @@ Dans certaines de ces phases il y a des états particuliers différents (sinon 0
 - **(2) fin de vie de A0 seul**
   - (0) : A1 est identifié mais n'a pas répondu dans les délais.
   - (1) : A1 est identifié mais a refusé.
-  - (2) : parrainage hors délai (A1 est connu ... mais n'existe pas).
-  - (3) : parrainage refusé  (A1 est connu ... mais n'existe pas).
-  - (4) : rencontre hors délai (A1 est inconnu).
-  - (5) : rencontre refusée (A1 est inconnu).
+  - (2) : parrainage hors délai (A1 est identifié ... mais n'existe pas).
+  - (3) : parrainage refusé  (A1 est identifié ... mais n'existe pas).
+  - (4) : rencontre hors délai (A1 n'est qu'en partie identifié par son nom).
+  - (5) : rencontre refusée (A1 n'est qu'en partie identifié par son nom).
   - ces état existent pour permettre à A0 de lire le commentaire éventuel de A1 explicitant son refus.
   - un nouveau parrainage / rencontre / reprise de contact peut être émis ce qui ramènera à la phase (1)
 - **(4) vie de A0 OU A1 seul après _départ_ de l'autre**
@@ -496,7 +500,7 @@ En phase 3, le départ, par exemple de A0 a les conséquences suivantes :
 - les volumes maximum de A0 étant non significatifs sont mis à 0.
 
 En phase 4, une _reprise de contact_ (acceptée) par exemple de A0 a les conséquences suivantes :
-- le compte de A0 se voit imputer les volumes courants,
+- le compte de A0 se voit imputer les volumes courants du couple,
 - A0 refixe ses contraintes de volumes maximaux ce qui peut bloquer les créations et les mises à jour en expansion des secrets.
 
 Table :
@@ -525,16 +529,20 @@ Table :
 
 - `id` : id du couple
 - `v` :
-- `st` : deux chiffres `pe` : phase / état
+- `st` : quatre chiffres `p e 0 1` : phase / état
+  - `0` : 1 si le conjoint 0 est actif
+  - `1` : 1 si le conjoint 1 est actif
 - `v1 v2` : volumes actuels des secrets.
 - `mx10 mx20` : maximum des volumes autorisés pour A0
 - `mx11 mx21` : maximum des volumes autorisés pour A1
 - `dlv` : date limite de validité éventuelle de (re)prise de contact.
 - `datac` : données cryptées par la clé `cc` du couple :
-  - `x` : `[idc, nom, rnd], [idc, nom, rnd]` : id du compte, nom et clé d'accès à la carte de visite respectivement de A0 et A1. Quand l'un des deux est inconnu, le triplet est `null`.
+  - `x` : `[idc, nom, rnd], [idc, nom, rnd]` : id du **compte**, nom et clé d'accès à la carte de visite respectivement de A0 et A1. Les triplets sont toujours remplis, mais pas forcément significatifs selon la valeur de `st`.
+    - en phases 1 et 2 dans le cas d'une rencontre (en attente ou refusée, les champs `idc` et `rnd` du second triplet sont null.
   - `phrase` : phrase de contact en phases 1-2 et 1-3 (qui nécessitent une phrase).
+  - `phch` : hash de la phrase de contact afin d'éviter un recalcul PBKFD -surtout sur le serveur-.
   - `f1 f2` : en phase 1-2 (parrainage), forfaits attribués par le parrain A0 à son filleul A1.
-- `infok0 infok1` : commentaires cryptés par leur clé K, respectivement de A0 et A1.
+- `infok0 infok1` : commentaires personnels cryptés par leur clé K, respectivement de A0 et A1.
 - `mc0 mc1` : mots clé définis respectivement par A0 et A1.
 - `ardc` : ardoise commune cryptée par la clé cc. [dh, texte]
 - `vsh` :
@@ -563,12 +571,14 @@ Table :
 
 - `phch` : hash de la phrase de contact convenue entre le parrain A0 et son filleul A1 (s'il accepte)
 - `dlv`
-- `ccx` : clé du couple (donne son id) cryptée par le PBKFD de la phrase de contact.
+- `ccx` : [cle nom] cryptée par le PBKFD de la phrase de contact:
+  - `cle` : clé du couple (donne son id).
+  - `nom` : nom de A1 pour première vérification immédiate en session que la phrase est a priori bien destinée à cet avatar. Le nom de A1 figure dans le nom du couple après celui de A1.
 - `vsh` :
 
-#### Parrainage
-- Le parrain peut détruire physiquement son row avant acceptation / refus (remord).
-- Le parrain peut prolonger la date-limite d'un parrainage** (encore en attente), sa `dlv` est augmentée.
+#### _Parrainage_
+- Le parrain peut détruire physiquement son `contact` avant acceptation / refus (remord).
+- Le parrain peut prolonger la date-limite de son contact (encore en attente), sa `dlv` est augmentée.
 
 **Si le filleul refuse le parrainage :** 
 - L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
@@ -583,8 +593,8 @@ Table :
 - la ligne `compta` du parrain est mise à jour (réserve).
 - le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixées.
 
-#### Rencontre initiée par A0 avec A1
-- A0 peut détruire physiquement son row avant acceptation / refus (remord).
+#### _Rencontre_ initiée par A0 avec A1
+- A0 peut détruire physiquement son contact avant acceptation / refus (remord).
 - A0 peut prolonger la date-limite de la rencontre (encore en attente), sa `dlv` est augmentée.
 
 **Si A1 refuse la rencontre :** 
@@ -595,7 +605,7 @@ Table :
 - Lors du GC sur la `dlv`, le row `contact` sera supprimé par GC de la `dlv`. 
 
 **Si A1 accepte la rencontre :** 
-- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les données `[idc, nom, rnd]` sont fixées. Les volumes maximum sont fixées.
+- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les données `[idc, nom, rnd]` sont définitivement fixées (`nom` l'était déjà). Les volumes maximum sont fixés.
 
 ## Table `groupe` : CP: `id`. Entête et état d'un groupe
 Un groupe est caractérisé par :
@@ -682,11 +692,9 @@ Table
 - `id` : id du **groupe**.
 - `im` : indice du membre dans le groupe.
 - `v` :
-- `st` : `x p 0 1`
+- `st` : `x p`
   - `x` : 0:envisagé, 1:invité, 2:actif (invitation acceptée), 3: inactif (invitation refusée), 4: inactif (résilié), 5: inactif (disparu).
   - `p` : 0:lecteur, 1:auteur, 2:animateur.
-  - `0` : 1 si le conjoint 0 est actif
-  - `1` : 1 si le conjoint 1 est actif
 - `vote` : vote de réouverture.
 - `mc` : mots clés du membre à propos du groupe.
 - `infok` : commentaire du membre à propos du groupe crypté par la clé K du membre.
