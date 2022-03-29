@@ -467,8 +467,8 @@ Il y a 2 moyens pour A0 de prendre contact :
 Dans certaines de ces phases il y a des états particuliers différents (sinon 0).
 - **(1) prise de contact par A0**
   - (0) : prise de contact standard en cours
-  - (2) : parrainage en cours
-  - (4) : rencontre en cours
+  - (1) : parrainage en cours
+  - (1) : rencontre en cours
 - **(2) fin de vie de A0 seul**
   - (0) : A1 est identifié mais n'a pas répondu dans les délais.
   - (1) : A1 est identifié mais a refusé.
