@@ -464,37 +464,46 @@ Il y a 2 moyens pour A0 de prendre contact :
   - si celui qui reste quitte le couple, celui-ci est détruit.
   - si celui qui reste disparaît pour non activité, le couple s'auto-détruira au bout d'un certain temps (il n'est plus signé).
 
-Dans certaines de ces phases il y a des états particuliers différents (sinon 0).
-- **(1) prise de contact par A0**
-  - (0) : prise de contact standard en cours
-  - (1) : parrainage en cours
-  - (1) : rencontre en cours
-- **(2) fin de vie de A0 seul**
-  - (0) : A1 est identifié mais n'a pas répondu dans les délais.
-  - (1) : A1 est identifié mais a refusé.
-  - (2) : parrainage hors délai (A1 est identifié ... mais n'existe pas).
-  - (3) : parrainage refusé  (A1 est identifié ... mais n'existe pas).
-  - (4) : rencontre hors délai (A1 n'est qu'en partie identifié par son nom).
-  - (5) : rencontre refusée (A1 n'est qu'en partie identifié par son nom).
-  - ces état existent pour permettre à A0 de lire le commentaire éventuel de A1 explicitant son refus.
+Dans certaines de ces phases il y a des **états** particuliers différents (sinon 0).
+- (re)prise de contact standard 
+  - (1) en attente de réponse
+  - (2) hors délai
+  - (3) refusée
+- parrainage 
+  - (4) en attente de réponse
+  - (5) hors délai
+  - (6) refusée
+- rencontre 
+  - (7) en attente de réponse
+  - (8) hors délai
+  - (9) refusée
+
+
+- **(1) prise de contact par A0** 1 4 7
+- **(2) fin de vie de A0 seul** 2 3 5 6 8 9
   - un nouveau parrainage / rencontre / reprise de contact peut être émis ce qui ramènera à la phase (1)
-- **(4) vie de A0 OU A1 seul après _départ_ de l'autre**
+- **(4) vie de A0 OU A1 seul après _départ_ de l'autre** 0 1 2 3
   - (0) : pas de reprise de contact en cours
-  - (1) : reprise de contact en cours
-    - acceptation : phase 3
-    - refus / `dlv` dépassée : phase 4-0
+  - (1) : reprise de contact en attente
+    - acceptation -> phase 3-0
+    - refus -> phase 4-3
+    - `dlv` dépassée -> phase 4-2
+
+#### Prolongation
+- pour un parrainage ou une rencontre, la prolongation ne peut s'effectue qu'avant la fin de la `dlv`.
+- la `dlv` est modifiée sur les rows `contact` et `couple`.
 
 #### Relance
-- pour un parrainage ou une rencontre, un row `contact` est recréé.
-- pour un contact simple : quand A1 refuse le couple disparaît de `lcck` de son avatar (A1 ne le voit plus). La relance consiste à l'y remettre.
+- pour un parrainage ou une rencontre, un nouveau row `contact` est recréé (avec une nouvelle `dlv`).
+- pour un contact simple : quand A1 refuse le couple disparaît du `lcck` de son avatar (A1 ne le voit plus). La relance consiste à l'y remettre.
 
 #### Partage de secrets
 **En phase 3** A0 et A1 partagent les secrets dont les volumes sont supportés par **les deux**.
 
 _Chacun peut fixer une limite maximale de v1 et v2_ : les créations et mises à jour de secrets sont bloquées dès qu'elles risquent de dépasser la plus faible des deux limites.
 
-#### Départ d'un couple et reprise de contact
-En phase 3, le départ, par exemple de A0 a les conséquences suivantes :
+#### _Départ_ d'un couple et reprise de contact
+En phase 3, le _départ_, par exemple de A0 a les conséquences suivantes :
 - le compte de A0 récupère le volume courant du couple,
 - A0 ne connaît plus le couple et ne peut plus ni lire ni accéder aux secrets du couple,
 - les volumes maximum de A0 étant non significatifs sont mis à 0.
