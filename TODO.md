@@ -1,10 +1,6 @@
-m1.mjs : creationCompte à réviser (abonnement, signatures ...)
+membreI dans store/db
 
-nom d'un couple : on connaît toujours les 2 au départ ?
-
-nomf à réviser sur : avatar groupe couple secret
-
-Dans un couple fixer le nom. Sur une rencontre, faire saisir un nom pour l'autre : si ce n'est pas le bon, la rencontre ne peut pas être acceptée.
+La création d'un couple n'a pas l'air de créer une cv avec signature dd ???
 
 **connexion compte : phase 4 récupérer les CVs**
 - tout réviser

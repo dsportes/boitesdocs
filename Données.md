@@ -478,7 +478,6 @@ Dans certaines de ces phases il y a des **états** particuliers différents (sin
   - (8) hors délai
   - (9) refusée
 
-
 - **(1) prise de contact par A0** 1 4 7
 - **(2) fin de vie de A0 seul** 2 3 5 6 8 9
   - un nouveau parrainage / rencontre / reprise de contact peut être émis ce qui ramènera à la phase (1)
