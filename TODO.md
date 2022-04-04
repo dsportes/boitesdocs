@@ -1,22 +1,14 @@
-membreI dans store/db
+membreI dans store/db ???
 
-La création d'un couple n'a pas l'air de créer une cv avec signature dd ???
+Suppressions ... des couples à faire
 
-**connexion compte : phase 4 récupérer les CVs**
-- tout réviser
-- traiter les CV qui reviennent avec un x > 0 :
-  - poster des requêtes qui changent le statut des membres
-  - poster les requêtes qui changent le statut des couples
-
-**Revoir toutes les pages** pour intégrer le mode cnx de PanelGroupe
+La création d'un couple n'a pas l'air de créer une cv avec signature ???
 
 Suppression d'un avatar (volontairement) : ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement. Bref récupérer l'espace pour le compte.
 
-Rubriques "contact de :" et "membre de :" sur les contacts et les membres
+## Panel latéral des contacts externes
 
-Clavier virtuel optionnel pour saisie de la phrase secrète.
-
-A l'écran le nom est affiché sous la forme `nom@abgh` ou `ab` sont les deux premiers caractères de l'id en base64 et `gh` les deux derniers.
+## Clavier virtuel optionnel pour saisie de la phrase secrète.
 
 Sur création d'un groupe le dialogue ne se ferme pas après création.
 
