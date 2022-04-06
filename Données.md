@@ -668,6 +668,7 @@ Table :
 - `st` : `x y`
     - `x` : 1-ouvert (accepte de nouveaux membres), 2-fermé (ré-ouverture en vote)
     - `y` : 0-en écriture, 1-protégé contre la mise à jour, création, suppression de secrets.
+- `mxim` : dernier `im` de membre attribué.
 - `idhg` : id du compte hébergeur crypté par la clé G du groupe.
 - `imh` : indice `im` du membre dont le compte est hébergeur.
 - `v1 v2` : volumes courants des secrets du groupe.
