@@ -6,6 +6,8 @@ Suppressions ... des couples à faire
 La création d'un couple n'a pas l'air de créer une cv avec signature ???
 
 ## TODO
+Membre : autoresilier, resilier, accepterinvit, refuserinvit, modifierlaa
+
 Suppression d'un avatar (volontairement) : ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement. Bref récupérer l'espace pour le compte.
 
 ## Panel latéral des contacts externes
