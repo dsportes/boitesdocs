@@ -54,7 +54,6 @@ L'`id` d'un groupe est le hash (integer) des bytes de `rnd`, 6 bytes, soit 8 bas
 - `v` : version, entier.
 - `dds` : date de dernière signature, en nombre de jours depuis le 1/1/2021. Signale que ce jour-là, l'avatar, le compte, le groupe était *vivant / utile / référencé*. Pour éviter des rapprochements entre eux, la *vraie* date de signature peut être entre 0 et 30 jours *avant*.  
 - `dlv` : date limite de validité, en nombre de jours depuis le 1/1/2021.
-- `st` : `avatar, contact, groupe, secret` : quand `st` est négatif c'est le numéro du jour de sa suppression logique. Les rows ne sont pas supprimés physiquement pendant un certain temps afin de permettre aux mises à jour incrémentales des sessions de détecter les suppressions. Une session pour un compte étant ouverte au moins un fois sur le N0 (365) jours, les `st` négatifs de plus de 365 (+ 30) jours peuvent être physiquement supprimés.
 
 Les comptes sont censés avoir au maximum N0 jours entre 2 connexions faute de quoi ils sont considérés comme disparus.
 
@@ -285,10 +284,9 @@ Cette table a pour objectifs :
   - `1` : objet en disparition : le processus de disparition a commencé. Pour les sessions il a disparu, mais des purges techniques doivent encore être exécutées.
   - `J > 1` : row à purger définitivement le jour J.
 - `cv` : **de détenir la carte de visite des objets** (`[photo, info]` crypté par la clé de l'objet).
-  - toujours `null` pour un _couple_.
   - toujours `null` pour un objet disparu (x > 0).
-  - `null` ou `[photo, info]` selon que l'objet _avatar_ ou _groupe_ a ou non une carte de visite.
-- `v` : version à laquelle `x` et / ou `cv` ont changé pour la dernière fois. Les versions sont prises dans la séquence 0, tous les objets partagent donc la même séquence de version dans le répertoire. Les sessions peuvent ainsi requérir en début de session,
+  - `null` ou `[photo, info]` selon que l'objet _avatar couple groupe_ a ou non une carte de visite.
+- `v` : version à laquelle `x` ou `cv` ont changé pour la dernière fois. Les versions sont prises dans la séquence 0, tous les objets partagent donc pour leur `cv` la même séquence de version dans le répertoire. Les sessions peuvent ainsi requérir en début de session,
   - tous les rows qui les concernent quelle que soit leur version (mode _incognito_),
   - seulement ceux ayant changé d'état d'existence et / ou de carte de visite postérieurement à leur dernière version de remise à niveau.
   - en cours de session pour les nouveaux objets apparaissant dans leur espace de données, la dernière version de leur `x cv`.
@@ -316,7 +314,7 @@ Table :
   - 0 : existant
   - 1 : inexistant logiquement mais purges des objets dépendants en cours
   - 2 : inexistant logiquement et purges terminées.
-- `dds` : date de signature la plus récente. Quand x est > 0 (objet disparu), dds vaut 0.
+- `dds` : date de signature la plus récente. Quand x est > 0 (objet disparu), `dds` vaut 0.
 - `cv` : carte de visite cryptée par la clé de l'objet.
 - `vsh` :
 
@@ -334,8 +332,8 @@ Elle est provoquée par :
 - **le GC quotidien** :
   - scanne sur `dds` des objets inutilisés.
   - scanne les groupes dont la date de fin d'hébergement `dfh` + N2 jours est dépassée.
-- **pour un couple** : le fait que le conjoint survivant décide de _quitter_ le couple.
-- **pour un groupe** : le fait qu'un membre soit _résilié_ (par lui-même ou l'animateur) et qu'il n'y existe aucun autre membre de statut actif / invité.
+- **pour un couple** : le fait que le conjoint survivant décide de _quitter_ le couple supprime logiquement le couple. A noter que le couple n'est déjà plus référencé par aucun avatar dans ce cas.
+- **pour un groupe** : le fait qu'un membre soit _résilié_ (par lui-même ou l'animateur) et qu'il n'y existe aucun autre membre de statut actif / invité supprime logiquement le groupe. A noter que le groupe n'est déjà plus référencé par aucun avatar dans ce cas.
 - **pour un avatar** : la _suppression explicite_ de l'avatar d'un compte. Ceci nécessite préalablement,
   - la fin de l'hébergement des groupes qu'il héberge,
   - son auto-résiliation des groupes dont il est membre,
@@ -350,7 +348,7 @@ Les objets supprimés logiquement sont supprimés physiquement par le GC quotidi
 #### Réactions en session aux avis de destruction d'objets
 Pour les avatars du compte, les groupes auxquels le compte participe et les couples dont un de ses avatars est conjoint, les objets en session sont supprimés, ainsi que les objets dépendants (secrets, membres). Ils sont aussi supprimés de la base IDB.
 
-Concernant les autres avatars "pas du groupe", ils apparaissent :
+Concernant les autres avatars _externes_ (pas du compte), ils apparaissent :
 - soit comme conjoint d'un couple,
 - soit comme membre d'un groupe.
 
@@ -772,12 +770,13 @@ Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est 
 - sans doublon.
 
 ### Fichier attachés
-Un secret _peut_ avoir plusieurs fichiers attachés, chacune identifiée par : `nom.ext|type|dh`.
-- `nom.ext` est un _nom de fichier_, d'où un certain nombre de caractères interdits (dont le `/`). Pour un secret donné, ce nom est identifiant.
-- `type` est le MIME type du fichier d'origine.
+Un secret _peut_ avoir plusieurs fichiers attachés, chacun est identifié par : `nom dh`.
+- `nom` est un _nom de fichier_, d'où un certain nombre de caractères interdits (dont le `/`). Pour un secret donné, ce nom est identifiant.
 - `dh` est la date-heure d'enregistrement du fichier (pas de la création ou dernière modification de son fichier d'origine).
-- un signe `$` à la fin indique que le contenu est gzippé en stockage.
-- le volume retenu est le volume NON gzippé. Seuls les fichiers de types `text/...` sont gzippés.
+- `type` : type mime de la version du fichier.
+- `gz` : les fichiers de types `text/...` sont gzippés en stockage.
+- `lg` : la taille du fichier est celle NON gzippé.
+- `sha` : SHA1 du fichier d'origine.
 
 Un fichier d'un nom donné peut être mise à jour / remplacé : le nouveau contenu peut avoir un type différent et aura par principe une date-heure différente d'enregistrement.
 
@@ -863,23 +862,22 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
 **_Remarque :_** un secret peut être explicitement supprimé. Afin de synchroniser cette forme particulière de mise à jour pendant un an (le délai maximal entre deux login), le row est conservé jusqu'à la date x + 400 avec toutes les colonnes (sauf `id ns x v`) à 0 / null.
 
 **Map des fichiers attachés :**
-- _clé_ : hash (court) de `nom.ext` en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
-- _valeur_ : `[idc, taille]`
-  - `idc` : id complète du fichier (`nom.ext|type|dh$`), cryptée par la clé du secret et en base64 URL.
-  - `taille` : en bytes, avant gzip éventuel.
+- _clé_ `n@v`: 
+  - `n` : hash (court) de `nom` en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
+  - `v` : hash (court) de `dh` en base64 URL.
+- _valeur_ : `{ nom, dh, type, gz, lg, sha }` crypté par la clé S du secret.
 
-**Identifiant de stockage :** `org/sid@sns/cle@idc`  
+**Identifiant de stockage :** `org/sid/sns/n@v`  
 - `org` : code de l'organisation.
 - `sid` : id du secret en base64 URL.
 - `sns` : ns du secret en base64 URL.
-- `cle` : hash court en base64 URL de `nom.ext`
-- `idc` : id complète de la pièce jointe, cryptée par la clé du secret et en base64 URL.
+- `n@v` : hash (court) de `dh` en base64 URL
 
-En imaginant un stockage sur file system, il y a un répertoire par secret : dans ce répertoire pour une valeur donnée de `cle@` il n'y a qu'un fichier. Le suffixe `idc` permet de gérer les états intermédiaires lors d'un changement de version).
+En imaginant un stockage sur file system, il y a un répertoire par secret : dans ce répertoire pour une valeur donnée de `n@` il n'y a habituellement qu'un fichier. Le suffixe `v` permet de gérer les états intermédiaires lors d'un changement de version.
 
 _Une nouvelle version_ d'un fichier attaché est stockée sur support externe **avant** d'être enregistrée dans son secret.
-- _l'ancienne version_ est supprimée du support externe **après** enregistrement dans le secret.
-- les versions crées par anticipation et non validées dans un secret comme celles qui n'ont pas été supprimées après validation du secret, peuvent être retrouvées par un traitement périodique de purge qui peut s'exécuter en ignorant les noms et date-heures réelles des fichiers scannés.
+- _l'ancienne version_ est supprimée du support externe **après** enregistrement de la nouvelle dans le secret.
+- les versions crées par anticipation et non validées dans un secret comme celles qui n'ont pas été supprimées après validation du secret, peuvent être retrouvées par un traitement périodique de purge qui peut s'exécuter en ignorant les noms et date-heures réelles des fichiers scannés simplement en lisant les _clés_ de la map `mafs`.
 
 ## Mots clés, principes et gestion
 

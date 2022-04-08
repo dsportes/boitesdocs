@@ -1,13 +1,16 @@
 ## BUG
+Couple : statut 5 (Ax disparu) non traité ?
 
-## TODO
-Membre : autoresilier, resilier, modifierlaa
+## A compléter
+**Groupe** : fermer un groupe, le protéger en écriture
 
-Suppressions des couples à faire
+**Membre** : autoresilier, resilier, modifierlaa, vote pour rouvrir un groupe
 
-Début / fin hébergement
+**Suppressions des couples** à faire
 
-Suppression d'un avatar (volontairement) : ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement. Bref récupérer l'espace pour le compte.
+Début / fin hébergement. A vérifier
+
+**Suppression d'un avatar** (volontairement) : ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement. Bref récupérer l'espace pour le compte.
 
 ## Panel latéral des contacts externes
 
@@ -55,12 +58,6 @@ Sur création d'un groupe le dialogue ne se ferme pas après création.
   - suppression de celles non pointées
   - affectation d'un libellé local ?
   - calcul des volumes _utiles_ des bases
-
-## Groupes
-- pressenti (ajout / effacement)
-- invitation (acceptation / refus / résiliation)
-- maj f1 f2
-- transfert d'hébergement : retrait d'hébergement / figeage (RO) / reprise / destruction
 
 ## Gestion comptable
 - gestion affichage ardoise : dh de lecture. Popup à la connexion, icône rouge en cours de session
