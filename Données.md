@@ -847,7 +847,10 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
 - `v1` : volume du texte
 - `v2` : volume total des fichiers attachés
 - `mc` :
-  - secret personnel ou de couple : vecteur des index de mots clés.
+  - secret personnel : vecteur des index de mots clés.
+  - secret de couple : map sérialisée,
+    - _clé_ : `im` de l'auteur (0 ou 1 - couple.avc),
+    - _valeur_ : vecteur des index des mots clés attribués par le conjoint.
   - secret de groupe : map sérialisée,
     - _clé_ : `im` de l'auteur (0 pour les mots clés du groupe),
     - _valeur_ : vecteur des index des mots clés attribués par le membre.
