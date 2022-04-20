@@ -770,17 +770,31 @@ Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est 
 - sans doublon.
 
 ### Fichier attachés
-Un secret _peut_ avoir plusieurs fichiers attachés, chacun est identifié par : `nom dh`.
-- `nom` est un _nom de fichier_, d'où un certain nombre de caractères interdits (dont le `/`). Pour un secret donné, ce nom est identifiant.
-- `dh` est la date-heure d'enregistrement du fichier (pas de la création ou dernière modification de son fichier d'origine).
-- `type` : type mime de la version du fichier.
-- `gz` : les fichiers de types `text/...` sont gzippés en stockage.
-- `lg` : la taille du fichier est celle NON gzippé.
-- `sha` : SHA1 du fichier d'origine.
+Un fichier est identifié par un nom aléatoire long `idf` relatif à l'`idacg` (avatar / couple / groupe) du secret auquel il est rattaché.
 
-Un fichier d'un nom donné peut être mise à jour / remplacé : le nouveau contenu peut avoir un type différent et aura par principe une date-heure différente d'enregistrement.
+Sur support externe son _path_ est : `org/idacg/idf` ce qui rend simple la purge de ceux-ci :
+- sur arrêt d'hébergement d'une organisation,
+- sur suppression d'un avatar, d'un couple ou d'un groupe.
+- en revanche la suppression d'un secret devra fournir la liste des `idf` correspondant.
+- `idacg` et `idf` sont en base64.
+
+Un secret _peut_ avoir plusieurs fichiers attachés ou ne pas en avoir. Pour un secret donné il est possible,
+- d'ajouter un nouveau fichier,
+- de supprimer un fichier,
+- mais pas de _remplacer_ un fichier : il faut en ajouter un nouveau et supprimer l'équivalent du précédent.
 
 > **Le contenu d'un fichier attaché sur stockage externe est crypté par la clé du secret.**
+
+Pour chaque fichier d'identifiant `[idacg, idf]` attaché à un secret les propriétés suivantes sont conservées :
+- `nom#info` : 
+  - `nom` (avant le dièse) respecte une syntaxe de nom de fichier Windows / Linux. 
+  - `info` (après le dièse facultatif) : c'est un commentaire très court qui joue le rôle d'information à propos de la version du fu fichier.
+  - plusieurs fichiers attachés peuvent porter le même nom : ils sont interprétés comme des variantes / versions, la partie info en donnant si souhaité une qualification intelligible (`v1.1 validé brouillon` etc.)
+- `dh` : date-heure de validation du fichier (pas de la création ou dernière modification de son fichier d'origine).
+- `type` : type _mime_ de la version du fichier.
+- `gz` : `true` si gzippé, ce qui sera le cas _sauf exception_ des fichiers de types `text/...`.
+- `lg` : taille du fichier d'origine (avant gzip éventuel), celle comptée comme `v2` pour le secret.
+- `sha` : SHA1 du fichier d'origine.
 
 ### Mise à jour d'un secret
 Le droit de mise à jour d'un secret est contrôlé par le couple `xxxp` :
@@ -858,29 +872,65 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
   - `d` : date-heure de dernière modification du texte
   - `l` : liste des auteurs (pour un secret de couple ou de groupe).
   - `t` : texte gzippé ou non
-- `mfas` : sérialisation de la map des fichiers attachés.
+- `mfas` : map des fichiers attachés.
 - `refs` : couple `[id, ns]` crypté par la clé du secret référençant un autre secret (référence de voisinage qui par principe, lui, n'aura pas de `refs`).
 - `vsh`
 
-**_Remarque :_** un secret peut être explicitement supprimé. Afin de synchroniser cette forme particulière de mise à jour pendant un an (le délai maximal entre deux login), le row est conservé jusqu'à la date x + 400 avec toutes les colonnes (sauf `id ns x v`) à 0 / null.
+**_Remarque :_** un secret peut être explicitement supprimé. Afin de synchroniser cette forme particulière de mise à jour pendant un an (le délai maximal entre deux login), le row est conservé jusqu'à la date `x + 400` avec toutes les colonnes (sauf `id ns x v`) à 0 / null.
 
-**Map des fichiers attachés :**
-- _clé_ `n@v`: 
-  - `n` : hash (court) de `nom` en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
-  - `v` : hash (court) de `dh` en base64 URL.
-- _valeur_ : `{ nom, dh, type, gz, lg, sha }` crypté par la clé S du secret.
+## Gestion des fichiers
 
-**Identifiant de stockage :** `org/sid/sns/n@v`  
-- `org` : code de l'organisation.
-- `sid` : id du secret en base64 URL.
-- `sns` : ns du secret en base64 URL.
-- `n@v` : hash (court) de `dh` en base64 URL
+**Map `mfas` des fichiers attachés dans un secret:**
+- _clé_ `idf`: identifiant du fichier en base64.
+- _valeur_ : couple `[lg, data]`
+  - `lg` : taille du fichier, en clair afin que le serveur puisse toujours recalculer la taille totale v2 d'un secret.
+  - `data` : sérialisation cryptée par la clé S du secret de : `{ nom, info, dh, type, gz, lg, sha }`.
 
-En imaginant un stockage sur file system, il y a un répertoire par secret : dans ce répertoire pour une valeur donnée de `n@` il n'y a habituellement qu'un fichier. Le suffixe `v` permet de gérer les états intermédiaires lors d'un changement de version.
+En stockage IDB d'une session, certains fichiers peuvent être conservés dans IDB pour être disponibles en mode avion :
+- la table `fadata` comporte les colonnes :
+  - `id` : l'identifiant `idacg`,
+  - `id2` : l'identifiant `idf` du fichier,
+  - `data` : le contenu binaire crypté du fichier.
+- la table `faidx` comporte les colonnes :
+  - `id` : l'identifiant `idacg` du secret,
+  - `id2` : `ns`, le numéro de secret,
+  - `data` : la sérialisation cryptée de la map suivante :
+    _clé_ : `nom` du fichier : la _dernière_ version (plus haute date-heure) _des_ fichiers de ce nom attachés au secret sera disponible en mode avion.
+    _valeur_ : `idf` du fichier dont on retrouve le contenu dans `fadata`.
 
-_Une nouvelle version_ d'un fichier attaché est stockée sur support externe **avant** d'être enregistrée dans son secret.
-- _l'ancienne version_ est supprimée du support externe **après** enregistrement de la nouvelle dans le secret.
-- les versions crées par anticipation et non validées dans un secret comme celles qui n'ont pas été supprimées après validation du secret, peuvent être retrouvées par un traitement périodique de purge qui peut s'exécuter en ignorant les noms et date-heures réelles des fichiers scannés simplement en lisant les _clés_ de la map `mafs`.
+### Processus de stockage
+C'est par principe un processus en plusieurs phases, le support de fichiers externes et la base de données du serveur n'étant pas gouvernés par un même commit.
+
+#### Phase 1 : annonce
+La session émet une opération d'annonce de transfert d'un fichier en donnant `idacg lg idc idc2` :
+- le serveur génère un `idf` pour ce fichier qui est retourné à la session : il s'assure aussi, a priori, que le volume v2 est supportable par les limites du groupe / couple MI et par le compte hébergeur MI. Ceci afin d'éviter un transfert inutile.
+- l'opération enregistre dans la table `trec` (transferts en cours) le triplet :
+  - `idacg`
+  - `idf`
+  - `dlv` : au delà de ce jour, les transferts qui n'auront pas été validés seront détruits.
+
+### Phase 2 : transfert du contenu
+Le contenu gzippé (le cas échéant) et crypté du fichier est transféré directement sur le support secondaire (sans passer par le serveur) sous le _path_ `org/idacg/idf`
+
+### Phase 3 : validation du fichier
+L'opération reçoit les données :
+- `idacg, ns idf, lg, data` : elles vont permettre d'ajouter l'entrée pour ce fichier dans la map `mfas` du secret,
+- `idc, idc2` : pour imputer le volume `lg` aux comptes hébergeurs et contrôler les maximum admis sur couple et groupe.
+- elle supprime le row correspondant de la table `trec` (`idacg, idf`) pour signifier que le transfert n'est _plus_ en cours.
+
+### GC de `trec`
+Ce GC récupère tous les transferts en cours qui auraient dû être validés depuis plus d'un jour, supprime les fichiers sur support externe et détruit les rows dans la table `trec`.
+
+### Purge par avatar / couple / groupe
+La structure physique est purgée du _directory_ `org/idacg` correspondant.
+
+### Suppression d'un secret isolé, ou de fichiers cités dans un secret
+L'opération récupère la liste des `idf` correspondant et supprime les fichiers du support secondaire, recrédite les comptes hébergeurs idc / idc2 et les volumes occupés sur coupl / groupe.
+
+### Remarques
+- les transferts _upload_ passent directement entre la session et le support secondaire sans transiter par le serveur.
+- les transferts _download_ également.
+- le serveur n'effectue auprès du serveur de fichiers que des _suppressions_, soit de directory, soit de fichiers cités un à un par `idacg, idf`.
 
 ## Mots clés, principes et gestion
 
