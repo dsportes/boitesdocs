@@ -2,6 +2,8 @@
 Couple : statut 5 (Ax disparu) non traité ?
 
 ## A compléter
+**Provider AWS/S3** : à écrire / tester depuis la maquette
+
 **Groupe** : fermer un groupe, le protéger en écriture
 
 **Membre** : autoresilier, resilier, modifierlaa, vote pour rouvrir un groupe
@@ -16,24 +18,22 @@ Début / fin hébergement. A vérifier
 
 ## Clavier virtuel optionnel pour saisie de la phrase secrète.
 
-Sur création d'un groupe le dialogue ne se ferme pas après création.
+Sur création d'un groupe le dialogue ne se ferme pas après création ?
 
-## Secrets
+## Secrets : couple et groupe à tester
 - gestion exclusivité / protection. Dialogue : affiche les membres pour secrets de groupe
 - suppression. Pour un couple affichage que l'autre exemplaire est supprimé
-- liste des auteurs
-- mots clés des autres membres pour les secrets de groupe
-- gestion des volumes à refaire
-- gestion des PJ à reprendre
+- liste des auteurs ?
+- mots clés des autres membres pour les secrets de groupe ?
 
 ## Rencontre
-- dialogue de saisie. MAJ du texte, suppression, prolongation
+- dialogue de saisie. suppression, prolongation
 - premier proposant
 - second :
   - nouveau contact
   - existe déjà
 
-## Transfert de parrainage
+## Transfert de parrainage ???
 - table transfert (phrase, cédant, liste des filleuls)
 - option : plus parrain après transfert
 - déclenchable aussi par comptable
@@ -48,6 +48,10 @@ Sur création d'un groupe le dialogue ne se ferme pas après création.
 ## Partout : bloquer les maj en mode avion
 
 ## Textes et pièces jointes en attente en mode avion
+
+## Liste des fichiers locaux en mode avion
+- supprimer
+- afficher
 
 ## Gestion des bases
 - non connecté : sur page Org ?
@@ -72,7 +76,7 @@ Sur création d'un groupe le dialogue ne se ferme pas après création.
   - détection des disparus
   - détection des groupes sans hébergement, disparition
   - gestion des suppressions
-- scan des pièces jointes orphelines
+- scan des fichiers orphelins
 
 ## Documentation
 - Présentation Générale à ajuster
