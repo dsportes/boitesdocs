@@ -362,79 +362,111 @@ Toutefois pour chaque appareil distinctement, le titulaire d'un compte peut **co
 
 > Un excès de pièces jointes accessibles en mode _avion_ peut entraîner le blocage de sessions, le stockage local tombant en erreur.
 
-# Contraintes sur la consommation des ressources
-Les ressources techniques ne sont, ni infinies, ni gratuites. 
+# Contraintes sur la consommation des ressources et le droit d'accès des comptes
+Les ressources techniques ne sont, ni infinies, ni gratuites. L'organisation qui gère l'hébergement de l'application a besoin de pouvoir _contrôler / maîtriser_ les volumes des secrets et le cas échéant, si c'est sa politique, de redistribuer le coût d'hébergement sur les comptes, ou certains d'entre eux.
 
-L'organisation qui gère l'hébergement de l'application a besoin de pouvoir _contrôler / maîtriser_ les volumes des secrets et le cas échéant si c'est sa politique, de redistribuer le coût d'hébergement sur les comptes, ou certains d'entre eux.
+Par ailleurs une organisation peut souhaiter restreindre l'usage d'un compte à leurs _adhérents_ : elle doit être en mesure de supprimer l'accès à un compte si celui-ci n'en fait plus partie, ou toute autre raison comme par exemple de ne plus acquitter sa juste part des coûts d'hébergement.
 
-## Forfaits v1 et v2
-Pour chaque compte deux _forfaits_ sont définis :
-- le forfait v1 du volume occupé des textes des messages.
-- le forfait v2 du volume occupé des pièces jointes de ces messages.
+## Forfaits v1 et v2 attribués aux avatars
+Pour chaque avatar deux _forfaits_ sont définis :
+- le forfait v1 du volume occupé par les textes des secrets.
+- le forfait v2 du volume occupé par les fichiers attachés aux secrets.
 
->Pour information le _prix sur le marché_ du méga-octet de volume v1 est environ 10 fois supérieur à celui du méga-octet de volume v2 ... mais l'utilisation de v2 pour stocker des photos, des sons et des clips video est considérable par rapport à du texte.
+#### Unités de volume pour les forfaits
+- pour v1 : 0,25 MB
+- pour v2 : 25 MB
 
-Les volumes des secrets ne peuvent pas dépasser leurs forfaits.
+Les forfaits, pour les comptes, pour les groupes, pour la réserve, peuvent être donnés en nombre d'unités ci-dessus.
 
-Le transfert sur le réseau des pièces jointes (upload / download) est ralenti dès qu'il s'approche ou dépasse sur les 31 derniers jours le volume v2 : la temporisation est d'autant plus forte que cet écart l'est.
+Le _prix sur le marché_ du méga-octet de volume v1 est environ 10 fois supérieur à celui du méga-octet de volume v2 ... mais comme l'utilisation de v2 pour stocker des photos, des sons et des clips video est considérable par rapport à du texte, le volume v2 peut-être prépondérant selon le profil d'utilisation.
 
-### Décomptes des secrets
-A chaque compte est associée une fiche comptable dont l'identifiant est celui du compte et qui donne :
-- s'il a un parrain :
-  - son identifiant et une référence de contact qui permet au parrain d'identifier le contact avec son filleul,
-  - une référence de contact avec son parrain utilisable par lui-même pour l'identifier en tant que contact.
-- un statut de blocage éventuel,
-- un enregistrement de compteurs de consommation,
-- une _ardoise_, un court texte de communication avec les _comptables de l'organisation_.
+Les forfaits typiques s'étagent de 1 à 255 : (coût mensuel)
+- (1) - XXS - 0,25 MB / 25 MB - 0,09c
+- (4) - XS - 1 MB / 100 MB - 0,35c
+- (8) - SM - 2 MB / 200 MB - 0,70c
+- (16) - MD - 4 MB / 400 MB - 1,40c
+- (32) - LG - 8 MB / 0,8GB - 2,80c
+- (64) - XL - 16 MB / 1,6GB - 5,60c
+- (128) - XXL - 32 MB / 3,2GB - 11,20c
+- (255) - MAX - 64 MB / 6,4GB - 22,40c
+> A tout instant les volumes effectivement occupés par les secrets **ne peuvent pas dépasser les forfaits** attribués à leurs avatars.
 
-**Les secrets personnels** sont décomptés sur la fiche comptable du compte de l'avatar qui les détient.
+> Le transfert sur le réseau des fichiers attachés (upload / download) **est ralenti** dès qu'il s'approche ou dépasse sur les 14 derniers jours le volume v2 : la temporisation est d'autant plus forte que cet écart l'est.
 
-**Les secrets d'un couple** de contacts sont décomptés sur chacune des fiches comptables des comptes des deux avatars en contact.
+## Parrains et filleuls
+Un _parrain_ est doté,
+- de forfaits v1 / v2 pour son usage propre,
+- d'une réserve de forfaits pour distribution à ses _filleuls_.
 
-**Pour les secrets de groupe :**
-- un compte est _hébergeur_ du groupe : il peut fixer deux limites v1 / v2 de volume maximal pour les secrets du groupe.
-- les secrets sont décomptés sur la fiche comptable du compte de l'hébergeur du groupe.
-- le compte hébergeur peut changer : les volumes occupés sont transférés du compte antérieur au compte repreneur.
-- si le compte hébergeur décide d'arrêter son hébergement, la mise à jour secrets est suspendue tant qu'un repreneur ne s'est pas manifesté. Si la situation perdure au delà d'un an le groupe est déclaré disparu, les secrets sont effacés.
+Un _filleul_ est associé à son parrain à la création de son compte / avatar primitif. Il en reçoit des forfaits v1 et v2 (pris sur la réserve du parrain) pour usage propre par son avatar primitif.
+- les avatars parrain et filleul forment un couple dès la création du filleul.
+- au delà de ce premier avatar, un compte peut se créer d'autres avatars : pour chacun d'entre eux les forfaits v1 et v2 sont prélevés sur les forfaits de l'avatar primitif du compte.
 
-### Attribution des forfaits
-Pour se créer un compte, il faut être parrainé par **un compte parrain** :
-- les parrain et filleul forme un couple de contacts dès la création du filleul
-- c'est lui qui fixe le niveau des forfaits initiaux en prenant sur sa _réserve_.
-- c'est auprès de son parrain qu'un compte peut demander l'augmentation de son forfait. Le compte peut réduire son forfait lui-même, sans tomber en dessous des volumes qu'il atteint à cet instant.
+Un filleul peut recevoir de son parrain des rallonges de forfaits. Il peut aussi subir des restrictions, sans toutefois que les niveaux de forfaits soient inférieurs aux niveaux des volumes effectivement utilisés.
 
->Dans une organisation où les coûts seraient répartis, les comptes _parrains_ pourraient supporter les coûts monétaires de leurs filleuls.
+> Les comptes _parrains_ sont responsables de la consommation d'espace de leurs filleuls :
+>- ils peuvent en contraindre l'expansion et l'accueil de nouveaux filleuls,
+>- si l'organisation prévoit une forme ou l'autre de facturation, c'est le parrain qui est facturé. En cas de non paiement son compte et ceux de ses filleuls sont susceptibles d'être bloqués.
 
-### Communication avec un _comptable_
-Quelques comptes ont un _pouvoir comptable_ :
-- ils ont pu se créer sans parrainage (mais peuvent avoir été parrainés).
-- ils peuvent parrainer un compte en lui conférant la qualité de _parrain_.
+Un parrain peut changer le statut d'un de ses filleuls en _parrain_ : il lui attribue une _réserve_ (prise sur sa propre réserve) pour que celui-ci puisse à son tour parrainer d'autres comptes. Le nouveau parrain cesse d'être filleul de son ex-parrain, il a acquis son autonomie vis à vis de l'organisation (et le devoir éventuel de participer au partage des charges d'hébergement).
+
+### L'ardoise d'un compte parrainé
+La ligne comptable d'un avatar parrainé dispose d'une _ardoise_ :
+- c'est un texte court qui permet **un échange entre parrain et filleul**, typiquement pour demander une rallonge de forfaits ou la possibilité d'être parrain lui-même.
+- elle est muni d'un drapeau que peut lever le filleul quand il pense que le parrain n'a pas résolu son problème.
+
+L'ardoise a un cryptage _faible_ (que l'administrateur technique du site pourrait décrypter) : elle ne doit pas contenir d'informations confidentielles. Si nécessaire parrain et filleul formant un couple, ils peuvent utiliser un secret de couple qui lui est protégé.
+
+## Pouvoir _comptable_
+Quelques avatars primitifs de comptes peuvent avoir, plus ou moins temporairement, un _pouvoir comptable_ :
+- ils ont _pu_ se créer sans parrainage, mais peuvent avoir été créés par parrainage.
+- ils peuvent parrainer la création d'un compte.
+- ils peuvent muter un compte filleul en parrain (le rendre autonome).
+- ils peuvent changer le parrain d'un compte filleul (le transférer).
+- ils peuvent muter un compte parrain en filleul en lui attribuant un parrain (le compte ex-parrain ne doit plus avoir de filleuls).
 - ils peuvent allouer des réserves aux comptes parrains.
-- tous les comptes peuvent écrire quelques lignes sur leur _ardoise_ que seul le titulaire du compte et les comptes ayant un _pouvoir comptable_ peuvent lire et écrire.
-  - un compte ayant un _pouvoir comptable_ peut par exemple communiquer sur cette ardoise une _phrase de rencontre_ avec un avatar qu'il connaît pour mettre en contact un filleul et un futur parrain.
+- ils peuvent lire et écrire sur les ardoises partagées entre parrains et filleuls
 
-Un compte _comptable_ est un donc compte normal mais référencé en tant que tel dans la configuration de l'organisation: en conséquence ce n'est pas un caractère, 
+Un compte _comptable_ est un compte normal mais référencé en tant que tel dans la configuration de l'organisation: en conséquence ce n'est pas un caractère, 
 - ni immuable : on peut _devenir_ comptable et ne plus l'être,
 - ni unique : plusieurs comptes peuvent être comptables.
 
-Ils ont simplement, tant qu'ils sont référencés dans la configuration de l'organisation, le _pouvoir_ d'exercer les quelques actions listées ci-dessus.
+En dehors de l'application, si le partage des coûts d'hébergement est à assurer, ce sont les comptables qui vont s'assurer que les parrains ont bien acquitter la part qui leur incombe. Outre la création des premiers comptes, les _comptables_ ont pour principal objet de gérer le transfert des filleuls d'un compte parrainé à un autre, voire à les rendre autonomes et à contrôler que les parrains acquittent leur dû, possiblement à étendre / restreindre les forfaits des parrains.
 
-### Changement de parrain
-Un filleul peut changer de parrain :
-- il établit un contact avec un avatar prêt à se substituer à son parrain actuel.
-- il indique dans ce contact son numéro de compte : le futur parrain muni de cette _autorisation_ peut se substituer au parrain actuel.
+> le pouvoir _comptable_ ne confère aucune possibilité d'accéder aux secrets hors de leur sphère normale (couples et groupes dont ils sont membres). Il ne donne pas non plus la possibilité de gérer les forfaits des filleuls.
 
-Un comptable peut promouvoir un _filleul_ au rang de _parrain_ en lui attribuant des forfaits pour lui-même et à redistribuer à ses filleuls. Ceci dégage l'ex filleul de son ancien parrain qui récupère les forfaits correspondants.
+## Décomptes des volumes des secrets
+A chaque avatar est associé sa fiche comptable (dont l'identifiant est celui de l'avatar) et qui donne :
+- s'il a un avatar parrain, son identifiant,
+- un statut de blocage éventuel,
+- un enregistrement de compteurs de consommation,
+  - le total des forfaits v1 et v2 attribués par les parrains (ou auto-attribués si le compte a un pouvoir comptable),
+  - les forfaits actuels,
+  - etc.
+- une _ardoise_, un court texte de communication avec le parrain actuel et les _comptables de l'organisation_.
 
-Un _parrain_ peut devenir filleul d'un compte prêt à le parrainer, à condition qu'il n'ait plus de filleuls lui-même.
+**Les secrets personnels** sont décomptés sur la fiche comptable de l'avatar qui les détient.
+
+**Les secrets d'un couple** sont décomptés sur chacune des fiches comptables des deux avatars en couple.
+
+**Pour les secrets de groupe :**
+- un avatar membre du groupe est _hébergeur_ du groupe : il peut fixer deux limites v1 / v2 de volume maximal pour les secrets du groupe.
+- les secrets sont décomptés sur la fiche comptable de l'avatar hébergeur du groupe.
+- l'hébergeur peut changer : les volumes occupés sont transférés du compte antérieur au compte repreneur.
+- si l'hébergeur décide d'arrêter son hébergement, la mise à jour des secrets est suspendue tant qu'un repreneur ne s'est pas manifesté. Si la situation perdure au delà d'un an le groupe est déclaré disparu, les secrets sont effacés.
 
 ### Mise en sursis et blocage des comptes
-Un comptable a quelques leviers de contrainte sur les comptes parrains,
-- soit parce qu'un compte n'acquitte plus sa part de cotisation correspondant à son usage de l'application si l'organisation a prévu que c'était dans sa politique.
-- soit parce que le compte a quitté l'organisation et que la politique de celle-ci prévoit qu'au bout d'un certain temps le compte soit bloqué.
-- soit sur injonction judiciaire ...
+Il peut être déclaré possible de bloquer un compte en donnant dans la configuration de l'organisation la liste énumérée de **raisons**. Par exemple :
+- le compte n'acquitte plus sa part de cotisation correspondant à son usage de l'application.
+- le compte a quitté l'organisation et la politique de celle-ci prévoit qu'au bout d'un certain temps le compte soit bloqué.
 
-De même un parrain peut appliquer ces contraintes à ses filleuls, pour des raisons voisines de celles ci-dessus.
+L'appréciation de ces raisons est à deux niveaux :
+- un parrain peut appliquer ces contraintes à ses filleuls,
+- un compte ayant _pouvoir comptable_ peut également les appliquer.
+
+> Ceci permet une gestion délocalisée de l'attribution de forfaits et d'application des contraintes d'accès associées. Ainsi une organisation peut déléguer cette double gestion à des représentants locaux: le niveau de gestion du _pouvoir comptable_ correspond au niveau ultime d'arbitrage.
+
+Dès que l'avatar primitif d'un compte est bloqué, c'est l'ensemble du compte qui l'est.
 
 Il y a trois niveaux de suspension.
 
@@ -442,16 +474,55 @@ Il y a trois niveaux de suspension.
 Le compte continue à vivre normalement mais un panneau de pop-up s'affiche très régulièrement au cours des sessions pour rappeler cet état, le temps restant et ce qui l'attend en _sursis 2_.
 
 ##### En sursis (2)
-Le compte ne peut plus créer de secrets, de pièces jointes ni les mettre à jour mais il peut en supprimer.
+Le compte ne peut plus créer / mettre à jour des secrets, ni attacher des fichiers aux secrets, mais il peut supprimer des secrets et des fichiers attachés.
 
 ##### Bloqué (3)
-Le compte est bloqué et ne peut rien consulter. Il ne conserve que de la possibilité de converser avec le comptable.
+Le compte est bloqué et son titulaire ne peut plus rien consulter. Il ne conserve que la possibilité de converser par l'ardoise de son avatar primitif avec son _parrain_ (s'il en a un) ou un _comptable_.
 
-Selon la politique de l'organisation et la raison de la suspension,
+Selon la raison de la suspension,
 - le niveau de suspension peut être différent,
 - le temps de passage d'un niveau au suivant également.
 
-Pour un compte filleul le niveau de blocage est le plus restrictif entre le sien propre et celui de son parrain.
+> La politique de l'organisation se traduit dans la configuration de l'organisation par a) la liste des raisons de blocage, b) pour chaque raison du niveau de suspension et des délais pour passer d'un niveau à un autre.
+> Quand aucune raison de blocage n'est configurée pour une organisation, le blocage n'y est pas possible.
+
+## Annexes
+
+### Détail des compteurs d'une ligne comptable
+
+Chaque ligne comptable dispose des compteurs suivants :
+- `j` : **la date du dernier calcul enregistré** : par exemple le 17 Mai de l'année A
+- **pour le mois en cours**, celui de la date ci-dessus :
+  - _en Mo_, `v1 v1m` volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
+  - _en Mo_, `v2 v2m` volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
+  - _en Mo_, `trm` cumul des volumes des transferts de pièces jointes : 14 compteurs pour les 14 derniers jours.
+- **forfaits v1 et v2** `f1 f2` : les plus élevés appliqués le mois en cours.
+- `rtr` : ratio de la moyenne des tr / forfait v2
+- **pour les 12 mois antérieurs** `hist` (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
+  - `f1 f2` les forfaits v1 et v2 appliqués dans le mois.
+  - `r1 r2` le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
+  - `r3` le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
+- `res1 res2` : pour un parrain, réserve de forfaits v1 et v2.
+- `t1 t2` : pour un parrain, total des forfaits 1 et 2 attribués aux filleuls.
+
+## Disparition par inactivité d'un compte
+
+Des ressources sont immobilisées par les comptes (partagées pour les groupes) : l'application doit les libérer quand les comptes sont _présumés disparus_, c'est à dire sans s'être connecté depuis plus d'un an.
+- mais pour préserver la confidentialité, toutes les ressources liées à un compte ne sont pas reliées au compte par des données lisibles dans la base de données mais cryptées et seulement lisibles en session.
+- pour marquer que des ressources sont encore utiles, un compte dépose lors de la connexion des **jetons datés** ("approximativement datés" pour éviter des corrélations entre avatars / groupes / comptes) dans chacun de ses avatars et chacun des groupes auxquels il participe, ainsi que dans le compte lui-même.
+- la présence d'un jeton, par exemple sur un avatar, va garantir que ses données ne seront pas détruites dans les 400 jours qui suivent la date du jeton.
+- un traitement ramasse miettes tourne chaque jour, détecte les comptes / avatars / groupes dont le jeton est trop vieux et efface les données correspondantes jugées comme inutiles, l'avatar / compte / groupe correspondant ayant _disparu par inactivité_.
+- le jeton daté du compte ayant été déposé dans la ligne comptable de l'avatar primitif de chaque compte, les comptables peuvent savoir si un compte est inactif (ou actif, ou proche de l'inactivité).
+
+>Comme aucune référence d'identification dans le monde réel n'est enregistrée pour préserver la confidentialité du système, aucune alerte du type mail ou SMS ne peut informer un compte de sa prochaine disparition s'il ne se connecte pas.
+
+### Mise _en sursis_ et _blocage_
+Un compte peut être marqué _en sursis_ par application d'une décision de l'organisation : un comptable inscrit dans la ligne comptable une date de mise en sursis.
+- **les dépôts de jetons effectués à la connexion et attestant de la vitalité du compte sont suspendus**. Le compte a au maximum un an avant la disparition de ses données (ou la sortie de cet état).
+
+Mais rien n'oblige le compte à se connecter et à en prendre connaissance. Une organisation peut parfaitement n'avoir aucun moyen de contacter la personne physique (ou morale) titulaire de sa mise en sursis.
+
+Une seconde date est notée dans la ligne comptable : **celle de la prise de connaissance de la mise _en sursis_**, celle de la première connexion du compte après sa mise en sursis.
 
 # A propos des organisations
 Des organisations bien différentes peuvent décider d'héberger l'application pour leurs adhérents. 
@@ -461,14 +532,14 @@ Ci-après quelques réflexions sur leurs profils types et les approches qu'elles
 ### Organisation payant l'hébergement pour ses adhérents
 L'accès à l'application est un service de l'organisation, gratuit pour ses adhérents (du moins invisiblement inclus dans leur adhésion, ou les crédits de sponsoring dont elle bénéficie).
 - L'organisation connaît ses adhérents et leurs rôles : elle propose des forfaits conformes aux exigences des rôles tenus, aux statuts (salariés, ...).
-- L'organisation fait le rapprochement entre chaque adhérent et son numéro de compte dans l'application mais ne peut pas le faire avec les avatars du compte, les groupes auxquels il participe, ni les contacts avec les autres avatars (même pas des comptes), ni les secrets qu'il écrit et lit.
+- L'organisation fait le rapprochement entre chaque adhérent et son numéro d'avatar dans l'application. Mais elle ne peut pas le faire avec les autres avatars du compte, les groupes auxquels il participe, ni les couples qu'ils forment avec les autres avatars, ni les secrets qu'il écrit et lit.
 - **Questions :**
   - (1) si un adhérent quitte l'organisation, comment lui retirer son accès -sous quel délai- (et de facto récupérer ses ressources) ?
-  - (2) si des comptes rapportent l'usage par un compte de l'application pour des fins étrangères à l'objet de l'organisation, voire opposées à cet objet, comment lui retirer son accès ? Cette question lève le sujet du contrôle éthique sur l'usage de l'application.
+  - (2) si des personnes rapportent l'usage par un compte de l'application pour des fins étrangères à l'objet de l'organisation, voire opposées à cet objet, comment lui retirer son accès ? Cette question lève le sujet du contrôle éthique sur l'usage de l'application.
 
 ### Organisation par _cotisation_
 L'organisation, qu'elle soit à but lucratif ou non, a opté pour laisser chaque adhérent choisir son niveau de forfait et corrélativement en payer l'usage.
-- chaque compte choisit les niveaux de forfait qui lui semble correspondre à son besoin,
+- chaque titulaire choisit les niveaux de forfait qui lui semble correspondre à son besoin,
 - il paye un abonnement pour contribuer à supporter le coût global d'hébergement.
 - **Questions :**
   - (1) si un abonné ne paye plus son abonnement, comment lui retirer son accès -sous quel délai- (et de facto récupérer ses ressources) ?
@@ -476,7 +547,7 @@ L'organisation, qu'elle soit à but lucratif ou non, a opté pour laisser chaque
 
 >Les virements des abonnements _pouvant_ être obscurs ou passer par un intermédiaire, il peut être quasi impossible de corréler (avec des moyens légaux) une personne physique ou morale à une ligne comptable. Dans ce type d'organisation **les comptes peuvent être totalement anonymes** ... ce qui n'empêche pas de devoir pouvoir les bloquer, ni qu'ils n'aient pas à respecter la charte éthique s'il y en a une.
 
->Le modèle de _paiement de cotisation_ peut tout à fait être sans but lucratif et proposé par des associations désireuses de permettre à chacun de disposer d'espaces privés et sécurisés pour noter ses pensées, échanger avec des contacts des propos privés. Ce n'est en rien, _a priori_ un modèle mercantile (mais ça peut aussi l'être).
+>Le modèle de _paiement de cotisation_ peut tout à fait être sans but lucratif et proposé par des associations désireuses de permettre à chacun de disposer d'espaces privés et sécurisés pour noter ses pensées, échanger avec des contacts des propos privés. Ce n'est en rien, _a priori_ un modèle marchand (mais ça peut aussi l'être).
 
 >Il reste donc que dans certains cas, une organisation peut devoir mettre fin à l'activité d'un compte, ne serait-ce que pour répondre à une injonction judiciaire sans devoir détruire tous les comptes (et sans considérer les pressions _physiques_, légales ... (?) ou non).
 
@@ -486,7 +557,7 @@ Ce sujet ne concerne que les organisations ayant un objet social / politique : s
 Aucun contrôle éthique n'est envisageable vis à vis des secrets personnels : il n'y a que le compte qui peut y accéder, on ne voit pas pourquoi il se dénoncerait de lui-même de textes illisibles par d'autres.
 
 Concernant des secrets de couples, si des écrits sont jugés inappropriés pour l'un des deux,
-- il arrête le partage de secrets,
+- il sort du couple,
 - il supprime les secrets qui le dérange.
 L'autre compte est ramené à gérer des secrets personnels.
 

@@ -135,6 +135,7 @@ Table :
     "dpbh"	INTEGER,
     "pcbh"	INTEGER,
     "kx"   BLOB,
+    "dds" INTEGER,
     "mack"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -146,6 +147,7 @@ Table :
 - `dpbh` : hashBin (53 bits) du PBKFD du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbh` : hashBin (53 bits) du PBKFD de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
 - `kx` : clé K du compte, cryptée par la X (phrase secrète courante).
+- `dds` : date de dernière signature du compte (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
 - `mack` {} : map des avatars du compte cryptée par la clé K. 
   - _Clé_: id,
   - _valeur_: `[nom, rnd, cpriv]`
@@ -188,78 +190,6 @@ Table :
   - _valeur_ : sérialisation cryptée par la clé K du compte de l'objet JSON correspondant.
 - `vsh`
 
-## Table `compta` : CP `id`. Ligne comptable d'un compte
-Il y a une ligne par compte, l'id étant l'id du compte. `idp` est l'id du parrain pour un filleul : un parrain a donc `null` dans cette colonne.
-
-**L'ardoise** est une zone de texte partagé entre le titulaire du compte et les comptes comptables : elle est cryptée _soft_ c'est à dire avec une clé figurant dans le code source, ce qui empêche juste de lire le texte en base de données. Rien de confidentiel ne doit y figurer.
-
-Table :
-
-    CREATE TABLE "compta" (
-    "id"	INTEGER,
-    "idp"	INTEGER,
-    "v"	INTEGER,
-    "dds"	INTEGER,
-    "st"	INTEGER,
-    "dst" INTEGER,
-    "data"	BLOB,
-    "dh" INTEGER,
-    "ard" BLOB,
-    "vsh"	INTEGER,
-    PRIMARY KEY("id")
-    ) WITHOUT ROWID;
-    CREATE INDEX "idp_compta" ON "compta" ( "idp" );
-    CREATE INDEX "dds_compta" ON "compta" ( "dds" );
-    CREATE INDEX "st_compta" ON "compta" ( "st" ) WHERE "st" > 0;
-
-- `id` : du compte.
-- `idp` : pour un filleul, id du parrain (null pour un parrain).
-- `v` :
-- `dds` : date de dernière signature du compte (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
-- `st` :
-  - 0 : normal.
-  - 1 : en sursis 1.
-  - 2 : en sursis 2.
-  - 3 : bloqué.
-- `dst` : date du dernier changement de st.
-- `data`: compteurs sérialisés (non cryptés)
-- `dh` : date-heure de dernière écriture sur l'ardoise.
-- `ard` : texte de l'ardoise _crypté soft_.
-- `vsh` :
-
-**data**
-- `j` : jour de calcul
-- `v1 v1m` : volume v1 actuel et total du mois
-- `v2 v2m` : volume v2 actuel et total du mois
-- `f1 f2` : forfait de v1 et v2
-- `tr` : array de 31 compteurs (les 31 derniers jours) : cumul journalier du volume de transfert de pièces jointes.
-- `hist` : array de 12 éléments, un par mois. 4 bytes par éléments.
-  - `f1 f2` : forfaits du mois
-  - `r1` : ratio du v1 du mois par rapport à son forfait.
-  - `r2` : ratio du v2 du mois par rapport à son forfait.
-- `res1 res2` : pour un parrain, réserve de forfaits v1 et v2.
-- `t1 t2` : pour un parrain, total des forfaits 1 et 2 attribués aux filleuls.
-
-#### Unités de volume
-- pour v1 : 0,25 MB
-- pour v2 : 25 MB
-
-Les forfaits, pour les comptes, pour les groupes, pour la réserve, peuvent être donnés en nombre d'unités ci-dessus.
-
-Les forfaits typiques s'étagent de 1 à 255 : (coût mensuel)
-- (1) - XXS - 0,25 MB / 25 MB - 0,09c
-- (4) - XS - 1 MB / 100 MB - 0,35c
-- (8) - SM - 2 MB / 200 MB - 0,70c
-- (16) - MD - 4 MB / 400 MB - 1,40c
-- (32) - LG - 8 MB / 0,8GB - 2,80c
-- (64) - XL - 16 MB / 1,6GB - 5,60c
-- (128) - XXL - 32 MB / 3,2GB - 11,20c
-- (255) - MAX - 64 MB / 6,4GB - 22,40c
-
-Les codes _numériques_ des forfaits tiennent sur 1 octet : c'est le facteur multiplicateur du forfait le plus petit (0,25MB / 25MB). Des codes symboliques peuvent être ajoutés, voire modifiés, sans affecter les données.
-
-Les _ratios_ sont exprimés en pourcentage de 1 à 255% : mais 1 est le minimum (< 1 fait 1) et 255 le maximum.
-
 ## Table `avrsa` : CP `id`. Clé publique RSA des avatars
 Cette table donne la clé RSA (publique) obtenue à la création de l'avatar : elle permet d'inviter un avatar à être contact ou à devenir membre d'un groupe.
 
@@ -299,7 +229,6 @@ Table :
     "id"	INTEGER,
     "v" INTEGER,
     "x" INTEGER,
-    "dds" INTEGER,
     "cv"	BLOB,
     "vsh" INTEGER,
     PRIMARY KEY("id")
@@ -314,7 +243,6 @@ Table :
   - 0 : existant
   - 1 : inexistant logiquement mais purges des objets dépendants en cours
   - 2 : inexistant logiquement et purges terminées.
-- `dds` : date de signature la plus récente. Quand x est > 0 (objet disparu), `dds` vaut 0.
 - `cv` : carte de visite cryptée par la clé de l'objet.
 - `vsh` :
 
@@ -323,27 +251,31 @@ Les sessions s'abonnent à la liste des avatars / couples / groupes qui délimit
 - _central_ : **soit pour l'objet intégralement** : les avatars du compte, les groupes accédés par le compte, les couples ou figurent un de leurs avatars,
 - _annexe_ : **soit pour les seules données d'existence / carte de visite** : les _avatars_ membres des groupes cités ci-dessus et conjoints des couples cités ci-dessus.
 
-Quand un row du répertoire est modifié (`x` et / ou `cv` mais pas `dds`), le row est retourné pour synchronisation de la session : c'est ainsi que celle-ci prend connaissance de la disparition des ses objets centraux et annexes (membres de groupe / conjoints de couples).
+Quand un row du répertoire est modifié (`x` et / ou `cv`), le row est retourné pour synchronisation de la session : c'est ainsi que celle-ci prend connaissance de la disparition des ses objets centraux et annexes (membres de groupe / conjoints de couples).
 
 #### Suppression logique (1)
-Elle met `x` à `1`, `dds` à `0`, `cv` à `null`. Elle est répercutée par synchronisation aux sessions.
+Elle met `x` à `1`, et `cv` à `null`. Elle est répercutée par synchronisation aux sessions.
 
 Elle est provoquée par :
 - **le GC quotidien** :
-  - scanne sur `dds` des objets inutilisés.
+  - scanne sur `dds` de `compta` les avatars inutilisés.
   - scanne les groupes dont la date de fin d'hébergement `dfh` + N2 jours est dépassée.
 - **pour un couple** : le fait que le conjoint survivant décide de _quitter_ le couple supprime logiquement le couple. A noter que le couple n'est déjà plus référencé par aucun avatar dans ce cas.
 - **pour un groupe** : le fait qu'un membre soit _résilié_ (par lui-même ou l'animateur) et qu'il n'y existe aucun autre membre de statut actif / invité supprime logiquement le groupe. A noter que le groupe n'est déjà plus référencé par aucun avatar dans ce cas.
 - **pour un avatar** : la _suppression explicite_ de l'avatar d'un compte. Ceci nécessite préalablement,
   - la fin de l'hébergement des groupes qu'il héberge,
   - son auto-résiliation des groupes dont il est membre,
-  - son divorce avec les couples dont il est conjoint.
+  - son divorce avec les couples dont il est conjoint,
+  - la suppression de tous ses secrets personnels.
+  - chacune de ces 4 étapes est lancée successivement en session et se termine donc par la suppression d'un avatar inutile.
+  - l'avatar _primitif_ ne peut être supprimé qu'en dernier, ce qui correspond à la suppression du compte (avec le rendu au parrain éventuel des forfaits).
 
 #### Purges des objets (2)
 Les objets supprimés logiquement sont supprimés physiquement par le GC quotidien lors d'une seconde phase :
 - pour un avatar : le row avatar lui-même, sa clé RSA et ses secrets.
 - pour un groupe : le row groupe lui-même, ses membres et ses secrets.
 - pour un couple : le row couple lui-même et ses secrets.
+- pour les secrets, suppression de ses fichiers attachés en les citant un par un. Toutefois la suppression d'un couple par exemple permet de supprimer tous les fichiers attachés aux secrets du couple sans les citer un par un.
 
 #### Réactions en session aux avis de destruction d'objets
 Pour les avatars du compte, les groupes auxquels le compte participe et les couples dont un de ses avatars est conjoint, les objets en session sont supprimés, ainsi que les objets dépendants (secrets, membres). Ils sont aussi supprimés de la base IDB.
@@ -387,6 +319,83 @@ Table :
 La lecture de `avatar` permet d'obtenir,
 - la liste des groupes dont il est membre (avec leur nom, id et clé),
 - la liste des couples dont il fait partie (avec leur id et clé).
+
+## Table `compta` : CP `id`. Ligne comptable de l'avatar d'un compte
+Il y a une ligne par avatar, l'id étant l'id de l'avatar. `idp` est l'id de l'avatar parrain pour un filleul : par convention un parrain a 0 dans cette colonne.
+
+**L'ardoise** est une zone de texte partagé entre le titulaire du compte et les comptes comptables : elle est cryptée _soft_ c'est à dire avec une clé figurant dans le code source, ce qui empêche juste de lire le texte en base de données. Rien de confidentiel ne doit y figurer.
+
+Table :
+
+    CREATE TABLE "compta" (
+    "id"	INTEGER,
+    "idp"	INTEGER,
+    "v"	INTEGER,
+    "dds"	INTEGER,
+    "st"	INTEGER,
+    "dst" INTEGER,
+    "data"	BLOB,
+    "dh" INTEGER,
+    "ard" BLOB,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id")
+    ) WITHOUT ROWID;
+    CREATE INDEX "idp_compta" ON "compta" ( "idp" );
+    CREATE INDEX "dds_compta" ON "compta" ( "dds" );
+    CREATE INDEX "st_compta" ON "compta" ( "st" ) WHERE "st" > 0;
+
+- `id` : de l'avatar.
+- `idp` : pour un filleul (avatar primitif), id de l'avatar parrain :
+  - par convention 0 pour un parrain.
+  - `null` pour un avatar secondaire.
+- `v` :
+- `dds` : date de dernière signature de l'avatar (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
+- `st` :
+  - 0 : normal.
+  - 1 : en sursis 1.
+  - 2 : en sursis 2.
+  - 3 : bloqué.
+- `dst` : date du dernier changement de st.
+- `data`: compteurs sérialisés (non cryptés)
+- `dh` : date-heure de dernière écriture sur l'ardoise.
+- `flag` : problème résolu 0 ou à résoudre 1.
+- `ard` : texte de l'ardoise _crypté soft_.
+- `vsh` :
+
+**data**
+- `j` : **la date du dernier calcul enregistré** : par exemple le 17 Mai de l'année A
+- **pour le mois en cours**, celui de la date ci-dessus :
+  - _en Mo_, `v1 v1m` volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
+  - _en Mo_, `v2 v2m` volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
+  - _en Mo_, `trm` cumul des volumes des transferts de pièces jointes : 14 compteurs pour les 14 derniers jours.
+- **forfaits v1 et v2** `f1 f2` : les plus élevés appliqués le mois en cours.
+- `rtr` : ratio de la moyenne des tr / forfait v2
+- **pour les 12 mois antérieurs** `hist` (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
+  - `f1 f2` les forfaits v1 et v2 appliqués dans le mois.
+  - `r1 r2` le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
+  - `r3` le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
+- `res1 res2` : pour un parrain, réserve de forfaits v1 et v2.
+- `t1 t2` : pour un parrain, total des forfaits 1 et 2 attribués aux filleuls.
+
+#### Unités de volume
+- pour v1 : 0,25 MB
+- pour v2 : 25 MB
+
+Les forfaits, pour les comptes, pour les groupes, pour la réserve, peuvent être donnés en nombre d'unités ci-dessus.
+
+Les forfaits typiques s'étagent de 1 à 255 : (coût mensuel)
+- (1) - XXS - 0,25 MB / 25 MB - 0,09c
+- (4) - XS - 1 MB / 100 MB - 0,35c
+- (8) - SM - 2 MB / 200 MB - 0,70c
+- (16) - MD - 4 MB / 400 MB - 1,40c
+- (32) - LG - 8 MB / 0,8GB - 2,80c
+- (64) - XL - 16 MB / 1,6GB - 5,60c
+- (128) - XXL - 32 MB / 3,2GB - 11,20c
+- (255) - MAX - 64 MB / 6,4GB - 22,40c
+
+Les codes _numériques_ des forfaits tiennent sur 1 octet : c'est le facteur multiplicateur du forfait le plus petit (0,25MB / 25MB). Des codes symboliques peuvent être ajoutés, voire modifiés, sans affecter les données.
+
+Les _ratios_ sont exprimés en pourcentage de 1 à 255% : mais 1 est le minimum (< 1 fait 1) et 255 le maximum.
 
 ### Table `couple` : CP id. Couple de deux avatars
 Deux avatars A0 et A1 peuvent décider de former un **couple** dès lors que A0 a pris contact avec A1 et que A1 a accepté :
@@ -543,8 +552,8 @@ Table :
 - `mx11 mx21` : maximum des volumes autorisés pour A1
 - `dlv` : date limite de validité éventuelle de (re)prise de contact.
 - `datac` : données cryptées par la clé `cc` du couple :
-  - `x` : `[idc, nom, rnd], [idc, nom, rnd]` : id du **compte**, nom et clé d'accès à la carte de visite respectivement de A0 et A1. Les triplets sont toujours remplis, mais pas forcément significatifs selon la valeur de `st`.
-    - en phases 1 et 2 dans le cas d'une rencontre (en attente ou refusée, les champs `idc` et `rnd` du second triplet sont null.
+  - `x` : `[nom, rnd], [nom, rnd]` : nom et clé d'accès à la carte de visite respectivement de A0 et A1. Toujours remplis, mais pas forcément significatifs selon la valeur de `st`.
+    - en phases 1 et 2 dans le cas d'une rencontre (en attente ou refusée, le champ `rnd` du second élément est null.
   - `phrase` : phrase de contact en phases 1-2 et 1-3 (qui nécessitent une phrase).
   - `phch` : hash de la phrase de contact afin d'éviter un recalcul PBKFD -surtout sur le serveur-.
   - `f1 f2` : en phase 1-2 (parrainage), forfaits attribués par le parrain A0 à son filleul A1.
@@ -552,6 +561,8 @@ Table :
 - `mc0 mc1` : mots clé définis respectivement par A0 et A1.
 - `ardc` : ardoise commune cryptée par la clé cc. [dh, texte]
 - `vsh` :
+
+Dans un couple il y a deux membres, l'initiateur et l'autre. `im` **l'indice membre** d'un avatar dans un de ses couples est par convention `1` s'il est initiateur `datac.x[0]` et `2` dans l'autre cas `datac.x[1]`. La valeur 0 n 'est pas utilisé (même logique que dans un groupe ou `im` 1 correspond au fondateur du groupe).
 
 ### Table `contact` : CP `phch`. Prise de contact par phrase de contact de A1 par A0
 Les rows `contact` ne sont pas synchronisés en session : ils sont,
@@ -619,9 +630,8 @@ Un groupe est caractérisé par :
 - la liste de ses membres : des rows de `membre`.
 - la liste de ses secrets : des rows de `secret`.
 
-Un groupe est hébergé par un compte _hébergeur_ (ses volumes sont décomptés sur ce compte). L'hébergement est noté par :
-- `idhg` : l'id du compte hébergeur crypté par la clé G du groupe (cryptage non identifiant, son _salt_ est aléatoire).
-- `imh` : l'indice de l'avatar du compte hébergeur qui a créé le groupe et en a été le premier animateur.
+Un groupe est hébergé par un avatar _hébergeur_ (ses volumes sont décomptés sur sa ligne comptable). L'hébergement est noté par :
+- `imh` : indice membre de l'avatar hébergeur qui a créé le groupe et en a été le premier animateur.
 - `dfh`, la date de fin d'hébergement, qui vaut 0.
 
 Le compte peut mettre fin à son hébergement:
@@ -646,7 +656,6 @@ Table :
     "dfh" INTEGER,
     "st"  INTEGER,
     "mxim"  INTEGER,
-    "idhg"  BLOB,
     "imh"  INTEGER,
     "v1"  INTEGER,
     "v2"  INTEGER,
@@ -769,8 +778,8 @@ Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est 
 - dans l'ordre de modification, le plus récent en tête,
 - sans doublon.
 
-### Fichier attachés
-Un secret _peut_ avoir plusieurs fichiers attachés, chacun est identifié par : `nom dh`.
+### Fichiers attachés
+Un secret _peut_ avoir plusieurs fichiers attachés, chacun est identifié par un numéro aléatoire très grand. Pour chaque fichier les propriétés suivantes sont mémorisées:
 - `nom` est un _nom de fichier_, d'où un certain nombre de caractères interdits (dont le `/`). Pour un secret donné, ce nom est identifiant.
 - `dh` est la date-heure d'enregistrement du fichier (pas de la création ou dernière modification de son fichier d'origine).
 - `type` : type mime de la version du fichier.
@@ -778,7 +787,7 @@ Un secret _peut_ avoir plusieurs fichiers attachés, chacun est identifié par :
 - `lg` : la taille du fichier est celle NON gzippé.
 - `sha` : SHA1 du fichier d'origine.
 
-Un fichier d'un nom donné peut être mise à jour / remplacé : le nouveau contenu peut avoir un type différent et aura par principe une date-heure différente d'enregistrement.
+> On ne peut qu'ajouter ou supprimer des fichiers : on peut donc disposer de plusieurs versions pour un nom donné.
 
 > **Le contenu d'un fichier attaché sur stockage externe est crypté par la clé du secret.**
 
@@ -865,22 +874,27 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
 **_Remarque :_** un secret peut être explicitement supprimé. Afin de synchroniser cette forme particulière de mise à jour pendant un an (le délai maximal entre deux login), le row est conservé jusqu'à la date x + 400 avec toutes les colonnes (sauf `id ns x v`) à 0 / null.
 
 **Map des fichiers attachés :**
-- _clé_ `n@v`: 
-  - `n` : hash (court) de `nom` en base64 URL. Permet d'effectuer des remplacements par une version ultérieure.
-  - `v` : hash (court) de `dh` en base64 URL.
+- _clé_ `idf`: 
+  - `idf` : numéro aléatoire généré à la création.
 - _valeur_ : `{ nom, dh, type, gz, lg, sha }` crypté par la clé S du secret.
 
-**Identifiant de stockage :** `org/sid/sns/n@v`  
+**Identifiant de stockage :** `org/sid/idf`  
 - `org` : code de l'organisation.
-- `sid` : id du secret en base64 URL.
-- `sns` : ns du secret en base64 URL.
-- `n@v` : hash (court) de `dh` en base64 URL
+- `sid` : id du secret en base64 URL : identifiant de l'avatar / couple / groupe auquel le secret appartient.
+- `idf` : identifiant aléatoire du fichier
 
-En imaginant un stockage sur file system, il y a un répertoire par secret : dans ce répertoire pour une valeur donnée de `n@` il n'y a habituellement qu'un fichier. Le suffixe `v` permet de gérer les états intermédiaires lors d'un changement de version.
+En imaginant un stockage sur file system,
+- il y a un répertoire par organisation,
+- pour chacun, un répertoire par avatar / couple / groupe ayant des secrets ayant des fichiers attachés,
+- pour chacun, un fichier par fichier attaché.
 
 _Une nouvelle version_ d'un fichier attaché est stockée sur support externe **avant** d'être enregistrée dans son secret.
 - _l'ancienne version_ est supprimée du support externe **après** enregistrement de la nouvelle dans le secret.
 - les versions crées par anticipation et non validées dans un secret comme celles qui n'ont pas été supprimées après validation du secret, peuvent être retrouvées par un traitement périodique de purge qui peut s'exécuter en ignorant les noms et date-heures réelles des fichiers scannés simplement en lisant les _clés_ de la map `mafs`.
+
+La suppression d'un avatar / couple / groupe s'accompagne de la suppression de son _répertoire_. 
+
+La suppression d'un secret s'accompagne de la suppressions de N fichiers dans un seul répertoire.
 
 ## Mots clés, principes et gestion
 
@@ -930,7 +944,7 @@ Un mot clé _obsolète_ est un mot clé sans catégorie :
 `mc` est un vecteur d'index de mots clés. Les index sont ceux du compte et de l'organisation.
 
 **Secret de couple**
-`mc` est le vecteur d'index de mots clés. Les index sont ceux du compte et de l'organisation.
+`mc` est une map a deux entrée `1 2`, une pour chaque membre du couple. La valeur est le vecteur des mots clés attribué par le membre. Les index des mots clés sont ceux personnels du membre et  ceux de l'organisation.
 
 **Secret de groupe**
 `mc` est une map :
@@ -945,7 +959,7 @@ Pour utilisation pour filtrer une liste de secrets dans un groupe :
 - ainsi le groupe peut avoir indiqué que le secret est _nouveau_ et _important_, mais si le compte A a indiqué que le secret est _lu_ et _sans intérêt_ c'est ceci qui sera utilisé pour filtrer les listes.
 
 # Gestion des disparitions / résiliations
-**Les ouvertures de session** *signent* dans les tables `compta cv`, colonne `dds`, les rows relatifs aux compte, avatars du compte, couples et groupes accédés par le compte. Cette signature toutefois n'a pas lieu si dans le row `compta` le groupe est marqué _en sursis_ ou si son parrain est lui-même _en sursis_.
+**Les ouvertures de session** *signent* dans les tables `compte compta cv`, colonne `dds`, les rows relatifs aux compte, avatars du compte, couples et groupes accédés par le compte. Cette signature toutefois n'a pas lieu si dans le row `compta` le groupe est marqué _en sursis_ ou si son parrain est lui-même _en sursis_.
 
 **La fin d'hébergement d'un groupe** provoque l'inscription de la date du jour dans la propriété `dfh` du row `groupe` (sinon elle est à zéro).
 
@@ -984,3 +998,4 @@ C'est une opération _longue_ :
 - retrait de l'avatar dans la liste des avatars du compte.
 
 Le row avatar est finalement mis en suppression logique dans `repertoire` (x = 1): les purges finales s'effectueront au prochain GC.
++
