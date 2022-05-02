@@ -229,6 +229,7 @@ Table :
     "id"	INTEGER,
     "v" INTEGER,
     "x" INTEGER,
+    "dds" INTEGER,
     "cv"	BLOB,
     "vsh" INTEGER,
     PRIMARY KEY("id")
@@ -238,11 +239,12 @@ Table :
     CREATE INDEX "x_cv" ON "cv" ( "x" ) WHERE "x" = 1;
 	
 - `id` : id de l'avatar / du couple / du groupe.
-- `v` : version du dernier changement de `x` ou `cv`.
+- `v` : version du dernier changement de `x` ou `cv` (PAS de `dds`).
 - `x` : statut de disparition :
   - 0 : existant
   - 1 : inexistant logiquement mais purges des objets dépendants en cours
   - 2 : inexistant logiquement et purges terminées.
+- `dds` : date de dernière signature de l'avatar / couple / groupe (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
 - `cv` : carte de visite cryptée par la clé de l'objet.
 - `vsh` :
 
@@ -331,7 +333,6 @@ Table :
     "id"	INTEGER,
     "idp"	INTEGER,
     "v"	INTEGER,
-    "dds"	INTEGER,
     "st"	INTEGER,
     "dst" INTEGER,
     "data"	BLOB,
@@ -349,7 +350,6 @@ Table :
   - par convention 0 pour un parrain.
   - `null` pour un avatar secondaire.
 - `v` :
-- `dds` : date de dernière signature de l'avatar (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
 - `st` :
   - 0 : normal.
   - 1 : en sursis 1.
