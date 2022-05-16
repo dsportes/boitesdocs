@@ -21,13 +21,8 @@ Début / fin hébergement. A vérifier
 
 ## Clavier virtuel optionnel pour saisie de la phrase secrète.
 
-## Secrets
-- gestion exclusivité / protection. Dialogue : affiche les membres pour secrets de groupe
-- suppression. Pour un couple affichage que l'autre exemplaire est supprimé
-- liste des auteurs
-- mots clés des autres membres pour les secrets de groupe
-
 ## Affichage compta avatar(s)
+- à compléter (historique)
 
 ## Rencontre
 - dialogue de saisie. MAJ du texte, suppression, prolongation
