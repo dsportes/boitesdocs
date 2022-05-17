@@ -4,7 +4,7 @@ Couple : statut 5 (Ax disparu) non traité ?
 ## A compléter
 **Groupe** : fermer un groupe, le protéger en écriture
 
-**Membre** : autoresilier, modifierlaa, vote pour rouvrir un groupe
+**Membre** : autoresilier, vote pour rouvrir un groupe
 
 **Suppressions des couples** à faire
 
@@ -18,8 +18,6 @@ Début / fin hébergement. A vérifier
 - suppression primitif = suppression compte
 
 ## Panel latéral des contacts externes
-
-## Clavier virtuel optionnel pour saisie de la phrase secrète.
 
 ## Affichage compta avatar(s)
 - à compléter (historique)
