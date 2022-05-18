@@ -1,30 +1,9 @@
-## BUG
-Couple : statut 5 (Ax disparu) non traité ?
-
-## A compléter
-**Provider AWS/S3** : à écrire / tester depuis la maquette
-
-**Groupe** : fermer un groupe, le protéger en écriture
-
-**Membre** : autoresilier, resilier, modifierlaa, vote pour rouvrir un groupe
-
-**Suppressions des couples** à faire
-
-Début / fin hébergement. A vérifier
-
-**Suppression d'un avatar** (volontairement) : ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement. Bref récupérer l'espace pour le compte.
 
 ## Panel latéral des contacts externes
 
-## Clavier virtuel optionnel pour saisie de la phrase secrète.
-
-Sur création d'un groupe le dialogue ne se ferme pas après création ?
-
-## Secrets : couple et groupe à tester
-- gestion exclusivité / protection. Dialogue : affiche les membres pour secrets de groupe
-- suppression. Pour un couple affichage que l'autre exemplaire est supprimé
-- liste des auteurs ?
-- mots clés des autres membres pour les secrets de groupe ?
+## Couple
+- Suppression
+- statut 5 (Ax disparu) non traité ?
 
 ## Rencontre
 - dialogue de saisie. suppression, prolongation
@@ -32,6 +11,16 @@ Sur création d'un groupe le dialogue ne se ferme pas après création ?
 - second :
   - nouveau contact
   - existe déjà
+
+## Suppression d'un avatar (volontairement) : 
+- ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement.
+- récupérer l'espace pour le compte.
+- panel de progression : retrait des couples, retrait des groupes, suppression des secrets
+- suppression sauf primitif
+- suppression primitif = suppression compte
+
+## Affichage compta avatar(s)
+- à compléter (historique)
 
 ## Transfert de parrainage ???
 - table transfert (phrase, cédant, liste des filleuls)
