@@ -1,26 +1,9 @@
-## BUG
-Couple : statut 5 (Ax disparu) non traité ?
-
-## A compléter
-**Groupe** : fermer un groupe, le protéger en écriture
-
-**Membre** : autoresilier, vote pour rouvrir un groupe
-
-**Suppressions des couples** à faire
-
-Début / fin hébergement. A vérifier
-
-**Suppression d'un avatar** (volontairement) : 
-- ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement.
-- récupérer l'espace pour le compte.
-- panel de progression : retrait des couples, retrait des groupes, suppression des secrets
-- suppression sauf primitif
-- suppression primitif = suppression compte
 
 ## Panel latéral des contacts externes
 
-## Affichage compta avatar(s)
-- à compléter (historique)
+## Couple
+- Suppression
+- statut 5 (Ax disparu) non traité ?
 
 ## Rencontre
 - dialogue de saisie. MAJ du texte, suppression, prolongation
@@ -28,6 +11,16 @@ Début / fin hébergement. A vérifier
 - second :
   - nouveau contact
   - existe déjà
+
+## Suppression d'un avatar (volontairement) : 
+- ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement.
+- récupérer l'espace pour le compte.
+- panel de progression : retrait des couples, retrait des groupes, suppression des secrets
+- suppression sauf primitif
+- suppression primitif = suppression compte
+
+## Affichage compta avatar(s)
+- à compléter (historique)
 
 ## Transfert de parrainage ???
 - table transfert (phrase, cédant, liste des filleuls)
