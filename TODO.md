@@ -2,15 +2,12 @@
 ## Panel latéral des contacts externes
 
 ## Couple
-- Suppression
+- quitter, prolonger, relancer
 - statut 5 (Ax disparu) non traité ?
 
 ## Rencontre
-- dialogue de saisie. suppression, prolongation
-- premier proposant
-- second :
-  - nouveau contact
-  - existe déjà
+- suppression, prolongation, refus
+- vérifier refus parrainage
 
 ## Suppression d'un avatar (volontairement) : 
 - ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement.
