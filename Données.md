@@ -432,7 +432,7 @@ Un couple est connu dans chaque avatar A0 et A1 par une entrée dans leurs maps 
 
 #### Prises de contact
 Il y a 2 moyens pour A0 de prendre contact :
-- **par création du couple** : A0 connaît l'identification de A1, 
+- **par contact standard** : A0 connaît l'identification de A1, 
   - soit parce que A1 est un membre d'un groupe G dont A0 est membre aussi,
   - soit parce que A1 est membre d'un groupe G dont un autre avatar du compte de A0 est membre,
   - soit parce que A1 est en couple avec un autre avatar du compte de A0.
@@ -552,12 +552,10 @@ Table :
 - `mx11 mx21` : maximum des volumes autorisés pour A1
 - `dlv` : date limite de validité éventuelle de (re)prise de contact.
 - `datac` : données cryptées par la clé `cc` du couple :
-  - `x` : `[nom, rnd], [nom, rnd]` : nom et clé d'accès à la carte de visite respectivement de A0 et A1. Toujours remplis, mais pas forcément significatifs selon la valeur de `st`.
-    - en phases 1 et 2 dans le cas d'une rencontre (en attente ou refusée, le champ `rnd` du second élément est null.
-  - `phrase` : phrase de contact en phases 1-2 et 1-3 (qui nécessitent une phrase).
-  - `phch` : hash de la phrase de contact afin d'éviter un recalcul PBKFD -surtout sur le serveur-.
-  - `f1 f2` : en phase 1-2 (parrainage), forfaits attribués par le parrain A0 à son filleul A1.
-- `infok0 infok1` : commentaires personnels cryptés par leur clé K, respectivement de A0 et A1.
+  - `x` : `[nom, rnd], [nom, rnd]` : nom et clé d'accès à la carte de visite respectivement de A0 et A1.
+  - `phrase` : phrase de contact en phases 1/4-7 (qui nécessitent une phrase). `id2` du contact standard si c'est le cas.
+  - `f1 f2` : en phase 1/4 (parrainage), forfaits attribués par le parrain A0 à son filleul A1.
+  - `r1 r2` : en phase 1/4 (parrainage) et si le compte filleul est lui-même parrain, ressources attribuées.- `infok0 infok1` : commentaires personnels cryptés par leur clé K, respectivement de A0 et A1.
 - `mc0 mc1` : mots clé définis respectivement par A0 et A1.
 - `ardc` : ardoise commune cryptée par la clé cc. [dh, texte]
 - `vsh` :
@@ -583,7 +581,7 @@ Table :
     "dlv"	INTEGER,
     "ccx"  BLOB,
     "vsh" INTEGER,
-    PRIMARY KEY("id", "ni"));
+    PRIMARY KEY("phch");
     CREATE INDEX "dlv_contact" ON "contact" ( "dlv" );
 
 - `phch` : hash de la phrase de contact convenue entre le parrain A0 et son filleul A1 (s'il accepte)
@@ -623,6 +621,40 @@ Table :
 
 **Si A1 accepte la rencontre :** 
 - le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les données `[idc, nom, rnd]` sont définitivement fixées (`nom` l'était déjà). Les volumes maximum sont fixés.
+
+### Table `contactstd` : CP `id, ni`. Prise de contact standard de A1 par A0
+Les rows `contactstd` sont synchronisés en session sur id de l'avatar.
+
+**En cas de non réponse, le GC détruit le row après dépassement de la `dlv`.**
+
+Table :
+
+    CREATE TABLE "contactstd" (
+    "id"  INTEGER,
+    "id2"  INTEGER,
+    "dlv"	INTEGER,
+    "ccp"  BLOB,
+    "vsh" INTEGER,
+    PRIMARY KEY("id", "ni"));
+    CREATE INDEX "dlv_contactstd" ON "contactstd" ( "dlv" );
+
+- `id` : id de l'avatar A1 invité à accepter son couple avec A0
+- `id2` : numéro aléatoire - rangé comme *phrase de contact* dans le couple
+- `dlv`
+- `ccp` : [cle nom] crypté par la clé publique de A1:
+  - `cle` : clé du couple (donne son id).
+  - `nom` : nom de A0.
+- `vsh` :
+
+**Si A1 refuse le contact :** 
+- L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
+- Le row `contactstd` est supprimé. 
+
+**Si A1 ne fait rien à temps :** 
+- Lors du GC sur la `dlv`, le row `contactstd` sera supprimé par GC de la `dlv`. 
+
+**Si A1 accepte la rencontre :** 
+- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixés et le row `contactstd` est détruit.
 
 ## Table `groupe` : CP: `id`. Entête et état d'un groupe
 Un groupe est caractérisé par :
