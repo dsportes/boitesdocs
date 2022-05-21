@@ -631,7 +631,8 @@ Table :
 
     CREATE TABLE "contactstd" (
     "id"  INTEGER,
-    "id2"  INTEGER,
+    "nx"  INTEGER,
+    "x" INTEGER,
     "dlv"	INTEGER,
     "ccp"  BLOB,
     "vsh" INTEGER,
@@ -639,7 +640,8 @@ Table :
     CREATE INDEX "dlv_contactstd" ON "contactstd" ( "dlv" );
 
 - `id` : id de l'avatar A1 invité à accepter son couple avec A0
-- `id2` : numéro aléatoire - rangé comme *phrase de contact* dans le couple
+- `nx` : numéro aléatoire - rangé comme *la phrase de contact* dans le couple
+- `x` : jour de suppression (0 si existant).
 - `dlv`
 - `ccp` : [cle nom] crypté par la clé publique de A1:
   - `cle` : clé du couple (donne son id).
