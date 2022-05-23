@@ -85,6 +85,7 @@ La table `cv` ne suit pas cette règle et a une séquence unique afin de synchro
 
 - `versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde) et autres singletons (id value)
 - `avrsa` (id) : clé publique d'un avatar
+- `trec` (id) : transfert de fichier en cours (uploader mais pas encore enregistré comme fichier d'un secret)
 
 _**Tables transmises au client**_
 
@@ -99,6 +100,7 @@ _**Tables transmises au client**_
 - `secret` (id, ns) : données d'un secret d'un avatar, couple ou groupe
 - `contact` (phch) : parrainage ou rencontre de A0 vers un A1 à créer ou inconnu par une phrase de contact
 - `invitgr` (id, ni) : **NON persistante en IDB**. invitation reçue par un avatar à devenir membre d'un groupe
+- `invitcp` (id, ni) : **NON persistante en IDB**. invitation reçue par un avatar à devenir membre d'un couple
 
 ## Singletons id / valeur
 Ils sont identifiés par un numéro de singleton.  
@@ -553,7 +555,7 @@ Table :
 - `dlv` : date limite de validité éventuelle de (re)prise de contact.
 - `datac` : données cryptées par la clé `cc` du couple :
   - `x` : `[nom, rnd], [nom, rnd]` : nom et clé d'accès à la carte de visite respectivement de A0 et A1.
-  - `phrase` : phrase de contact en phases 1/4-7 (qui nécessitent une phrase). `id2` du contact standard si c'est le cas.
+  - `phrase` : phrase de contact en phases 1/4-7 (qui nécessitent une phrase).
   - `f1 f2` : en phase 1/4 (parrainage), forfaits attribués par le parrain A0 à son filleul A1.
   - `r1 r2` : en phase 1/4 (parrainage) et si le compte filleul est lui-même parrain, ressources attribuées.- `infok0 infok1` : commentaires personnels cryptés par leur clé K, respectivement de A0 et A1.
 - `mc0 mc1` : mots clé définis respectivement par A0 et A1.
@@ -621,42 +623,6 @@ Table :
 
 **Si A1 accepte la rencontre :** 
 - le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les données `[idc, nom, rnd]` sont définitivement fixées (`nom` l'était déjà). Les volumes maximum sont fixés.
-
-### Table `contactstd` : CP `id, ni`. Prise de contact standard de A1 par A0
-Les rows `contactstd` sont synchronisés en session sur id de l'avatar.
-
-**En cas de non réponse, le GC détruit le row après dépassement de la `dlv`.**
-
-Table :
-
-    CREATE TABLE "contactstd" (
-    "id"  INTEGER,
-    "nx"  INTEGER,
-    "x" INTEGER,
-    "dlv"	INTEGER,
-    "ccp"  BLOB,
-    "vsh" INTEGER,
-    PRIMARY KEY("id", "ni"));
-    CREATE INDEX "dlv_contactstd" ON "contactstd" ( "dlv" );
-
-- `id` : id de l'avatar A1 invité à accepter son couple avec A0
-- `nx` : numéro aléatoire - rangé comme *la phrase de contact* dans le couple
-- `x` : jour de suppression (0 si existant).
-- `dlv`
-- `ccp` : [cle nom] crypté par la clé publique de A1:
-  - `cle` : clé du couple (donne son id).
-  - `nom` : nom de A0.
-- `vsh` :
-
-**Si A1 refuse le contact :** 
-- L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
-- Le row `contactstd` est supprimé. 
-
-**Si A1 ne fait rien à temps :** 
-- Lors du GC sur la `dlv`, le row `contactstd` sera supprimé par GC de la `dlv`. 
-
-**Si A1 accepte la rencontre :** 
-- le row `couple` est mis à jour (phase 3), l'ardoise renseignée, les volumes maximum sont fixés et le row `contactstd` est détruit.
 
 ## Table `groupe` : CP: `id`. Entête et état d'un groupe
 Un groupe est caractérisé par :
@@ -773,12 +739,12 @@ Le row `membre` d'un membre subsiste quand il est _résilié_ ou _disparu_ pour 
 ## Table `invitgr`. Invitation d'un avatar M par un animateur A à un groupe G
 Un avatar A connaît la liste des groupes dont il est membre par son row `avatar` qui reprend les identités des groupes cryptées par la clé K du compte.
 
-Une invitation est un row qui **notifie** une session de A qu'il a été inscrit comme membre invité d'un groupe :
+Une invitation est un row qui **notifie** une session de M qu'il a été inscrit comme membre invité d'un groupe :
 - elle porte l'id de l'invité.
 - elle porte un numéro d'invitation aléatoire qui permettra aux animateurs du groupe de *résilier* l'accès de A au groupe en détruisant la référence au groupe dans le row avatar de A.
 - elle porte le couple `nom rnd` identifiant le groupe et sa clé crypté par la clé publique de l'avatar.
 
-Dans une session de A dès que cette invitation parvient, soit par synchronisation, soit au chargement initial, la session poste une opération `regulGr` qui va inscrire dans le row avatar de A le nouveau groupe `nom rnd im` mais crypté par la clé K du compte de A. Ceci détruit l'invitation devenu inutile.
+Dans une session de M dès que cette invitation parvient, soit par synchronisation, soit au chargement initial, la session poste une opération `regulGr` qui va inscrire dans le row avatar de M le nouveau groupe `nom rnd im` mais crypté par la clé K du compte de M. Ceci détruit l'invitation devenu inutile.
 
     CREATE TABLE "invitgr" (
     "id"  INTEGER,
@@ -790,6 +756,29 @@ Dans une session de A dès que cette invitation parvient, soit par synchronisati
 - `ni` : numéro d'invitation.
 - `datap` : crypté par la clé publique du membre invité.
 	- `[nom, rnd, im]` : nom complet du groupe (donne sa clé) + indice de l'invité dans le groupe.
+
+## Table `invitcp`. Invitation d'un avatar B par un avatar A à former un couple C
+Un avatar connaît la liste des couples dont il fait partie par son row `avatar` qui reprend les clés de ces couples cryptées par la clé K du compte.
+
+Une invitation est un row qui **notifie** une session de B qu'il a été inscrit comme second membre du couple :
+- elle porte l'id de l'invité.
+- elle porte son numéro d'invitation en complément d'identification.
+- elle porte `cc` la clé du couple cryptée par la clé publique de l'avatar B.
+
+Dans une session de B dès que cette invitation parvient, soit par synchronisation, soit au chargement initial, la session poste une opération `regulCp` qui va inscrire dans le row avatar de B la clé du nouveau couple `cc` mais crypté par la clé K du compte de B. Ceci détruit l'invitation devenu inutile.
+
+    CREATE TABLE "invitcp" (
+    "id"  INTEGER,
+    "ni" INTEGER,
+    "datap" BLOB,
+    PRIMARY KEY ("id", "ni"));
+
+- `id` : id du membre invité.
+- `ni` : numéro d'invitation pseudo aléatoire. Hash de (`cc` en hexa suivi de `0` ou `1` selon que ça s'adresse au membre 0 ou 1 du couple).
+- `datap` : clé du couple cryptée par la clé publique du membre invité.
+
+**Relance d'un couple**
+Quand un des deux avatars a quitté le couple (phase 4), ou que la `dlv` de l'invitation initiale est dépassée (phase 2) ou que elle a été refusée, l'avatar encore actif dans le couple peut _relancer_ une invitation en émettant un row `invitcp`.
 
 ## Secrets
 Un secret est identifié par:
