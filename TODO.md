@@ -1,9 +1,14 @@
 
-## Panel latéral des contacts externes
-
 ## Couple
 - quitter, prolonger, relancer
 - statut 5 (Ax disparu) non traité ?
+
+Contact standard : dlv dépassée. Détection à la connexion (pas en synchro) - chrgt couple
+- phase 1-1 : émettre une suppression du couple dans l'avatar (passer le couple en 2-2). Ca reviendra en synchro de l'avatar
+- phase 4-1 : idem, passer le couple en 4-0
+
+Parrainage / rencontre: dlv dépassée.
+- phase 1-4 ou 1-7 : émettre une suppression du couple dans l'avatar et purger le couple
 
 ## Rencontre
 - suppression, prolongation, refus
