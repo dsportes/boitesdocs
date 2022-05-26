@@ -1,6 +1,7 @@
 
 ## Couple
-- quitter, prolonger, relancer
+- dlv pour une invitation simple ???. Intérêt pour parrainage / rencontre (risque d'oubli qu'on a une phrase en cours) mais pour contacter un membre connu ?
+- prolonger, relancer
 - statut 5 (Ax disparu) non traité ?
 
 Contact standard : dlv dépassée. Détection à la connexion (pas en synchro) - chrgt couple
