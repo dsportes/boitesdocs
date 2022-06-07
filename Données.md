@@ -400,21 +400,33 @@ Les codes _numériques_ des forfaits tiennent sur 1 octet : c'est le facteur mul
 Les _ratios_ sont exprimés en pourcentage de 1 à 255% : mais 1 est le minimum (< 1 fait 1) et 255 le maximum.
 
 ### Table `couple` : CP id. Contact entre deux avatars A0 et A1
-Deux avatars A0 et A1 peuvent décider d'être en **contact** dès lors que A0 a pris contact avec A1 et que A1 a accepté :
-- un contact constitué cesse d'exister quand :
-  - les deux avatars sont détectés disparus,
-  - l'un _puis_ l'autre ont décidé de suspendre le contact de leur côté.
-- dans le cas d'une suspension de participation de A0 (par exemple) ou de sa disparition, A1 reste seul : 
-  - il conserve l'accès aux secrets du contact.
-  - le contact disparaît si A1 décide aussi de suspendre sa participation ou qu'il disparaît à son tour.
-- A0 et A1 peuvent au cours du temps ou à un instant donné, avoir plus d'un contact entre eux (pourquoi pas un contact _amical_ et un contact _professionnel_).
+Deux avatars A0 et A1 sont en **contact** dès lors que A0 a pris contact avec A1 et que A1 a accepté :
+- (1) un contact est _en attente_ quand A0 a émis une proposition à A1 (sous trois formes possibles) et que A1 n'a pas encore accepté mais peut encore le faire.
+- (2) un contact est _hors délai_ quand A0 a émis une proposition mais que A1 n'a pas répondu dans le délai imparti,
+- (3) un contact est _refusé_ quand A0 a émis une proposition mais que A1 l'a explicitement refusée.
+- (4) un contact _en attente_ devient _actif_ dès que A1 a accepté le contact proposé.
+- (5) un contact _actif_ devient _orphelin_ lorsque l'un des deux avatars A0 ou A1 a été détecté disparu.
+
+Un contact est **détruit** :
+- de facto lorsque les deux avatars ont disparus,
+- quand il est _en attente_ quand A0 a un remord et retire sa proposition de contact,
+- quand il est _hors délai_ ou _refusé_ quand A0 ne souhaite plus voir cette proposition de contact sans intérêt autre qu'historique,
+- quand il est _orphelin_ et que l'avatar non disparu A0 (ou A1, celui non disparu) le trouve sans intérêt.
+
+> A0 et A1 peuvent avoir plus d'un contact entre eux (par exemple pas un contact _amical_ et un contact _professionnel_) ce que la carte de visite du contact va préciser.
 
 **Un contact partage :**
-- une **ardoise** commune de quelques lignes (toujours active),
-- des **secrets** :
-  - les deux parties peuvent a priori en créer et les mettre à jour, sauf décision d'exclusivité (voir les secrets).
-  - les volumes d'un secret sont décomptés sur les deux avatars _actifs_ (non _suspendus_).
-  - _chacun peut fixer une limite maximale de v1 et v2_ : les créations et mises à jour de secrets sont bloquées dès qu'elles risquent de dépasser la plus faible des deux limites.
+- une **ardoise** commune de quelques lignes : elle est active dans les phases.
+- des **secrets** dans les phases _active_ et _orphelin_:
+  - quand **A0 et A1 ont activé le partage de secrets**, ils peuvent en créer, les mettre à jour et les lire :
+    - si A0 (ou A1) a une exclusivité sur un secret l'autre ne peut que le lire,
+    - les volumes d'un secret sont décomptés sur les deux avatars,
+    - _A0 et A1 peuvent fixer une limite maximale de v1 et v2_ : les créations et mises à jour de secrets sont bloquées dès qu'elles risquent de dépasser la plus faible des deux limites.
+  - si seul A0 (respectivement A1) a activé le partage de secrets, A1 (respectivement A0) n'y a pas accès et le volume n'est imputé qu'à A0 (respectivement à A1).
+  - si A0 (ou A1) active le partage de secrets, le volume des secrets existants lui est débité et il les voit.
+  - si A0 (ou A1) désactive le partage de secrets, le volume des secrets existants lui est crédité et il ne les voit plus.
+  - si A0 (ou A1) désactive le partage de secrets mais que l'autre n'a pas activé le partage de secrets, les secrets sont détruits (puisqu'ils n'intéressent plus personne).
+
 
 Un **contact** est déclaré avec :
 - une clé `cc` (aléatoire de 32 bytes) cryptant les données communes dont les secrets du contact.
@@ -422,14 +434,21 @@ Un **contact** est déclaré avec :
 - le nom et la clé de A0.
 - a minima le nom de A1 (pas toujours sa clé qui peut ne pas être connue avant acceptation de A1).
 
-Un contact est connu dans chaque avatar A0 et A1 par une entrée dans leurs maps respectives `lcck` : les clés dans ces maps sont des numéros aléatoires dit _d'invitation_ : c'est le hash de (`cc` en hexa suivi de `0` (pour A0) ou `1` (pour A1)).
+Un contact est connu dans chaque avatar A0 et A1 par une entrée dans leurs maps respectives `lcck` : 
+- les clés dans ces maps sont des numéros aléatoires dit _d'invitation_ : c'est le hash de (`cc` en hexa suivi de `0` (pour A0) ou `1` (pour A1)).
+- la valeur est le couple `[clé, secret]` crypté par la clé du compte de l'avatar,
+  - `secret` vaut 1 si l'avatar a activé le partage de secret, 0 si non.
 
 **Un contact a un nom et une carte de visite**
 - le `nom` d'un contact est formé de l'accolement des deux noms de A0 et A1 : il est donc bien immuable. Même dans le cas d'une prise de contact A0 doit fournir le nom exact de l'avatar qu'il contacte à défaut d'avoir ni sa clé ni son id.
 - **un contact peut avoir une carte de visite**, une photo et un texte, que chacun des deux A0 et A1 peut mettre à jour et qui ne sera visible que d'eux.
+- dans une session de A0 respectivement de A1), le nom du contact affiché est,
+  - le nom donné dans la carte de visite du contact quand il existe,
+  - sinon le nom de A1.
+  - idem pour la photo : photo de la carte de visite du contact sinon photo de A1 (respectivement de A0).
 
 #### Prises de contact
-Il y a 2 moyens pour A0 de prendre contact :
+Il y a 3 moyens pour A0 de prendre contact :
 - **par création direct d'un contact _en attente_** quand A0 connaît l'identification de A1, 
   - soit parce que A1 est un membre d'un groupe G dont A0 est membre aussi,
   - soit parce que A1 est membre d'un groupe G dont un autre avatar du compte de A0 est membre,
@@ -438,11 +457,23 @@ Il y a 2 moyens pour A0 de prendre contact :
 - **parrainage** par A0 de A1 : ils ont convenu entre eux d'une _phrase de parrainage_. A1 en tant qu'avatar _est connu_ de A0 qui lui a créé l'identification de son premier avatar, mais rien ne dit que A1 va effectivement valider la création de son compte et donc du contact qui peut rester en attente ou refusé.
 - **rencontre**. A0 a rencontré A1 dans la vraie vie et ils ont convenu d'une _phrase de rencontre_.
   - A1 n'est PAS connu de A0, mais lui a communiqué son nom (immuable) mais pas la clé de sa carte de visite (donc pas son identifiant).
-  - A0 créé un contact mais celui-ci reste en attente juqu'à acceptation ou refus de A1.
+  - A0 créé un contact mais celui-ci reste en attente jusqu'à acceptation ou refus de A1.
 
-#### Phases et états d'un contact
+#### États d'un contact
 
-- **(1) prise de contact par A0**. A1 est totalement identifié par A0 (typiquement A0 et A1 participent à un même groupe).
+**Phase**
+- (1) en attente,
+- (2) hors délai,
+- (3) refusé,
+- (4) actif,
+- (5) orphelin.
+
+**Mode de contact**
+- (1) direct
+- (2) parrainage de compte
+- (3) rencontre dans la vraie vie
+
+- **(1) prise de contact directe par A0**. A1 est totalement identifié par A0 (typiquement A0 et A1 participent à un même groupe).
   - tant que A1 n'a pas accepté, 
     - le contact reste dans l'état _attente_, aucun secret ne peut être inscrit.
     - A0 peut détruire le contact qui n'apparaît plus, ni chez A0 ni chez A1.
@@ -478,34 +509,22 @@ Il y a 2 moyens pour A0 de prendre contact :
     - la _rencontre_ s'est auto-détruite,
     - le contact apparaît dans les sessions de A0 en état _hors délai_.
     - A0 peut détruire le contact qui n'a plus d'utilité (sauf historique).
-- **(4) contact établi**. A1 a accepté le contact avec A0, tous deux sont connus complètement et participent à la vie du contact :
-  - en écrivant sur l'ardoise,
-  - en créant et mettant à jour des secrets partagés.
 
-Quand un contact est en phase 1-2-3, **l'état d'établissement du contact** peut être :
-- _attente_ de A1,
-- _refus_ de A1,
-- _hors délai_ : non réponse de A1.
-
-Quand un contact est établi (phase 4), l'état d'activité de **chacun** A0 et A1 peut varier :
-- _actif_ : lecture et écriture des secrets, le volume est imputé à l'avatar.
-  - il peut devenir inactif en suspendant sa participation, le volume des secrets lui étant crédité.
+**Niveaux d'activité de A0 et A1**
+Quand un contact est _actif_ ou _orphelin_, le niveau d'activité de A0 (ou A1) peut varier :
+- (0) _non partage de secrets_ : ni lecture, ni écriture ni imputation des volumes.
+  - il peut **réactiver le partage de secrets**, le volume des messages lui étant débité (s'il y en avait donc que l'autre n'avait pas aussi suspendu le partage de secret).
   - il peut devenir disparu quand il a été détecté tel quel.
-- _suspendu_ : ni lecture, ni écriture ni imputation des volumes.
-  - il peut redevenir actif sur sa demande, le volume des messages lui étant débité.
+- (1) _partage de secrets_ : lecture et écriture des secrets, le volume est imputé à l'avatar.
+  - il peut **suspendre le partage de secrets**, le volume des secrets lui étant crédité (s'il y en avait).
   - il peut devenir disparu quand il a été détecté tel quel.
-- _disparu_ : par principe il n'accède à rien et l'autre ne connaît plus que son nom (c'est historique) puisque même sa carte de visite n'existe plus.
+- (2) _disparu_ : par principe il n'accède à rien et l'autre ne connaît plus que son nom (c'est historique) puisque même sa carte de visite n'existe plus.
 
-Quand A0 et A1 sont tous deux _suspendu_ ou _disparu_, le contact disparaît.
+Quand A0 et A1 sont tous deux _disparu_, le contact disparaît.
 
 #### Prolongation
-- pour un parrainage ou une rencontre, la prolongation ne peut s'effectue qu'avant la fin de la `dlv`.
+- pour un parrainage ou une rencontre, la prolongation ne peut s'effectuer qu'avant la fin de la `dlv`.
 - la `dlv` est modifiée sur les rows `contact` et `couple`.
-
-#### Suspension / reprise
-En phase 4 (contact établi) un des deux, A1 par exemple peut :
-- _suspendre_ sa participation : il ne voit plus les secrets dont il n'est plus débité du volume.
-- _reprendre_ sa participation : il revoit les secrets dont les volumes lui sont à nouveau crédités.
 
 Table :
 
@@ -533,11 +552,11 @@ Table :
 
 - `id` : id du couple
 - `v` :
-- `st` : quatre chiffres `p e 0 1` : phase / état
-  - `p` : 1 2 3 4 : phase
-  - `e` : en phase 1 2 3 seulement. 0 attente, 1 refus, 2 hors délai.
-  - `0` : pour A0, 0 actif, 1 suspendu, 2 disparu.
-  - `1` : pour A1, 0 actif, 1 suspendu, 2 disparu.
+- `st` : quatre chiffres `p m 0 1` : phase / état
+  - `p` : phase - (1) en attente, (2) hors délai, (3) refusé, (4) actif, (5) orphelin.
+  - `m` : mode de contact initial: (0) direct, (1) parrainage, (2) rencontre.
+  - `0` : pour A0 - (0) pas de partage de secrets, (1) partage de secrets, (2) disparu.
+  - `1` : pour A1 -
 - `v1 v2` : volumes actuels des secrets.
 - `mx10 mx20` : maximum des volumes autorisés pour A0
 - `mx11 mx21` : maximum des volumes autorisés pour A1
@@ -551,7 +570,10 @@ Table :
 - `ardc` : ardoise commune cryptée par la clé cc. [dh, texte]
 - `vsh` :
 
-Dans un contact il y a deux avatars, l'initiateur et l'autre. `im` **l'indice membre** d'un avatar dans un de ses contacts est par convention `1` s'il est initiateur `datac.x[0]` et `2` dans l'autre cas `datac.x[1]`. La valeur 0 n 'est pas utilisé (même logique que dans un groupe ou `im` 1 correspond au fondateur du groupe).
+Dans un contact il y a deux avatars, l'initiateur et l'autre : `im` **l'indice membre** d'un avatar dans un de ses contacts est par convention,
+- `1` s'il est initiateur `datac.x[0]`,
+- `2` dans l'autre cas `datac.x[1]`,
+- la valeur 0 n'est pas utilisée (même logique que dans un groupe).
 
 ### Table `contact` : CP `phch`. Prise de contact par phrase de contact de A1 par A0
 Les rows `contact` ne sont pas synchronisés en session : ils sont,
