@@ -468,7 +468,7 @@ Il y a 3 moyens pour A0 de prendre contact :
 - (4) actif,
 - (5) orphelin.
 
-**Mode de contact**
+**Origine du contact**
 - (1) direct
 - (2) parrainage de compte
 - (3) rencontre dans la vraie vie
@@ -552,9 +552,9 @@ Table :
 
 - `id` : id du couple
 - `v` :
-- `st` : quatre chiffres `p m 0 1` : phase / état
+- `st` : quatre chiffres `p o 0 1` : phase / état
   - `p` : phase - (1) en attente, (2) hors délai, (3) refusé, (4) actif, (5) orphelin.
-  - `m` : mode de contact initial: (0) direct, (1) parrainage, (2) rencontre.
+  - `o` : origine du contact: (0) direct, (1) parrainage, (2) rencontre.
   - `0` : pour A0 - (0) pas de partage de secrets, (1) partage de secrets, (2) disparu.
   - `1` : pour A1 -
 - `v1 v2` : volumes actuels des secrets.
