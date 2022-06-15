@@ -2,6 +2,7 @@
 ## Couple et secret couple
 - statut 5 (Ax disparu) non traité ?
 - revoir le droit à créer un secret (quand stI !== 1)
+- PanelContacts : confusion groupe / contact à l'affichage
 
 ## Rencontre
 - suppression, prolongation, refus
