@@ -1,8 +1,9 @@
 
 ## Couple et secret couple
 - statut 5 (Ax disparu) non traité ?
-- revoir le droit à créer un secret (quand stI !== 1)
-- PanelContacts : confusion groupe / contact à l'affichage
+
+## Contact
+- suppression ???
 
 ## Rencontre
 - suppression, prolongation, refus
@@ -14,6 +15,9 @@
 - panel de progression : retrait des couples, retrait des groupes, suppression des secrets
 - suppression sauf primitif
 - suppression primitif = suppression compte
+
+## Toutes les longueurs max.
+- ardoise, texte secret, info ...
 
 ## Affichage compta avatar(s)
 - à compléter (historique)
