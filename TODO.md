@@ -1,16 +1,20 @@
 
-## Couple et secret couple
-- statut 5 (Ax disparu) non traité ?
+## Couple et groupe
+- détection de la disparition d'un membre / conjoint : opération de MAJ du serveur.
 
 ## Contact
-- suppression ???
+- suppression : à réviser (cv.x à 1)
+
+## Compte
+- changement de phrase secrète
 
 ## Rencontre
 - suppression, prolongation, refus
 - vérifier refus parrainage
+- rencontre : A1 découvre que A0 est déjà contact ? chelou, le nom de A1 peut être détecté par A0 au moment de la demande de rencontre. Refus de A1 (ou non)
 
 ## Suppression d'un avatar (volontairement) : 
-- ré-héberger les groupes hébergés sur un autre avatar ou terminer l'hébergement.
+- groupes hébergés : terminer l'hébergement.
 - récupérer l'espace pour le compte.
 - panel de progression : retrait des couples, retrait des groupes, suppression des secrets
 - suppression sauf primitif

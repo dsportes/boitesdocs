@@ -2,20 +2,20 @@
 
 ## Identification des objets
 
-Les clés AES et les PBKFD font 32 bytes (44 caractères en base64 url).
+Les clés AES et les PBKFD sont des bytes de longueur 32.
 
-Le hash des string en *integer* est un entier sur 53 bits (intègre en Javascript):
-- 15 chiffres décimaux.
-- 9 caractères en base64 URL.
+Un entier sur 53 bits est intègre en Javascript (15 chiffres décimaux). Il peut être issu de 6 bytes aléatoires.
 
-Le hash des string en *BigInt* est un 64 bits (sans signe, toujours positif) :
-- 19 chiffres décimaux.
-- 12 caractères en base64 URL.
+Un hash en *BigInt* est un 64 bits sans signe, toujours positif (19 chiffres décimaux): _pas utilisé_
 
-Les date-heures sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bits (entier intègre en Javascript).
+Le hash (_integer_) d'un bytes est un entier intègre en Javascript.
+
+Le hash (_integer_) d'un string est un entier intègre en Javascript.
+
+Les date-heures _serveur_ sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bits (entier intègre en Javascript). Les date-heures fonctionnelles sont en milli-secondes.
 
 ### Compte
-- `id` : un entier (intègre en Javascript) issu de 6 bytes aléatoires.  
+- `id` : un entier (intègre en Javascript) issu de 6 bytes aléatoires, multiplié par 4 + 3.  
 - `clé K` : 32 bytes aléatoires.  
 - `pcb` : PBKFD de la phrase complète (clé X) - 32 bytes.  
 - `dpbh` : hashBin (_integer_) du PBKFD du début de la phrase secrète.
@@ -39,37 +39,54 @@ Le **nom complet** d'un avatar ou d'un groupe est un couple `[nom, rnd]`
 ### Avatar
 La **clé de cryptage** de la carte de visite est `rnd`.
 
-L'`id` d'un avatar est le hash (integer) des bytes de `rnd`, 6 bytes, soit 8 base64.
+L'`id` d'un avatar est le hash (_integer_) des bytes de `rnd`, multiplié par 4.
+
+### Contact
+La **clé de cryptage** d'un contact (carte de visite et secrets) est`rnd`.
+
+L'`id` d'un contact est le hash (_integer_) des bytes de `rnd`, multiplié par 4 + 1.
 
 ### Groupe
-La **clé de cryptage** du groupe (carte de visite et secrets) est`rnd`.
+La **clé de cryptage** d'un groupe (carte de visite et secrets) est`rnd`.
 
-L'`id` d'un groupe est le hash (integer) des bytes de `rnd`, 6 bytes, soit 8 base64.
+L'`id` d'un groupe est le hash (_integer_) des bytes de `rnd`, multiplié par 4 + 2.
+
+### Type d'objet majeur
+Le reste de la division par 4 de l'id d'un objet majeur donne son type:
+- 0 : avatar,
+- 1 : contact,
+- 2 : groupe,
+- 3 : compte.
 
 ### Secret
-- `id` : du groupe ou de l'avatar propriétaire
+- `id` : de l'avatar, du contact ou du groupe propriétaire
 - `ns` : numéro relatif au groupe / avatar, entier issu de 4 bytes aléatoires.
 
 ### Attributs génériques
 - `v` : version, entier.
-- `dds` : date de dernière signature, en nombre de jours depuis le 1/1/2021. Signale que ce jour-là, l'avatar, le compte, le groupe était *vivant / utile / référencé*. Pour éviter des rapprochements entre eux, la *vraie* date de signature peut être entre 0 et 30 jours *avant*.  
+- `dds` : date de dernière signature, en nombre de jours depuis le 1/1/2021. Signale que ce jour-là, l'avatar, le compte, le contact, le groupe était *vivant / utile / référencé*. Pour éviter des rapprochements entre eux, la *vraie* date de signature peut être entre 0 et 30 jours *avant*.  
 - `dlv` : date limite de validité, en nombre de jours depuis le 1/1/2021.
 
 Les comptes sont censés avoir au maximum N0 jours entre 2 connexions faute de quoi ils sont considérés comme disparus.
 
-### Signatures des comptes, avatars, couples et groupes
+### Signatures des comptes, avatars, contacts et groupes
 A chaque connexion d'un compte, le compte signe si la `dds` actuelle n'est pas _récente_ (sinon les signatures ne sont pas mises à jour) :
 - pour lui-même dans `compte` : jour de signature tiré aléatoirement entre j-28 et j-14.
 - dans `cv` : jour de signature tiré aléatoirement pour chacun entre j-14 et j.
-  - pour ses avatars.
+  - pour ses avatars,
+  - pour ses contacts,
   - pour les groupes auxquels ses avatars sont invités ou actifs.
-  - pour ses couples.
+
+Il y a aussi des signatures en plus de la connexion à un compte :
+- pour un avatar: à sa création.
+- pour un contact: à sa création par A0 et à l'acceptation par A1.
+- pour un groupe: à sa création et à l'acceptation d'une invitation d'un membre.
 
 Les purges exécutées par le GC :
-- pour les **comptes** : purge des rows `compte compta prefs` afin de bloquer la connexion.
-- pour les **groupes** : purge de leur données `groupe membre secret`.
-- pour les **avatars** : purge de `avatar avrsa secret`.
-- pour les **couples** : purge de `couple secret`.
+- pour les **comptes** : purge des rows `compte prefs` afin de bloquer la connexion.
+- pour les **groupes** : purge de leur rows `groupe membre secret`.
+- pour les **avatars** : purge de leur rows `avatar compta avrsa secret`.
+- pour les **contacts** : purge de leur rows `couple secret`.
 
 ### Version des rows
 Les rows des tables devant être présents sur les clients ont une version, de manière à pouvoir être chargés sur les postes clients de manière incrémentale : la version est donc croissante avec le temps et figure dans tous les rows de ces tables.  
@@ -85,16 +102,16 @@ La table `cv` ne suit pas cette règle et a une séquence unique afin de synchro
 
 - `versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde) et autres singletons (id value)
 - `avrsa` (id) : clé publique d'un avatar
-- `trec` (id) : transfert de fichier en cours (uploader mais pas encore enregistré comme fichier d'un secret)
+- `trec` (id) : transfert de fichier en cours (uploadé mais pas encore enregistré comme fichier d'un secret)
 
 _**Tables transmises au client**_
 
 - `compte` (id) : authentification et liste des avatars d'un compte
 - `prefs` (id) : données et préférences d'un compte
 - `compta` (id) : ligne comptable du compte
-- `cv` (id) : staut d'existence, signature et carte de visite des avatars, couples et groupes.
-- `avatar` (id) : données d'un avatar et liste de ses contacts
-- `couple` (id) : données d'un couple de contacts entre deux avatars
+- `cv` (id) : statut d'existence, signature et carte de visite des avatars, contacts et groupes.
+- `avatar` (id) : données d'un avatar et liste de ses contacts et groupes
+- `couple` (id) : données d'un contact entre deux avatars
 - `groupe` (id) : données du groupe
 - `membre` (id, im) : données d'un membre du groupe
 - `secret` (id, ns) : données d'un secret d'un avatar, couple ou groupe
@@ -161,7 +178,7 @@ Table :
 - un row `compte` ne peut être modifié que par une transaction du compte (mais peut être purgé par le traitement journalier de détection des disparus).
 - il est synchronisé lorsqu'il y a plusieurs sessions ouvertes en parallèle sur le même compte depuis plusieurs sessions de browsers.
 - chaque mise à jour vérifie que `v` actuellement en base est bien celle à partir de laquelle l'édition a été faite pour éviter les mises à jour parallèles intempestives.
-- le row `compte` change très rarement : à l'occasion de l'ajout / suppression d'un avatar et d'un changement de phrase secrète.
+- indépendamment de la signature `dds`, le row `compte` change rarement, seulement à l'occasion de l'ajout / suppression d'un avatar et d'un changement de phrase secrète.
 
 ## Table : `prefs` CP `id`. Préférences et données d'un compte
 Afin que le row compte qui donne la liste des avatars ne soit mis à jour que rarement, les données et préférences associées au compte sont mémorisées dans une autre table :
@@ -208,22 +225,22 @@ Table :
 - `clepub` : clé publique.
 - `vsh`
 
-### Table `cv` : CP `id`. Répertoire des avatars, couples et groupes
-Cette table a pour objectifs :
-- `dds` : **de garder trace des signes de vie des objets** dans la propriété `dds`, dernière date de signature, remplie à chaque login à l'ouverture d'une session pour signaler que les avatars, couples et groupes de l'espace de données du compte de la session sont toujours _en vie_ (utiles) et se prémunir contre leur destruction pour non usage.
-- `x` : **de conserver le statut d'existence de ces objets** et en conséquence de tracer leur inexistence / disparition:
+### Table `cv` : CP `id`. Répertoire des objets majeurs : avatars, contacts et groupes
+Cette table a plusieurs objectifs :
+- `dds` : **garde la trace des signes de vie des objets** dans la propriété `dds`, dernière date de signature, remplie à chaque login à l'ouverture d'une session pour signaler que les avatars, contacts et groupes de l'espace de données du compte de la session sont toujours _en vie_ (utiles) et se prémunir contre leur destruction pour non usage.
+- `x` : **donne le statut d'existence de ces objets** et en conséquence de tracer leur inexistence / disparition:
   - `0` : objet vivant,
-  - `1` : objet en disparition : le processus de disparition a commencé. Pour les sessions il a disparu, mais des purges techniques doivent encore être exécutées.
-  - `J > 1` : row à purger définitivement le jour J.
-- `cv` : **de détenir la carte de visite des objets** (`[photo, info]` crypté par la clé de l'objet).
-  - toujours `null` pour un objet disparu (x > 0).
-  - `null` ou `[photo, info]` selon que l'objet _avatar couple groupe_ a ou non une carte de visite.
+  - `1` : le processus de disparition a été demandé. Pour les sessions l'objet (et ceux dépendants) a déjà disparu (le compte / avatar ne le référence plus), mais les purges techniques (`avatar contact groupe compta avrsa secret membre`) doivent encore être exécutées par le démon de purge quotidien.
+  - `J > 1` : **le row** `cv` est à purger définitivement le jour J (les autres l'ont déjà été).
+- `cv` : **détient la carte de visite des objets** (`[photo, info]` cryptée par la clé de l'objet).
+  - toujours `null` pour un objet disparu (x > 1).
+  - `null` ou `[photo, info]` selon que l'objet _avatar contact groupe_ a ou non une carte de visite.
 - `v` : version à laquelle `x` ou `cv` ont changé pour la dernière fois. Les versions sont prises dans la séquence 0, tous les objets partagent donc pour leur `cv` la même séquence de version dans le répertoire. Les sessions peuvent ainsi requérir en début de session,
   - tous les rows qui les concernent quelle que soit leur version (mode _incognito_),
-  - seulement ceux ayant changé d'état d'existence et / ou de carte de visite postérieurement à leur dernière version de remise à niveau.
+  - seulement ceux ayant changé d'état d'existence et / ou de carte de visite postérieurement à leur dernière version de remise à niveau de leur session locale.
   - en cours de session pour les nouveaux objets apparaissant dans leur espace de données, la dernière version de leur `x cv`.
 
-Cette table est elle-même purgée des objets disparus depuis plus de N1 jours (typiquement 400 pour couvrir un an) afin d'éviter une croissance éternelle: le temps que toutes les sessions rarement ouvertes aient eu le temps de se synchroniser.
+Cette table est elle-même purgée des objets disparus depuis plus de N1 jours (typiquement 400 pour couvrir un an) afin d'éviter une croissance éternelle de la table `cv`: le temps que toutes les sessions rarement ouvertes aient eu le temps de se synchroniser.
 
 Table :
 
@@ -245,17 +262,17 @@ Table :
 - `x` : statut de disparition :
   - 0 : existant
   - 1 : inexistant logiquement mais purges des objets dépendants en cours
-  - 2 : inexistant logiquement et purges terminées.
-- `dds` : date de dernière signature de l'avatar / couple / groupe (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
+  - N : inexistant logiquement et purges des objets terminées.
+- `dds` : date de dernière signature de l'avatar / contact / groupe (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
 - `cv` : carte de visite cryptée par la clé de l'objet.
 - `vsh` :
 
 #### Synchronisation
-Les sessions s'abonnent à la liste des avatars / couples / groupes qui délimitent l'espace de données du compte :
-- _central_ : **soit pour l'objet intégralement** : les avatars du compte, les groupes accédés par le compte, les couples ou figurent un de leurs avatars,
-- _annexe_ : **soit pour les seules données d'existence / carte de visite** : les _avatars_ membres des groupes cités ci-dessus et conjoints des couples cités ci-dessus.
+Les sessions s'abonnent à la liste des avatars / contacts / groupes qui délimitent l'espace de données du compte :
+- _central_ : **soit pour l'objet intégralement** : les avatars du compte, les groupes accédés par le compte, les contacts ou figurent un de leurs avatars,
+- _annexe_ : **soit pour les seules données d'existence / carte de visite** : les _avatars_ membres des groupes cités ci-dessus et conjoints des contacts cités ci-dessus.
 
-Quand un row du répertoire est modifié (`x` et / ou `cv`), le row est retourné pour synchronisation de la session : c'est ainsi que celle-ci prend connaissance de la disparition des ses objets centraux et annexes (membres de groupe / conjoints de couples).
+Quand un row du répertoire est modifié (`x` et / ou `cv`), le row est retourné pour synchronisation de la session : c'est ainsi que celle-ci prend connaissance de la disparition de ses objets centraux et annexes (membres de groupe / conjoints de contacts).
 
 #### Suppression logique (1)
 Elle met `x` à `1`, et `cv` à `null`. Elle est répercutée par synchronisation aux sessions.
@@ -264,38 +281,38 @@ Elle est provoquée par :
 - **le GC quotidien** :
   - scanne sur `dds` de `compta` les avatars inutilisés.
   - scanne les groupes dont la date de fin d'hébergement `dfh` + N2 jours est dépassée.
-- **pour un couple** : le fait que le conjoint survivant décide de _quitter_ le couple supprime logiquement le couple. A noter que le couple n'est déjà plus référencé par aucun avatar dans ce cas.
-- **pour un groupe** : le fait qu'un membre soit _résilié_ (par lui-même ou l'animateur) et qu'il n'y existe aucun autre membre de statut actif / invité supprime logiquement le groupe. A noter que le groupe n'est déjà plus référencé par aucun avatar dans ce cas.
+- **pour un contact** : le fait que le conjoint survivant décide de _quitter_ le contact supprime logiquement le couple (qui n'est déjà plus référencé par aucun avatar dans ce cas).
+- **pour un groupe** : le fait que le dernier membre de statut actif s'auto-résilie supprime logiquement le groupe (qui n'est déjà plus référencé par aucun avatar dans ce cas).
 - **pour un avatar** : la _suppression explicite_ de l'avatar d'un compte. Ceci nécessite préalablement,
   - la fin de l'hébergement des groupes qu'il héberge,
-  - son auto-résiliation des groupes dont il est membre,
-  - son divorce avec les couples dont il est conjoint,
+  - son auto-résiliation des groupes dont il est membre (et par conséquence _éventuellement_ la suppression logique du groupe),
+  - son divorce avec les contacts dont il est conjoint (et par conséquence _éventuellement_ la suppression logique du contact),
   - la suppression de tous ses secrets personnels.
   - chacune de ces 4 étapes est lancée successivement en session et se termine donc par la suppression d'un avatar inutile.
   - l'avatar _primitif_ ne peut être supprimé qu'en dernier, ce qui correspond à la suppression du compte (avec le rendu au parrain éventuel des forfaits).
 
 #### Purges des objets (2)
 Les objets supprimés logiquement sont supprimés physiquement par le GC quotidien lors d'une seconde phase :
-- pour un avatar : le row avatar lui-même, sa clé RSA et ses secrets.
+- pour un avatar : le row avatar lui-même, sa compta, sa clé RSA et ses secrets.
 - pour un groupe : le row groupe lui-même, ses membres et ses secrets.
-- pour un couple : le row couple lui-même et ses secrets.
-- pour les secrets, suppression de ses fichiers attachés en les citant un par un. Toutefois la suppression d'un couple par exemple permet de supprimer tous les fichiers attachés aux secrets du couple sans les citer un par un.
+- pour un contact : le row contact lui-même et ses secrets.
+- pour les secrets, suppression de ses fichiers attachés en les citant un par un. Toutefois la suppression d'un avatar / contact / groupe permet de supprimer tous les fichiers attachés aux secrets de son avatar / contact / groupe sans les citer un par un.
 
 #### Réactions en session aux avis de destruction d'objets
-Pour les avatars du compte, les groupes auxquels le compte participe et les couples dont un de ses avatars est conjoint, les objets en session sont supprimés, ainsi que les objets dépendants (secrets, membres). Ils sont aussi supprimés de la base IDB.
+Pour les avatars du compte, les groupes auxquels le compte participe et les contacts dont un de ses avatars est conjoint, les objets en session sont supprimés, ainsi que les objets dépendants (secrets, membres). Ils sont aussi supprimés de la base IDB.
 
 Concernant les autres avatars _externes_ (pas du compte), ils apparaissent :
-- soit comme conjoint d'un couple,
+- soit comme conjoint d'un contact,
 - soit comme membre d'un groupe.
 
 A réception de ces notifications,
 - les cartes de visites sont supprimées et le statut disparu rendu apparent : impact sur les vues.
-- une opération est lancée pour mettre à jours les statuts des membres et conjoints concernés : ceci _peut_ entraîner en cascade la disparition de groupes ou de couples, lesquelles seront notifiées à la session.
+- une opération est lancée pour mettre à jour, si nécessaire, les statuts des membres et conjoints concernés.
 
 ### Table `avatar` : CP `id`. Données d'un avatar
 Chaque avatar a un row dans cette table :
 - la liste de ses groupes (avec leur nom et clé).
-- la liste des couples dont il fait partie (avec leur clé).
+- la liste des contacts dont il fait partie (avec leur clé).
 
 Table :
 
@@ -314,10 +331,10 @@ Table :
 - `lgrk` : map :
   - _clé_ : `ni`, numéro d'invitation (aléatoire 4 bytes) obtenue sur `invitgr`.
   - _valeur_ : cryptée par la clé K du compte de `[nom, rnd, im]` reçu sur `invitgr`.
-  - une entrée est effacée par la résiliation du membre au groupe ou sur refus de l'invitation (ce qui lui empêche de continuer à utiliser la clé du groupe).
+  - une entrée est effacée par la résiliation du membre au groupe ou sur refus de l'invitation (ce qui l'empêche de continuer à utiliser la clé du groupe).
 - `lcck` : map :
   - _clé_ : `ni`, numéro pseudo aléatoire. Hash de (`cc` en hexa suivi de `0` ou `1`).
-  - _valeur_ : clé `cc` cryptée par la clé K de l'avatar cible. Le hash d'une clé d'un couple donne son id.
+  - _valeur_ : clé `cc` cryptée par la clé K de l'avatar cible (le hash _integer_ donne son id).
 - `vsh`
 
 La lecture de `avatar` permet d'obtenir,
@@ -348,9 +365,9 @@ Table :
     CREATE INDEX "st_compta" ON "compta" ( "st" ) WHERE "st" > 0;
 
 - `id` : de l'avatar.
-- `idp` : pour un filleul (avatar primitif), id de l'avatar parrain :
-  - par convention 0 pour un parrain.
-  - `null` pour un avatar secondaire.
+- `idp` : 
+  - _avatar primitif_: 0 pour un parrain, id de l'avatar parrain pour un filleul
+  - _avatar secondaire_: `null`.
 - `v` :
 - `st` :
   - 0 : normal.
