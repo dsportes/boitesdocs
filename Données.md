@@ -15,7 +15,7 @@ Le hash (_integer_) d'un string est un entier intègre en Javascript.
 Les date-heures _serveur_ sont exprimées en micro-secondes depuis le 1/1/1970, soit 52 bits (entier intègre en Javascript). Les date-heures fonctionnelles sont en milli-secondes.
 
 ### Compte
-- `id` : un entier (intègre en Javascript) issu de 6 bytes aléatoires, multiplié par 4 + 3.  
+- `id` : c'est l'id de son avatar primaire.  
 - `clé K` : 32 bytes aléatoires.  
 - `pcb` : PBKFD de la phrase complète (clé X) - 32 bytes.  
 - `dpbh` : hashBin (_integer_) du PBKFD du début de la phrase secrète.
@@ -29,7 +29,7 @@ Les date-heures _serveur_ sont exprimées en micro-secondes depuis le 1/1/1970, 
 - les données cryptées par K, ne sont lisibles dans le serveur que quand elles ont été transmises aussi en clair dans une opération. 
 
 ### Nom complet d'un avatar ou d'un groupe
-Le **nom complet** d'un avatar ou d'un groupe est un couple `[nom, rnd]`
+Le **nom complet** d'un avatar / contact / groupe est un couple `[nom, rnd]`
 - `nom` : nom lisible et signifiant, entre 6 et 20 caractères.
 - `rnd` : 32 bytes aléatoires. Clé de cryptage.
 - A l'écran le nom est affiché sous la forme `nom@abgh` ou `ab` sont les deux premiers caractères de l'id en base64 et `gh` les deux derniers.
@@ -39,41 +39,40 @@ Le **nom complet** d'un avatar ou d'un groupe est un couple `[nom, rnd]`
 ### Avatar
 La **clé de cryptage** de la carte de visite est `rnd`.
 
-L'`id` d'un avatar est le hash (_integer_) des bytes de `rnd`, multiplié par 4.
+L'`id` d'un avatar est le hash (_integer_) des bytes de `rnd`, multiplié par 3.
 
 ### Contact
 La **clé de cryptage** d'un contact (carte de visite et secrets) est`rnd`.
 
-L'`id` d'un contact est le hash (_integer_) des bytes de `rnd`, multiplié par 4 + 1.
+L'`id` d'un contact est le hash (_integer_) des bytes de `rnd`, multiplié par 3 + 1.
 
 ### Groupe
 La **clé de cryptage** d'un groupe (carte de visite et secrets) est`rnd`.
 
-L'`id` d'un groupe est le hash (_integer_) des bytes de `rnd`, multiplié par 4 + 2.
+L'`id` d'un groupe est le hash (_integer_) des bytes de `rnd`, multiplié par 3 + 2.
 
 ### Type d'objet majeur
-Le reste de la division par 4 de l'id d'un objet majeur donne son type:
+Le reste de la division par 3 de l'id d'un objet majeur donne son type:
 - 0 : avatar,
 - 1 : contact,
-- 2 : groupe,
-- 3 : compte.
+- 2 : groupe.
 
 ### Secret
 - `id` : de l'avatar, du contact ou du groupe propriétaire
-- `ns` : numéro relatif au groupe / avatar, entier issu de 4 bytes aléatoires.
+- `ns` : numéro relatif au groupe / avatar / contact, entier issu de 4 bytes aléatoires.
 
 ### Attributs génériques
 - `v` : version, entier.
-- `dds` : date de dernière signature, en nombre de jours depuis le 1/1/2021. Signale que ce jour-là, l'avatar, le compte, le contact, le groupe était *vivant / utile / référencé*. Pour éviter des rapprochements entre eux, la *vraie* date de signature peut être entre 0 et 30 jours *avant*.  
+- `dds` : date de dernière signature, en nombre de jours depuis le 1/1/2021. Signale que ce jour-là, l'avatar, le contact, le groupe était *vivant / utile / référencé*. Pour éviter des rapprochements entre eux, la *vraie* date de signature peut être entre 0 et 30 jours *avant*.  
 - `dlv` : date limite de validité, en nombre de jours depuis le 1/1/2021.
 
 Les comptes sont censés avoir au maximum N0 jours entre 2 connexions faute de quoi ils sont considérés comme disparus.
 
-### Signatures des comptes, avatars, contacts et groupes
-A chaque connexion d'un compte, le compte signe si la `dds` actuelle n'est pas _récente_ (sinon les signatures ne sont pas mises à jour) :
-- pour lui-même dans `compte` : jour de signature tiré aléatoirement entre j-28 et j-14.
+### Signatures des avatars, contacts et groupes
+A chaque connexion d'un compte, son avatar primaire signe si la `dds` actuelle n'est pas _récente_ (sinon les signatures ne sont pas mises à jour) :
+- pour lui-même dans `cv` : jour de signature tiré aléatoirement entre j-28 et j-14.
 - dans `cv` : jour de signature tiré aléatoirement pour chacun entre j-14 et j.
-  - pour ses avatars,
+  - pour ses avatars secondaires,
   - pour ses contacts,
   - pour les groupes auxquels ses avatars sont invités ou actifs.
 
@@ -118,6 +117,7 @@ _**Tables transmises au client**_
 - `contact` (phch) : parrainage ou rencontre de A0 vers un A1 à créer ou inconnu par une phrase de contact
 - `invitgr` (id, ni) : **NON persistante en IDB**. invitation reçue par un avatar à devenir membre d'un groupe
 - `invitcp` (id, ni) : **NON persistante en IDB**. invitation reçue par un avatar à devenir membre d'un couple
+- `chat` (id, dh) : chat d'un avatar primaire (compte) avec les comptables.
 
 ## Singletons id / valeur
 Ils sont identifiés par un numéro de singleton.  
@@ -161,12 +161,11 @@ Table :
     ) WITHOUT ROWID;
     CREATE UNIQUE INDEX "dpbh_compte" ON "compte" ( "dpbh" );
 
-- `id` : id du compte.
+- `id` : id de l'avatar primaire du compte.
 - `v` :
 - `dpbh` : hashBin (53 bits) du PBKFD du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbh` : hashBin (53 bits) du PBKFD de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
 - `kx` : clé K du compte, cryptée par la X (phrase secrète courante).
-- `dds` : date de dernière signature du compte (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
 - `mack` {} : map des avatars du compte cryptée par la clé K. 
   - _Clé_: id,
   - _valeur_: `[nom, rnd, cpriv]`
@@ -178,7 +177,7 @@ Table :
 - un row `compte` ne peut être modifié que par une transaction du compte (mais peut être purgé par le traitement journalier de détection des disparus).
 - il est synchronisé lorsqu'il y a plusieurs sessions ouvertes en parallèle sur le même compte depuis plusieurs sessions de browsers.
 - chaque mise à jour vérifie que `v` actuellement en base est bien celle à partir de laquelle l'édition a été faite pour éviter les mises à jour parallèles intempestives.
-- indépendamment de la signature `dds`, le row `compte` change rarement, seulement à l'occasion de l'ajout / suppression d'un avatar et d'un changement de phrase secrète.
+- le row `compte` change rarement : seulement à l'occasion de l'ajout / suppression d'un avatar et d'un changement de phrase secrète.
 
 ## Table : `prefs` CP `id`. Préférences et données d'un compte
 Afin que le row compte qui donne la liste des avatars ne soit mis à jour que rarement, les données et préférences associées au compte sont mémorisées dans une autre table :
@@ -227,20 +226,20 @@ Table :
 
 ### Table `cv` : CP `id`. Répertoire des objets majeurs : avatars, contacts et groupes
 Cette table a plusieurs objectifs :
-- `dds` : **garde la trace des signes de vie des objets** dans la propriété `dds`, dernière date de signature, remplie à chaque login à l'ouverture d'une session pour signaler que les avatars, contacts et groupes de l'espace de données du compte de la session sont toujours _en vie_ (utiles) et se prémunir contre leur destruction pour non usage.
-- `x` : **donne le statut d'existence de ces objets** et en conséquence de tracer leur inexistence / disparition:
+- `dds` : **garde la trace des signes de vie des objets** dans la propriété `dds`, dernière date de signature, remplie à l'ouverture d'une session pour signaler que les avatars, contacts et groupes de l'espace de données du compte de la session sont toujours _en vie_ (utiles) et se prémunir contre leur destruction pour non usage.
+- `x` : **donne le statut d'existence de ces objets** et tracer leur disparition:
   - `0` : objet vivant,
-  - `1` : le processus de disparition a été demandé. Pour les sessions l'objet (et ceux dépendants) a déjà disparu (le compte / avatar ne le référence plus), mais les purges techniques (`avatar contact groupe compta avrsa secret membre`) doivent encore être exécutées par le démon de purge quotidien.
+  - `1` : le processus de disparition a été demandé. Pour les sessions l'objet (et ceux dépendants) a déjà disparu (le compte / avatar ne le référence plus), mais les purges techniques (`avatar contact groupe compta avrsa secret membre chat`) doivent encore être exécutées par le démon de purge quotidien.
   - `J > 1` : **le row** `cv` est à purger définitivement le jour J (les autres l'ont déjà été).
 - `cv` : **détient la carte de visite des objets** (`[photo, info]` cryptée par la clé de l'objet).
   - toujours `null` pour un objet disparu (x > 1).
   - `null` ou `[photo, info]` selon que l'objet _avatar contact groupe_ a ou non une carte de visite.
 - `v` : version à laquelle `x` ou `cv` ont changé pour la dernière fois. Les versions sont prises dans la séquence 0, tous les objets partagent donc pour leur `cv` la même séquence de version dans le répertoire. Les sessions peuvent ainsi requérir en début de session,
   - tous les rows qui les concernent quelle que soit leur version (mode _incognito_),
-  - seulement ceux ayant changé d'état d'existence et / ou de carte de visite postérieurement à leur dernière version de remise à niveau de leur session locale.
+  - seulement ceux ayant changé d'état d'existence et / ou de carte de visite postérieurement à leur dernière version de synchronisation de leur session locale.
   - en cours de session pour les nouveaux objets apparaissant dans leur espace de données, la dernière version de leur `x cv`.
 
-Cette table est elle-même purgée des objets disparus depuis plus de N1 jours (typiquement 400 pour couvrir un an) afin d'éviter une croissance éternelle de la table `cv`: le temps que toutes les sessions rarement ouvertes aient eu le temps de se synchroniser.
+Cette table est elle-même purgée des objets disparus depuis plus de N1 jours (typiquement 500 pour couvrir un an) afin d'éviter une croissance éternelle de la table `cv`: le temps que toutes les sessions rarement ouvertes aient eu le temps de se synchroniser.
 
 Table :
 
@@ -261,52 +260,50 @@ Table :
 - `v` : version du dernier changement de `x` ou `cv` (PAS de `dds`).
 - `x` : statut de disparition :
   - 0 : existant
-  - 1 : inexistant logiquement mais purges des objets dépendants en cours
+  - 1 : inexistant logiquement mais la purge des objets demandée au GC quotidien.
   - N : inexistant logiquement et purges des objets terminées.
-- `dds` : date de dernière signature de l'avatar / contact / groupe (dernière connexion). Un compte en sursis ou bloqué ne signe plus, sa disparition physique est déjà programmée.
+- `dds` : date de dernière signature de l'avatar / contact / groupe (dernière connexion). Un compte en _alerte / sursis / bloqué_ ne signe plus, sa disparition physique est déjà programmée (mais pas certaine, l'alerte peut être levée).
 - `cv` : carte de visite cryptée par la clé de l'objet.
 - `vsh` :
 
 #### Synchronisation
 Les sessions s'abonnent à la liste des avatars / contacts / groupes qui délimitent l'espace de données du compte :
 - _central_ : **soit pour l'objet intégralement** : les avatars du compte, les groupes accédés par le compte, les contacts ou figurent un de leurs avatars,
-- _annexe_ : **soit pour les seules données d'existence / carte de visite** : les _avatars_ membres des groupes cités ci-dessus et conjoints des contacts cités ci-dessus.
+- _annexe_ : **soit pour les seules données d'existence / carte de visite** : les _avatars_ membres des groupes cités ci-dessus et des contacts cités ci-dessus.
 
-Quand un row du répertoire est modifié (`x` et / ou `cv`), le row est retourné pour synchronisation de la session : c'est ainsi que celle-ci prend connaissance de la disparition de ses objets centraux et annexes (membres de groupe / conjoints de contacts).
+Quand un row de `cv` est modifié (`x` et / ou `cv`), le row est retourné pour synchronisation de la session : c'est ainsi que celle-ci prend connaissance de la disparition de ses objets centraux et annexes (membres de groupe / conjoints de contacts).
 
 #### Suppression logique (1)
 Elle met `x` à `1`, et `cv` à `null`. Elle est répercutée par synchronisation aux sessions.
 
 Elle est provoquée par :
-- **le GC quotidien** :
-  - scanne sur `dds` de `compta` les avatars inutilisés.
-  - scanne les groupes dont la date de fin d'hébergement `dfh` + N2 jours est dépassée.
+- **le GC quotidien** : scanne les groupes dont la date de fin d'hébergement `dfh` + N2 jours est dépassée.
 - **pour un contact** : le fait que le conjoint survivant décide de _quitter_ le contact supprime logiquement le couple (qui n'est déjà plus référencé par aucun avatar dans ce cas).
 - **pour un groupe** : le fait que le dernier membre de statut actif s'auto-résilie supprime logiquement le groupe (qui n'est déjà plus référencé par aucun avatar dans ce cas).
 - **pour un avatar** : la _suppression explicite_ de l'avatar d'un compte. Ceci nécessite préalablement,
   - la fin de l'hébergement des groupes qu'il héberge,
   - son auto-résiliation des groupes dont il est membre (et par conséquence _éventuellement_ la suppression logique du groupe),
-  - son divorce avec les contacts dont il est conjoint (et par conséquence _éventuellement_ la suppression logique du contact),
+  - sa disparition de ses contacts (et par conséquence _éventuellement_ la suppression logique du contact),
   - la suppression de tous ses secrets personnels.
   - chacune de ces 4 étapes est lancée successivement en session et se termine donc par la suppression d'un avatar inutile.
-  - l'avatar _primitif_ ne peut être supprimé qu'en dernier, ce qui correspond à la suppression du compte (avec le rendu au parrain éventuel des forfaits).
+  - l'avatar _primaire_ ne peut être supprimé qu'en dernier, ce qui correspond à la suppression du compte.
 
 #### Purges des objets (2)
 Les objets supprimés logiquement sont supprimés physiquement par le GC quotidien lors d'une seconde phase :
-- pour un avatar : le row avatar lui-même, sa compta, sa clé RSA et ses secrets.
+- pour un avatar : le row avatar lui-même, sa compta, son chat, sa clé RSA et ses secrets.
 - pour un groupe : le row groupe lui-même, ses membres et ses secrets.
 - pour un contact : le row contact lui-même et ses secrets.
 - pour les secrets, suppression de ses fichiers attachés en les citant un par un. Toutefois la suppression d'un avatar / contact / groupe permet de supprimer tous les fichiers attachés aux secrets de son avatar / contact / groupe sans les citer un par un.
 
 #### Réactions en session aux avis de destruction d'objets
-Pour les avatars du compte, les groupes auxquels le compte participe et les contacts dont un de ses avatars est conjoint, les objets en session sont supprimés, ainsi que les objets dépendants (secrets, membres). Ils sont aussi supprimés de la base IDB.
+Pour les avatars du compte, les groupes auxquels le compte participe et les contacts d'un de ses avatars, les objets en session sont supprimés, ainsi que les objets dépendants (secrets, membres). Ils sont aussi supprimés de la base IDB.
 
 Concernant les autres avatars _externes_ (pas du compte), ils apparaissent :
 - soit comme conjoint d'un contact,
 - soit comme membre d'un groupe.
 
 A réception de ces notifications,
-- les cartes de visites sont supprimées et le statut disparu rendu apparent : impact sur les vues.
+- les cartes de visites sont supprimées et le statut disparu rendu apparent (impact sur les vues).
 - une opération est lancée pour mettre à jour, si nécessaire, les statuts des membres et conjoints concernés.
 
 ### Table `avatar` : CP `id`. Données d'un avatar
@@ -341,52 +338,69 @@ La lecture de `avatar` permet d'obtenir,
 - la liste des groupes dont il est membre (avec leur nom, id et clé),
 - la liste des couples dont il fait partie (avec leur id et clé).
 
-## Table `compta` : CP `id`. Ligne comptable de l'avatar d'un compte
-Il y a une ligne par avatar, l'id étant l'id de l'avatar. `idp` est l'id de l'avatar parrain pour un filleul : par convention un parrain a 0 dans cette colonne.
+## Table `chat` : CP `id dh`. Chat des avatars primaires avec les _comptables_
+Une ligne par item de chat.
 
-**L'ardoise** est une zone de texte partagé entre le titulaire du compte et les comptes comptables : elle est cryptée _soft_ c'est à dire avec une clé figurant dans le code source, ce qui empêche juste de lire le texte en base de données. Rien de confidentiel ne doit y figurer.
+Table :
+
+    CREATE TABLE "chat" (
+    "id"	INTEGER,
+    "dh"	INTEGER,
+    "txt"	INTEGER,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id", "dh")
+    );
+    CREATE INDEX "dh_chat" ON "chat" ( "dh" );
+
+- `id` : de l'avatar primaire.
+- `dh` : date-heure d'écriture. Par convention si elle est paire c'est un texte écrit par l'avatar, sinon il est écrit par un comptable.
+- `txt` : texte crypté _soft_.
+
+## Table `compta` : CP `id`. Ligne comptable de l'avatar d'un compte
+Il y a une ligne par avatar, l'id étant l'id de l'avatar.
 
 Table :
 
     CREATE TABLE "compta" (
     "id"	INTEGER,
-    "idp"	INTEGER,
+    "t"	INTEGER,
     "v"	INTEGER,
     "st"	INTEGER,
+    "rb"  INTEGER,
     "dst" INTEGER,
+    "dstc" INTEGER,
     "data"	BLOB,
-    "dh" INTEGER,
-    "ard" BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
-    CREATE INDEX "idp_compta" ON "compta" ( "idp" );
-    CREATE INDEX "dds_compta" ON "compta" ( "dds" );
+    CREATE INDEX "t_compta" ON "compta" ( "t" ) WHERE "t" > 0;
     CREATE INDEX "st_compta" ON "compta" ( "st" ) WHERE "st" > 0;
 
 - `id` : de l'avatar.
-- `idp` : 
-  - _avatar primitif_: 0 pour un parrain, id de l'avatar parrain pour un filleul
-  - _avatar secondaire_: `null`.
+- `t` :
+  - (0) : avatar secondaire.
+  - (1) : avatar primaire parrain,
+  - (2) : avatar primaire filleul,
+  - (3) : avatar filleul orphelin, en attente d'un nouveau parrain.
+  - (4) : avatar parrain disparu.
 - `v` :
 - `st` :
   - 0 : normal.
-  - 1 : en sursis 1.
-  - 2 : en sursis 2.
+  - 1 : en alerte.
+  - 2 : en sursis.
   - 3 : bloqué.
-- `dst` : date du dernier changement de st.
+- `rb` : code de la raison du statut de blocage en cours.
+- `dst` : date du dernier changement de st != 0 (sinon 0).
+- `dstc` : date de la première connexion après `dst` (prise de connaissance du statut != 0).
 - `data`: compteurs sérialisés (non cryptés)
-- `dh` : date-heure de dernière écriture sur l'ardoise.
-- `flag` : problème résolu 0 ou à résoudre 1.
-- `ard` : texte de l'ardoise _crypté soft_.
 - `vsh` :
 
 **data**
 - `j` : **la date du dernier calcul enregistré** : par exemple le 17 Mai de l'année A
 - **pour le mois en cours**, celui de la date ci-dessus :
-  - _en Mo_, `v1 v1m` volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
-  - _en Mo_, `v2 v2m` volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
-  - _en Mo_, `trm` cumul des volumes des transferts de pièces jointes : 14 compteurs pour les 14 derniers jours.
+  - `v1 v1m` volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
+  - `v2 v2m` volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
+  - `trm` cumul des volumes des transferts de pièces jointes : 14 compteurs pour les 14 derniers jours.
 - **forfaits v1 et v2** `f1 f2` : les plus élevés appliqués le mois en cours.
 - `rtr` : ratio de la moyenne des tr / forfait v2
 - **pour les 12 mois antérieurs** `hist` (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
@@ -395,6 +409,7 @@ Table :
   - `r3` le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
 - `res1 res2` : pour un parrain, réserve de forfaits v1 et v2.
 - `t1 t2` : pour un parrain, total des forfaits 1 et 2 attribués aux filleuls.
+- `s1 s2` : pour un avatar primaire, total des forfaits attribués aux secondaires.
 
 #### Unités de volume
 - pour v1 : 0,25 MB
@@ -433,17 +448,16 @@ Un contact est **détruit** :
 > A0 et A1 peuvent avoir plus d'un contact entre eux (par exemple pas un contact _amical_ et un contact _professionnel_) ce que la carte de visite du contact va préciser.
 
 **Un contact partage :**
-- une **ardoise** commune de quelques lignes : elle est active dans les phases.
+- une **ardoise** commune de quelques lignes : elle est active dans toutes les phases.
 - des **secrets** dans les phases _active_ et _orphelin_:
   - quand **A0 et A1 ont activé le partage de secrets**, ils peuvent en créer, les mettre à jour et les lire :
     - si A0 (ou A1) a une exclusivité sur un secret l'autre ne peut que le lire,
-    - les volumes d'un secret sont décomptés sur les deux avatars,
+    - les volumes d'un secret sont décomptés sur les avatars ayant activé le partage de secrets,
     - _A0 et A1 peuvent fixer une limite maximale de v1 et v2_ : les créations et mises à jour de secrets sont bloquées dès qu'elles risquent de dépasser la plus faible des deux limites.
   - si seul A0 (respectivement A1) a activé le partage de secrets, A1 (respectivement A0) n'y a pas accès et le volume n'est imputé qu'à A0 (respectivement à A1).
   - si A0 (ou A1) active le partage de secrets, le volume des secrets existants lui est débité et il les voit.
   - si A0 (ou A1) désactive le partage de secrets, le volume des secrets existants lui est crédité et il ne les voit plus.
   - si A0 (ou A1) désactive le partage de secrets mais que l'autre n'a pas activé le partage de secrets, les secrets sont détruits (puisqu'ils n'intéressent plus personne).
-
 
 Un **contact** est déclaré avec :
 - une clé `cc` (aléatoire de 32 bytes) cryptant les données communes dont les secrets du contact.
@@ -452,12 +466,11 @@ Un **contact** est déclaré avec :
 - a minima le nom de A1 (pas toujours sa clé qui peut ne pas être connue avant acceptation de A1).
 
 Un contact est connu dans chaque avatar A0 et A1 par une entrée dans leurs maps respectives `lcck` : 
-- les clés dans ces maps sont des numéros aléatoires dit _d'invitation_ : c'est le hash de (`cc` en hexa suivi de `0` (pour A0) ou `1` (pour A1)).
-- la valeur est le couple `[clé, secret]` crypté par la clé du compte de l'avatar,
-  - `secret` vaut 1 si l'avatar a activé le partage de secret, 0 si non.
+- les clés dans ces maps sont des numéros _d'invitation_ : hash de (`cc` en hexa suivi de `0` (pour A0) ou `1` (pour A1)).
+- la valeur est la `clé` crypté par la clé K du compte de l'avatar.
 
 **Un contact a un nom et une carte de visite**
-- le `nom` d'un contact est formé de l'accolement des deux noms de A0 et A1 : il est donc bien immuable. Même dans le cas d'une prise de contact A0 doit fournir le nom exact de l'avatar qu'il contacte à défaut d'avoir ni sa clé ni son id.
+- le `nom` d'un contact est formé de l'accolement des deux noms de A0 et A1 : il est donc bien immuable. Même dans le cas d'une prise de contact A0 doit fournir le _nom exact_ de l'avatar qu'il contacte à défaut d'avoir sa clé (donc pas son id).
 - **un contact peut avoir une carte de visite**, une photo et un texte, que chacun des deux A0 et A1 peut mettre à jour et qui ne sera visible que d'eux.
 - dans une session de A0 respectivement de A1), le nom du contact affiché est,
   - le nom donné dans la carte de visite du contact quand il existe,
@@ -473,24 +486,24 @@ Il y a 3 moyens pour A0 de prendre contact :
   - **A0 crée le contact** qui reste en phase 1 tant que A1 n'a pas accepté le contact.
 - **parrainage** par A0 de A1 : ils ont convenu entre eux d'une _phrase de parrainage_. A1 en tant qu'avatar _est connu_ de A0 qui lui a créé l'identification de son premier avatar, mais rien ne dit que A1 va effectivement valider la création de son compte et donc du contact qui peut rester en attente ou refusé.
 - **rencontre**. A0 a rencontré A1 dans la vraie vie et ils ont convenu d'une _phrase de rencontre_.
-  - A1 n'est PAS connu de A0, mais lui a communiqué son nom (immuable) mais pas la clé de sa carte de visite (donc pas son identifiant).
+  - A1 n'est PAS connu de A0, mais lui a communiqué son _nom exact_ (immuable) mais pas sa clé (donc pas son id).
   - A0 créé un contact mais celui-ci reste en attente jusqu'à acceptation ou refus de A1.
 
 #### États d'un contact
 
 **Phase**
 - (1) en attente,
-- (2) hors délai,
+- (2) hors délai (parrainage / rencontre seulement),
 - (3) refusé,
 - (4) actif,
 - (5) orphelin.
 
 **Origine du contact**
-- (1) direct
-- (2) parrainage de compte
-- (3) rencontre dans la vraie vie
+- (0) direct
+- (1) parrainage de compte
+- (2) rencontre dans la vraie vie
 
-- **(1) prise de contact directe par A0**. A1 est totalement identifié par A0 (typiquement A0 et A1 participent à un même groupe).
+- **(0) prise de contact directe par A0**. A1 est totalement identifié par A0 (typiquement A0 et A1 participent à un même groupe).
   - tant que A1 n'a pas accepté, 
     - le contact reste dans l'état _attente_, aucun secret ne peut être inscrit.
     - A0 peut détruire le contact qui n'apparaît plus, ni chez A0 ni chez A1.
@@ -498,7 +511,7 @@ Il y a 3 moyens pour A0 de prendre contact :
     - le contact passe en état _refusé_, aucun secret ne peut être inscrit.
     - A0 détruira le contact après avoir pris connaissance de la motivation du refus.
   - si A1 accepte, le contact passe en phase 4.
-- **(2) parrainage du compte de A1 par A0**. A1 en tant qu'avatar est totalement identifié par A0 mais n'a pas encore de compte. A1 a un délai limité pour accepter le _parrainage_ identifié par la phrase de parrainage convenue entre A0 et A1.
+- **(1) parrainage du compte de A1 par A0**. A1 en tant qu'avatar est totalement identifié par A0 mais n'a pas encore de compte. A1 a un délai limité pour accepter le _parrainage_ identifié par la phrase de parrainage convenue entre A0 et A1.
   - tant que A1 n'a pas encore accepté avant expiration du délai,
     - le contact reste dans l'état _attente_, aucun secret ne peut être inscrit.
     - A0 peut détruire le contact qui n'apparaît plus chez A0, le _parrainage_ étant aussi est inaccessible par A1.
@@ -512,7 +525,7 @@ Il y a 3 moyens pour A0 de prendre contact :
     - le _parrainage_ s'est auto-détruit,
     - le contact apparaît dans les sessions de A0 en état _hors délai_.
     - A0 peut détruire le contact qui n'a plus d'utilité (sauf historique).
-- **(3) rencontre de A1 initiée par A0**. A0 ne connaît de A1 que son nom mais pas son identifiant / clé. A1 a un délai limité pour accepter la _rencontre_ identifiée par la phrase de rencontre convenue entre A0 et A1.
+- **(2) rencontre de A1 initiée par A0**. A0 ne connaît de A1 que son nom mais pas son identifiant / clé. A1 a un délai limité pour accepter la _rencontre_ identifiée par la phrase de rencontre convenue entre A0 et A1.
   - tant que A1 n'a pas encore accepté avant expiration du délai,
     - le contact reste dans l'état _attente_, aucun secret ne peut être inscrit.
     - A0 peut détruire le contact qui n'apparaît plus chez A0, la _rencontre_ étant aussi détruite est inaccessible par A1.
@@ -543,12 +556,45 @@ Quand A0 et A1 sont tous deux _disparu_, le contact disparaît.
 - pour un parrainage ou une rencontre, la prolongation ne peut s'effectuer qu'avant la fin de la `dlv`.
 - la `dlv` est modifiée sur les rows `contact` et `couple`.
 
+#### Parrainage
+L'état de parrainage est fixé par `tp` :
+- 0 : aucun lien de parrainage entre A0 et A1,
+- 1 : A0 est actuellement le parrain de A1.
+- 2 : A1 est actuellement le parrain de A0.
+
+_Remarque_ : quand A0 a parrainé A1 et l'a déclaré comme parrain lui-même, `tp` est à 0 : A1 n'est pas considéré comme un filleul.
+
+**Pour un filleul, retrait du statut _parrain_ de son parrain par un comptable :**
+- détecté à la connexion ou à la synchronisation
+- `tp` passe à 0
+
+**Pour un filleul, disparition de son parrain :**
+- détecté à la connexion ou à la synchronisation
+- `tp` passe à 0
+
+**Changement de parrain par le filleul :**
+- le code pin d'autorisation fixé par le nouveau parrain a été donné par le filleul.
+- contact de l'ancien parrain (s'il y en avait un): 
+  - `tp` passe à 0,
+  - `data.f1 f2` passent à 0
+  - les ressources `res1 / res2` de sa compta sont augmentées.
+- contact du nouveau parrain:
+  - `tp` passe à 1 ou 2
+  - `data.f1 f2` passent à 0
+  - les ressources `res1 / res2` de sa compta sont diminuées.
+
+**Disparation du _filleul_ :** détection par le parrain
+- passage du filleul en niveau d'activité 2 (disparu).
+- le parrain récupère les forfaits f1 et f2 en res1 / res2 de sa compta.
+
 Table :
 
     CREATE TABLE "couple" (
     "id"   INTEGER,
     "v"  	INTEGER,
-    "st" INTEGER,
+    "st"  INTEGER,
+    "tp"  INTEGER,
+    "autp"  INTEGER,
     "v1"  INTEGER,
     "v2"  INTEGER,
     "mx10"  INTEGER,
@@ -567,13 +613,15 @@ Table :
     ) WITHOUT ROWID;
     CREATE INDEX "id_v_couple" ON "couple" ( "id", "v" );
 
-- `id` : id du couple
+- `id` : id du contact
 - `v` :
 - `st` : quatre chiffres `p o 0 1` : phase / état
   - `p` : phase - (1) en attente, (2) hors délai, (3) refusé, (4) actif, (5) orphelin.
   - `o` : origine du contact: (0) direct, (1) parrainage, (2) rencontre.
   - `0` : pour A0 - (0) pas de partage de secrets, (1) partage de secrets, (2) disparu.
   - `1` : pour A1 -
+- `tp` : 0: na, 1: A0 est parrain de A1, 2: A1 est parrain de A0
+- `autp` : code d'autorisation donné par le futur parrain pour le devenir sur action du filleul.
 - `v1 v2` : volumes actuels des secrets.
 - `mx10 mx20` : maximum des volumes autorisés pour A0
 - `mx11 mx21` : maximum des volumes autorisés pour A1
@@ -582,7 +630,7 @@ Table :
   - `x` : `[nom, rnd], [nom, rnd]` : nom et clé d'accès à la carte de visite respectivement de A0 et A1.
   - `phrase` : phrase de parrainage / rencontre.
   - `f1 f2` : en phase 1/4 (parrainage), forfaits attribués par le parrain A0 à son filleul A1.
-  - `r1 r2` : en phase 1/4 (parrainage) et si le compte filleul est lui-même parrain, ressources attribuées.- `infok0 infok1` : commentaires personnels cryptés par leur clé K, respectivement de A0 et A1.
+  - `r1 r2` : en phase 1 (parrainage) et si le compte filleul est lui-même parrain, ressources attribuées. `infok0 infok1` : commentaires personnels cryptés par leur clé K, respectivement de A0 et A1.
 - `mc0 mc1` : mots clé définis respectivement par A0 et A1.
 - `ardc` : ardoise commune cryptée par la clé cc. [dh, texte]
 - `vsh` :
@@ -591,6 +639,10 @@ Dans un contact il y a deux avatars, l'initiateur et l'autre : `im` **l'indice m
 - `1` s'il est initiateur `datac.x[0]`,
 - `2` dans l'autre cas `datac.x[1]`,
 - la valeur 0 n'est pas utilisée (même logique que dans un groupe).
+
+_Remarques_
+- pour un compte parrain, la liste de ses filleuls est la liste des contacts indiquant par tp qu'il en est le parrain.
+- pour un compte filleul: son parrain est celui de ses contacts dont le tp indique qu'il est filleul. Il peut être filleul et ne pas en avoir (filleul temporairement orphelin).
 
 ### Table `contact` : CP `phch`. Prise de contact par phrase de contact de A1 par A0
 Les rows `contact` ne sont pas synchronisés en session : ils sont,
@@ -637,6 +689,7 @@ Table :
 - la ligne `compta` du filleul est créée et créditée des forfaits attribués par le parrain.
 - la ligne `compta` du parrain est mise à jour (réserve).
 - le row `couple` est mis à jour (phase 4), l'ardoise renseignée, les volumes maximum sont fixés.
+- si le compte créé est lui-même parrain, sa ligne `compta` créée reprend les valeurs `f1 f2 r1 r2` mais dans `data` de `couple` ces valeurs sont à 0 et le statut `tp` est à 0 aussi.
 
 #### _Rencontre_ initiée par A0 avec A1
 - A0 peut détruire physiquement son contact avant acceptation / refus (remord).
@@ -665,7 +718,7 @@ Un groupe est hébergé par un avatar _hébergeur_ (ses volumes sont décomptés
 Le compte peut mettre fin à son hébergement:
 - `dfh` indique le jour de la fin d'hébergement.
 - les secrets ne peuvent plus être mis à jour ou créés (comme un état archivé).
-- à dfh + N jours, le GC plonge le groupe en état _zombi_
+- à `dfh` + N jours, le GC plonge le groupe en état _zombi_
   - `dfh` vaut 99999 et toutes les propriétés autres que `id v` sont 0 / null.
   - les secrets et membres sont purgés.
   - le groupe est _ignoré_ en session, comme s'il n'existait plus et est retiré au fil des login des maps `lgrk` des avatars qui le référencent (ce qui peut prendre jusqu'à un an).
@@ -810,11 +863,8 @@ Quand un des deux avatars a quitté le couple (phase 4), ou que la `dlv` de l'in
 
 ## Secrets
 Un secret est identifié par:
-- `id` : l'id du propriétaire (avatar ou groupe),
-- `ns` : numéro complémentaire aléatoire: 
- - multiple de 3 pour un secret personnel.
- - multiple de 3 + 1 pour un secret de couple.
- - multiple de 3 + 2 pour un secret de groupe.
+- `id` : l'id du propriétaire (avatar / contact / groupe),
+- `ns` : numéro complémentaire aléatoire.
 
 La clé de cryptage du secret `cles` est selon le cas :
 - (0) *secret personnel d'un avatar A* : la clé K de l'avatar.
@@ -829,45 +879,19 @@ Le texte a une longueur maximale de 4000 caractères. L'aperçu d'un secret est 
 - dans l'ordre de modification, le plus récent en tête,
 - sans doublon.
 
-<<<<<<< HEAD
-### Fichier attachés
-Un fichier est identifié par un nom aléatoire long `idf` relatif à l'`idacg` (avatar / couple / groupe) du secret auquel il est rattaché.
-
-Sur support externe son _path_ est : `org/idacg/idf` ce qui rend simple la purge de ceux-ci :
-- sur arrêt d'hébergement d'une organisation,
-- sur suppression d'un avatar, d'un couple ou d'un groupe.
-- en revanche la suppression d'un secret devra fournir la liste des `idf` correspondant.
-- `idacg` et `idf` sont en base64.
-
-Un secret _peut_ avoir plusieurs fichiers attachés ou ne pas en avoir. Pour un secret donné il est possible,
-- d'ajouter un nouveau fichier,
-- de supprimer un fichier,
-- mais pas de _remplacer_ un fichier : il faut en ajouter un nouveau et supprimer l'équivalent du précédent.
-=======
 ### Fichiers attachés
 Un secret _peut_ avoir plusieurs fichiers attachés, chacun est identifié par un numéro aléatoire très grand. Pour chaque fichier les propriétés suivantes sont mémorisées:
 - `nom` est un _nom de fichier_, d'où un certain nombre de caractères interdits (dont le `/`). Pour un secret donné, ce nom est identifiant.
+- `info` : courte indication de version lorsqu'il xiste plusieurs fichiers de même nom.
 - `dh` est la date-heure d'enregistrement du fichier (pas de la création ou dernière modification de son fichier d'origine).
 - `type` : type mime de la version du fichier.
 - `gz` : les fichiers de types `text/...` sont gzippés en stockage.
 - `lg` : la taille du fichier est celle NON gzippé.
 - `sha` : SHA1 du fichier d'origine.
 
-> On ne peut qu'ajouter ou supprimer des fichiers : on peut donc disposer de plusieurs versions pour un nom donné.
->>>>>>> B220501
+> On ne peut qu'ajouter ou supprimer des fichiers : on peut donc disposer de plusieurs _versions_ pour un nom donné.
 
 > **Le contenu d'un fichier attaché sur stockage externe est crypté par la clé du secret.**
-
-Pour chaque fichier d'identifiant `[idacg, idf]` attaché à un secret les propriétés suivantes sont conservées :
-- `nom#info` : 
-  - `nom` (avant le dièse) respecte une syntaxe de nom de fichier Windows / Linux. 
-  - `info` (après le dièse facultatif) : c'est un commentaire très court qui joue le rôle d'information à propos de la version du fu fichier.
-  - plusieurs fichiers attachés peuvent porter le même nom : ils sont interprétés comme des variantes / versions, la partie info en donnant si souhaité une qualification intelligible (`v1.1 validé brouillon` etc.)
-- `dh` : date-heure de validation du fichier (pas de la création ou dernière modification de son fichier d'origine).
-- `type` : type _mime_ de la version du fichier.
-- `gz` : `true` si gzippé, ce qui sera le cas _sauf exception_ des fichiers de types `text/...`.
-- `lg` : taille du fichier d'origine (avant gzip éventuel), celle comptée comme `v2` pour le secret.
-- `sha` : SHA1 du fichier d'origine.
 
 ### Mise à jour d'un secret
 Le droit de mise à jour d'un secret est contrôlé par le couple `xxxp` :
@@ -883,7 +907,7 @@ Celui ayant l'exclusivité peut décider :
 - de transférer l'exclusivité à un autre membre (pour un groupe) ou à l'autre dans le couple,
 - de supprimer l'exclusivité.
 
-Un animateur de groupe a ces mêmes droits.
+Un animateur de groupe a ces mêmes droits pour un secret de groupe.
 
 ### Secret temporaire et permanent
 Par défaut à sa création un secret est *temporaire* :
@@ -897,9 +921,9 @@ Par défaut à sa création un secret est *temporaire* :
 ### Secrets voisins
 Les secrets peuvent être regroupés par *voisinage* autour d'un secret de référence : ceci permet de voir ensemble facilement les secrets parlant d'un même sujet précis ou correspondant à une conversation.
 - **un secret voisin d'un secret de référence** contient sa référence (id et numéro de secret) ; celle-ci est immuable, donnée à la création.
-- **un secret de référence n'a pas lui-même de référence** : ce sont ses voisins qui le référenceront.
+- **un secret de référence n'a pas lui-même de référence** : ce sont ses voisins qui le référencent.
 - si B est un secret voisin de A (référençant A), on peut créer C voisin de B mais en fait C portera la référence de A (pas de B).
-- rien n'empêche ainsi indirectement de rajouter des voisins à un secret disparu.
+- rien n'empêche ainsi indirectement de rajouter des voisins à un secret de référence disparu.
 - un avatar peut ainsi avoir des secrets voisins d'un secret de référence auquel il ne peut pas accéder (et qui peut-être n'existe plus), la grande famille des voisins peut ainsi s'étendre loin. 
 
 ## Table `secret` : CP `id ns`. Secret
@@ -954,23 +978,22 @@ Les secrets peuvent être regroupés par *voisinage* autour d'un secret de réf�
 **Map des fichiers attachés :**
 - _clé_ `idf`: 
   - `idf` : numéro aléatoire généré à la création.
-- _valeur_ : `{ nom, dh, type, gz, lg, sha }` crypté par la clé S du secret.
+- _valeur_ : `{ nom, info, dh, type, gz, lg, sha }` crypté par la clé S du secret.
 
 **Identifiant de stockage :** `org/sid/idf`  
 - `org` : code de l'organisation.
-- `sid` : id du secret en base64 URL : identifiant de l'avatar / couple / groupe auquel le secret appartient.
+- `sid` : id du secret en base64 URL : identifiant de l'avatar / contact / groupe auquel le secret appartient.
 - `idf` : identifiant aléatoire du fichier
 
 En imaginant un stockage sur file system,
 - il y a un répertoire par organisation,
-- pour chacun, un répertoire par avatar / couple / groupe ayant des secrets ayant des fichiers attachés,
+- pour chacun, un répertoire par avatar / contact / groupe ayant des secrets ayant des fichiers attachés,
 - pour chacun, un fichier par fichier attaché.
 
 _Une nouvelle version_ d'un fichier attaché est stockée sur support externe **avant** d'être enregistrée dans son secret.
-- _l'ancienne version_ est supprimée du support externe **après** enregistrement de la nouvelle dans le secret.
 - les versions crées par anticipation et non validées dans un secret comme celles qui n'ont pas été supprimées après validation du secret, peuvent être retrouvées par un traitement périodique de purge qui peut s'exécuter en ignorant les noms et date-heures réelles des fichiers scannés simplement en lisant les _clés_ de la map `mafs`.
 
-La suppression d'un avatar / couple / groupe s'accompagne de la suppression de son _répertoire_. 
+La suppression d'un avatar / contact / groupe s'accompagne de la suppression de son _répertoire_. 
 
 La suppression d'un secret s'accompagne de la suppressions de N fichiers dans un seul répertoire.
 
@@ -1013,23 +1036,21 @@ Un mot clé _obsolète_ est un mot clé sans catégorie :
 - son attribution est interdite : quand une liste de mots clés est éditée, les mots clés obsolètes sont effacés.
 - la suppression définitive d'un mot clé ne s'opère que sur un mot clé obsolète. Une recherche permettra de lister où il apparaît avant de décider.
 
-### Présence des listes de mots clés
-- sur un **contact** d'un avatar du compte : la liste est accompagnée d'un court texte de commentaire.
-- sur **l'invitation** à un groupe d'un des avatars du compte : la liste est accompagnée d'un court texte de commentaire.
-- sur un **secret**. La propriété mc contient un objet de structure différente selon le type de secret.
+### Présence des mots clés
+- sur un **contact** d'un avatar (une liste pour A0 et une pour A1).
+- sur un **membre** d'un groupe : mot clés attribués par le membre au groupe.
+- sur un **secret**. La propriété `mc` contient un objet de structure différente selon le type de secret.
 
 **Secret personnel**  
 `mc` est un vecteur d'index de mots clés. Les index sont ceux du compte et de l'organisation.
 
-**Secret de couple**
-`mc` est une map a deux entrée `1 2`, une pour chaque membre du couple. La valeur est le vecteur des mots clés attribué par le membre. Les index des mots clés sont ceux personnels du membre et  ceux de l'organisation.
+**Secret de contact**
+`mc` est une map a deux entrée `1 2`, une pour A0 et A1 du contact. La valeur est le vecteur des mots clés attribué par l'avatar A0 ou A1. Les index des mots clés sont ceux personnels de l'avatar et ceux de l'organisation.
 
 **Secret de groupe**
 `mc` est une map :
 - _clé_ : im, indice du membre dans le groupe. Par convention 0 désigne le groupe lui-même.
 - _valeur_ : vecteur d'index de secrets. Les index sont ceux personnels du membre, ceux du groupe, ceux de l'organisation.
-
-A l'affichage un membre du groupe peut voir ce que chaque membre à indiquer comme mots clés. Mais, les index personnels des autres (de 1 à 99) étant ininterprétables ne sont pas affichés.
 
 Pour utilisation pour filtrer une liste de secrets dans un groupe :
 - si le compte a lui-même donné une liste de mots clés, c'est celle-ci qui est prise, sans considérer les mots clés du groupe.
@@ -1037,42 +1058,47 @@ Pour utilisation pour filtrer une liste de secrets dans un groupe :
 - ainsi le groupe peut avoir indiqué que le secret est _nouveau_ et _important_, mais si le compte A a indiqué que le secret est _lu_ et _sans intérêt_ c'est ceci qui sera utilisé pour filtrer les listes.
 
 # Gestion des disparitions / résiliations
-**Les ouvertures de session** *signent* dans les tables `compte compta cv`, colonne `dds`, les rows relatifs aux compte, avatars du compte, couples et groupes accédés par le compte. Cette signature toutefois n'a pas lieu si dans le row `compta` le groupe est marqué _en sursis_ ou si son parrain est lui-même _en sursis_.
+**Les ouvertures de session** *signent* dans la table `cv`, colonne `dds`, les rows relatifs aux avatars du compte, contacts et groupes accédés par le compte. 
+
+Cette signature toutefois n'a pas lieu si le row `compta` de l'avatar primaire est marqué _en alerte / sursis / bloqué_ ou si son parrain est lui-même _en alerte / sursis / bloqué_.
 
 **La fin d'hébergement d'un groupe** provoque l'inscription de la date du jour dans la propriété `dfh` du row `groupe` (sinon elle est à zéro).
 
 ## GC quotidien
 Le GC quotidien effectue les activités de nettoyage suivantes :
-- suppression logique des rows `avatar` dans `cv` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `secret avrsa` de même id.
+- suppression logique des rows `avatar` dans `cv` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `secret avrsa compta` de même id.
 - suppression logique des rows `couple` dans `cv` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `secret` de même id.
 - suppression logique des rows `groupe` dans `cv` sur dépassement de leur `dds` + N1 jours. Purge physique des rows `membre secret` de même id.
 - suppression logique des rows `groupe` sur dépassement ou de leur `dfh` + N2 jours. Purge physique des rows `membre secret` de même id.
 - suppression physique des rows `contact` ayant une date-limite de validité `dlv` dépassée.
 
-**_Remarque_** : un compte est toujours détruit physiquement avant ses avatars puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures. Le compte n'étant plus accessible, ses avatars ne seront plus signés ni les groupes et couples auxquels il accédait.
+**_Remarque_** : l'avatar primaire d'un compte est toujours détruit physiquement avant ses avatars secondaires puisqu'il apparaît plus ancien que ses avatars dans l'ordre des signatures. Le compte n'étant plus accessible par son avatar primaire, ses avatars secondaires ne seront plus signés ni les groupes et contacts auxquels ils accédaient.
 
 ## Rows `secret` et leurs fichiers attachés
 Pour chaque secret détruit il faut aussi détruire ses fichiers attachés : ceci ne peut pas s'effectuer dans la même transaction puisque affectant un espace de stockage séparé non lés au commit de la base.
-- un row portant l'identification du secret `[id, ns]` est inséré dans une table d'attente `supprfa` dès lors que son volume v2 n'est pas 0.
-- le GC purge ensuite de l'espace secondaire tous les fichiers listés dans cette table.
+- un row portant l'identification du fichier `id, idf` est inséré dans une table d'attente `trec` dès lors que son volume v2 n'est pas 0.
+- ce row est supprimé à la validation du secret.
+- le GC purge de l'espace secondaire tous les fichiers listés dans cette table et inscrit içl y a un certain temps (transferts finalement non validés en table `secret`).
 
 ## Rows `couple membre` et le statut _disparu_
 La disparition de A0 ou A1 d'un couple ou d'un membre est constaté en session quand sa carte de visite est demandée / rafraîchie : elle revient alors à `null` avec un statut _disparu_.
 - cette constatation n'est pas pérenne sur le long terme: au bout d'un certain temps, la carte de visite ne revient plus du tout du serveur et il est impossible à une session de discerner si c'est parce qu'elle est inchangée ou disparue.
-- chaque session constatant une carte de visite _disparu_ pour A0 / A1 d'un couple ou un membre d'un groupe, fait inscrire sur le serveur le statut _disparu_ sur le couple (passage en phase 5) ou le membre :
+- chaque session constatant une carte de visite _disparu_ pour A0 / A1 d'un contact ou un membre d'un groupe, fait inscrire sur le serveur le statut _disparu_ sur le contact (`st0` ou `st1` à 2) ou le membre :
   - ceci évite aux autres sessions de procéder à la même opération.
   - les cartes de visite ne sont plus demandées par les sessions (ce qui réduit le trafic et les recherches inutiles en base centrale).
 
 ## Disparition _explicite_ d'un groupe
-Il n'y a pas d'opération de destruction d'un groupe mais des résiliations et auto-résiliations : quand il ne reste plus de membres _actifs_ dans un groupe,
-- il ne peut plus être signé au login : il disparaîtrait de lui-même, à minima sur dépassement de dds / dfh.
-- cette disparition est _accélérée_ par suppression logique dans cv (x = 1) : la fin de la purge s'effectuera au prochain GC.
+Elle est causée par l'auto-résiliation du dernier memebre du groupe : son row `cv` a son `x` à 1 afin que le GC quotidien purge les rows `groupe membre secret` et les fichiers de ses secrets.
 
 ## Disparition _explicite_ d'un avatar
+Pour un avatar primaire, tous les avatars secondaires sont préalablement supprimés.
+
 C'est une opération _longue_ :
 - fin d'hébergement sur tous les groupes hébergés par le compte de l'avatar.
+- si c'est un avatar secondaire récupération de ses forfaits sur la compta de l'avatar primaire.
 - mise à jour de son statut _disparu_ sur les membres des groupes : ceci peut entraîner la suppression logique du groupe si c'était le dernier membre actif / invité.
-- mise à jour de son statut phase 5 sur ses couples et suppression logique du couple s'il était seul dans le couple.
-- retrait de l'avatar dans la liste des avatars du compte.
+- mise à jour de son `st0` ou `st1` à 2 sur ses contacts et suppression logique du couple s'il était seul dans le couple.
+- si c'est un avatar secondaire, retrait de l'avatar dans la liste des avatars du compte.
+- si c'est un avatar primaire, suppression des rows `compte` et `prefs`.
 
-Le row avatar est finalement mis en suppression logique dans `repertoire` (x = 1): les purges finales s'effectueront au prochain GC.
+Son row `cv` a son `x` à 1 afin que le GC quotidien purge les rows `compta secret` et les fichiers de ses secrets.

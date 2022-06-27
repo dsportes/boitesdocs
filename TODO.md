@@ -26,6 +26,8 @@
 ## Affichage compta avatar(s)
 - à compléter (historique)
 
+## Ralentissement de download
+
 ## Transfert de parrainage ???
 - table transfert (phrase, cédant, liste des filleuls)
 - option : plus parrain après transfert
