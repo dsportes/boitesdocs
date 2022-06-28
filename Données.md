@@ -8,7 +8,7 @@ Un entier sur 53 bits est intègre en Javascript (15 chiffres décimaux). Il peu
 
 Un hash en *BigInt* est un 64 bits sans signe, toujours positif (19 chiffres décimaux): _pas utilisé_
 
-Le hash (_integer_) d'un bytes est un entier intègre en Javascript.
+Le hash (_integer_) d'un bytes est un entier intègre en Javascript multiple de 4.
 
 Le hash (_integer_) d'un string est un entier intègre en Javascript.
 
@@ -39,20 +39,20 @@ Le **nom complet** d'un avatar / contact / groupe est un couple `[nom, rnd]`
 ### Avatar
 La **clé de cryptage** de la carte de visite est `rnd`.
 
-L'`id` d'un avatar est le hash (_integer_) des bytes de `rnd`, multiplié par 3.
+L'`id` d'un avatar est le hash (_integer_) des bytes de `rnd`.
 
 ### Contact
 La **clé de cryptage** d'un contact (carte de visite et secrets) est`rnd`.
 
-L'`id` d'un contact est le hash (_integer_) des bytes de `rnd`, multiplié par 3 + 1.
+L'`id` d'un contact est le hash (_integer_) des bytes de `rnd` + 1.
 
 ### Groupe
 La **clé de cryptage** d'un groupe (carte de visite et secrets) est`rnd`.
 
-L'`id` d'un groupe est le hash (_integer_) des bytes de `rnd`, multiplié par 3 + 2.
+L'`id` d'un groupe est le hash (_integer_) des bytes de `rnd` + 2.
 
 ### Type d'objet majeur
-Le reste de la division par 3 de l'id d'un objet majeur donne son type:
+Le reste de la division par 4 de l'id d'un objet majeur donne son type:
 - 0 : avatar,
 - 1 : contact,
 - 2 : groupe.
@@ -154,7 +154,6 @@ Table :
     "dpbh"	INTEGER,
     "pcbh"	INTEGER,
     "kx"   BLOB,
-    "dds" INTEGER,
     "mack"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
