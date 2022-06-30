@@ -362,7 +362,7 @@ Toutefois pour chaque appareil distinctement, le titulaire d'un compte peut **co
 
 > Un excès de pièces jointes accessibles en mode _avion_ peut entraîner le blocage de sessions, le stockage local tombant en erreur.
 
-# Contraintes sur la consommation des ressources et le droit d'accès des comptes
+# Maîtrise de la consommation des ressources et du droit d'accès des comptes
 Les ressources techniques ne sont, ni infinies, ni gratuites. L'organisation qui gère l'hébergement de l'application a besoin de pouvoir _contrôler / maîtriser_ les volumes des secrets et le cas échéant, si c'est sa politique, de redistribuer le coût d'hébergement sur les comptes, ou certains d'entre eux.
 
 Par ailleurs une organisation peut souhaiter restreindre l'usage d'un compte à leurs _adhérents_ : elle doit être en mesure de supprimer l'accès à un compte si celui-ci n'en fait plus partie, ou toute autre raison comme par exemple de ne plus acquitter sa juste part des coûts d'hébergement.
@@ -393,92 +393,31 @@ Les forfaits typiques s'étagent de 1 à 255 : (coût mensuel)
 
 > Le transfert sur le réseau des fichiers attachés (download) **est ralenti** dès qu'il s'approche ou dépasse sur les 14 derniers jours le volume v2 : la temporisation est d'autant plus forte que cet écart l'est.
 
-## Parrains / filleuls, avatars primaires / secondaires, pouvoir comptable
-#### Avatars primaires / secondaires
+## Compte : UN avatar primaire + [0, n] secondaires
 Un compte est représenté par son avatar primaire, créé à la création du compte, et d'éventuels avatars secondaires créés / résiliés par l'avatar primaire -le compte-.
 
 L'auto-résiliation de l'avatar primaire correspond à la dissolution du compte et ne peut avoir lieu qu'après avoir résilié tous les avatars secondaires.
 
-Chaque avatar primaire comme secondaire a une ligne comptable qui enregistre l'état courant et l'historique de ses utilisations de volumes V1 et V2.
+Chaque avatar primaire comme secondaire a **une ligne comptable** qui enregistre l'état courant et l'historique de ses utilisations de volumes V1 et V2.
 
 C'est l'avatar primaire qui alloue des forfaits de volumes V1 / V2 à ses avatars secondaires en prenant sur ses propres forfaits.
 
-#### Comptes parrains / filleul
-Les comptes sont créés :
-- par auto-création en tant que _parrain_,
-- par parrainage d'un parrain qui les a déclarés, soit _filleul_, soit _parrain_. 
+### Compteurs d'une ligne comptable
+La ligne comptable d'un avatar dispose des compteurs suivants :
+- `j` : **la date du dernier calcul enregistré** : par exemple le 17 Mai de l'année A
+- **pour le mois en cours**, celui de la date ci-dessus :
+  - `v1 v1m` volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
+  - `v2 v2m` volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
+  - `trm` cumul des volumes des transferts de pièces jointes : 14 compteurs pour les 14 derniers jours.
+- **forfaits v1 et v2** `f1 f2` : les derniers appliqués.
+- `rtr` : ratio de la moyenne des tr / forfait v2
+- **pour les 12 mois antérieurs** `hist` (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
+  - `f1 f2` les derniers forfaits v1 et v2 appliqués dans le mois.
+  - `r1 r2` le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
+  - `r3` le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
+- `s1 s2` : pour un avatar primaire, total des forfaits alloués à ses avatars secondaires.
 
-Le _type_ de la ligne comptable de leur avatar indique :
-- (0) : avatar secondaire.
-- (1) : avatar primaire parrain,
-- (2) : avatar primaire filleul,
-- (3) : avatar filleul orphelin, en attente d'un nouveau parrain.
-
-Ce dernier cas correspond à un filleul,
-- (a) dont le parrain a été détecté disparu,
-- (b) qui n'a pas encore retrouvé un parrain.
-
-> Les comptes _parrains_ sont responsables de la consommation d'espace de leurs filleuls :
->- ils peuvent en contraindre l'expansion et l'accueil de nouveaux filleuls,
->- si l'organisation prévoit une forme ou l'autre de facturation, c'est le parrain qui est facturé. En cas de non paiement, son compte et ceux de ses filleuls sont susceptibles d'être bloqués.
-
-#### Pouvoir _comptable_
-Un avatar primaire, peut avoir, plus ou moins temporairement, un _pouvoir comptable_ : le hash de sa phrase secrète est enregistré dans la configuration du site. Ce n'est pas un caractère, 
-- ni immuable : on peut _acquérir_ le pouvoir comptable et le _perdre_,
-- ni unique : plusieurs comptes peuvent avoir à un instant donné le _pouvoir comptable_.
-- détecté à la connexion du compte.
-
-Le _pouvoir comptable_ permet :
-- de s'auto-créer en tant que compte parrain sans être parrainé.
-- de lister / filtrer / exporter toutes les lignes comptables.
-- de changer les allocations de volume aux comptes parrains, en plus ou en moins.
-- de dégrader un compte _parrain_ (1) à _filleul en attente de parrain_ (3).
-- de monter un compte filleul (2) à _parrain_ (1)
-- lire / écrire sur les _chats_ comptables des avatars.
-
->En dehors de l'application, si le partage des coûts d'hébergement est à assurer, ce sont les comptes ayant _pouvoir comptable_ qui vont s'assurer que les parrains ont bien acquitté la part qui leur incombe.
-
->Le pouvoir _comptable_ ne confère aucune possibilité d'accéder aux secrets hors de leur sphère normale (contacts et groupes dont ils sont membres). Il ne donne pas non plus la possibilité de gérer les forfaits des filleuls (seulement la _réserve_ des parrains).
-
-#### Relation parrain / filleul
-Un compte parrain dispose d'une _réserve de volumes V1 / V2_ dans laquelle il puise lors de la création de comptes filleuls (et pour augmenter les forfaits d'un de ses filleuls).
-
-Les avatars primaires d'un parrain et d'un de ses filleuls forment un **contact** dès la création du filleul. Ce contact n'est rompu que par disparition,
-- du filleul,
-- du parrain : dans ce cas le compte filleul passe dans le type _orphelin en attente de parrain_.
-
-Un filleul peut changer de parrain :
-- il doit avoir établi un _contact_ avec le nouveau parrain,
-- le nouveau parrain doit avoir fourni un _code_ d'acceptation : le filleul donne ce code et le contact du nouveau parrain le mentionne comme _parrain_ (le contact de l'ancien parrain n'est plus _parrain_) .
-
-Un filleul peut recevoir de son parrain des rallonges de forfaits (prélevés sur la _réserve_ du parrain). Il peut aussi subir des restrictions (restituées à la _réserve_ du parrain), sans toutefois que les niveaux de forfaits soient inférieurs aux niveaux des volumes effectivement utilisés (?).
-
-## Chat comptable
-Le chat comptable est une suite datée d'items, chacun comprenant :
-- l'identification de l'avatar primaire d'un compte,
-- la date-heure d'écriture portant aussi l'indication disant si l'item a été écrit par l'avatar ou par un _comptable_,
-- un texte court _faiblement crypté_ (que l'administrateur technique du site pourrait décrypter) : il ne doit pas contenir d'informations confidentielles.
-
-Un item une fois écrit ne peut plus être modifié : une purge périodique intervient globalement sur critère de date.
-
-Un compte ayant pouvoir comptable accède à l'ensemble des items du chat, et peut les filtrer par avatar. Il peut y écrire des items.
-
-Un avatar sans pouvoir comptable n'accède qu'à ses items.
-
-## Décomptes des volumes des secrets
-A chaque avatar est associé sa ligne comptable (dont l'identifiant est celui de l'avatar) et qui donne :
-- son _type_ :
-  - (0) : avatar secondaire.
-  - (1) : avatar primaire parrain,
-  - (2) : avatar primaire filleul,
-  - (3) : avatar filleul orphelin, en attente d'un nouveau parrain.
-  - (4) : avatar parrain disparu.
-- un statut de blocage éventuel,
-- un enregistrement de compteurs de consommation,
-  - le total des forfaits v1 et v2 attribués par les parrains (ou auto-attribués si le compte a un pouvoir comptable),
-  - les forfaits actuels,
-  - etc.
-
+### Décomptes des volumes des secrets
 **Les secrets personnels** sont décomptés sur la ligne comptable de l'avatar qui les détient.
 
 **Les secrets d'un contact** sont décomptés sur chacune des lignes comptables des avatars ayant déclaré accéder aux secrets du contact.
@@ -489,59 +428,100 @@ A chaque avatar est associé sa ligne comptable (dont l'identifiant est celui de
 - l'hébergeur peut changer : les volumes occupés sont transférés du compte antérieur au compte repreneur.
 - si l'hébergeur décide d'arrêter son hébergement, la mise à jour des secrets est suspendue tant qu'un repreneur ne s'est pas manifesté. Si la situation perdure au delà d'un an le groupe est déclaré disparu, les secrets sont effacés.
 
-### Mise en sursis et blocage des comptes
-Il est possible de bloquer un compte en citant une des **raisons** listées dans la configuration de l'organisation. Par exemple :
-- _le compte filleul n'a plus de parrain_ : statut alerte automatique dès la prochaine connexion du filleul.
-- _le compte n'acquitte plus sa part de cotisation_ correspondant à son usage de l'application.
-- _le compte a quitté l'organisation_ et la politique de celle-ci prévoit qu'au bout d'un certain temps le compte soit bloqué.
+## LE compte du comptable
+"Le" **comptable** d'une organisation est un compte particulier :
+- sa phrase secrète est déclarée dans la configuration de l'organisation (son hash, pas celle en clair).
+- il n'est pas limité en volumes.
+- il peut avoir des _contacts_ mais pas de groupes.
 
-L'appréciation de ces raisons est à deux niveaux :
-- un parrain peut appliquer ces contraintes à ses filleuls,
-- un compte ayant _pouvoir comptable_ peut également les appliquer.
+Il peut déclarer des **tribus**, les doter en ressources et les bloquer, le cas échéant jusqu'à disparition.
 
-> Ceci permet une gestion délocalisée de l'attribution de forfaits et d'application des contraintes d'accès associées. Ainsi une organisation peut déléguer cette double gestion à des représentants locaux: le niveau de gestion du _pouvoir comptable_ correspond au niveau ultime d'arbitrage.
+## Tribus et leurs parrains
+Une tribu rassemble un ensemble de comptes.
+- tout compte n'appartient qu'à une seule tribu à un instant donné,
+- le **comptable** peut, au cas par cas, passer un compte d'une tribu à une autre. 
 
->Dès que l'avatar primaire d'un compte est bloqué, c'est l'ensemble du compte qui l'est (tous ses avatars secondaires aussi).
+**Informations attachées à une tribu**  
+_Identifiant_ : `[nom, cle, id]` de la tribu. La clé est tirée aléatoirement à la création, le nom est un code immuable et l'id est un hash de la clé.
 
->Quand un compte parrain est bloqué, ce blocage s'étend à tous ses filleuls.
+L'identifiant `[nom, rnd]` est transmis crypté par la clé de leur contact,
+- par le comptable lors de la création d'un compte parrain de la tribu,
+- par un compte parrain lors du parrainage d'un compte de la tribu.
 
-Il y a trois niveaux de suspension / blocage.
+L'id de la tribu _cryptée par la clé publique du comptable_ est inscrite dans chaque compte.
+
+- `id` : id de la tribu.
+- `nck` : `[nom, rnd]` crypté par la clé k du comptable.
+- `f1 f2` : sommes des volumes V1 et V2 déjà attribués aux comptes de la tribu.
+- `r1 r2` : volumes V1 et V2 en réserve pour attribution aux comptes actuels et futurs de la tribu.
+- `sb` : statut de blocage (0, 1, 2, 3).
+- `rbt` : libellé explicatif du blocage crypté par la clé de la tribu.
+- `dh` : date-heure de dernier changement du statut de blocage.
+
+### Parrains d'une tribu
+Les **parrains** d'une tribu sont des comptes habilités par le comptable à créer par parrainage d'autres comptes de leur tribu.
+- le pouvoir de parrainage d'un compte d'une tribu lui est conféré / retiré par le _comptable_.
+- une tribu peut avoir plusieurs parrains à un instant donné, voire aucun dans des cas particuliers.
+- quand un compte parrain parraine un autre compte, un _contact_ est toujours établi entre eux (leurs avatars primaires).
+- un parrain d'une tribu a le pouvoir d'attribuer (et de retirer) des ressources à un compte de sa tribu en les prélevant sur la **réserve** de sa tribu.
+
+> **Le comptable a dans ses _contacts_ les parrains actuels, passés et pressentis des tribus.** Un parrain pressenti est un contact établi pour discussion avant éventuelle attribution du statut de parrain par le comptable.
+
+> Un parrain ayant pour contact _certains_ comptes de sa tribu, mais pas forcément tous, personne, pas même le comptable, ne peut lister _tous_ les comptes d'une tribu.
+
+Un compte n'ayant plus de parrain de sa tribu dans sa liste de contacts peut discuter avec le comptable par _chat_ afin d'obtenir une phrase de rencontre qui sera communiquée par le comptable à un compte parrain de sa tribu de manière à ce qu'ils puissent établir un contact entre eux (si le parrain choisi par le comptable le veut bien).
+
+> Les comptes _parrains_ sont responsables de la consommation d'espace de leur tribu :
+>- ils peuvent en contraindre l'expansion et l'accueil de nouveaux comptes,
+>- si l'organisation prévoit une forme ou l'autre de facturation, c'est la tribu qui est facturée. En cas de non paiement, les comptes de la tribu sont susceptibles d'être bloqués à la connexion et in fine de disparaître.
+
+### Attribution / restitution des ressources
+Le comptable peut attribuer des _réserves_ aux tribus et les diminuer.
+
+Un compte parrain peut augmenter / réduire les forfaits de volumes V1 et V2 des comptes de sa tribu.
+
+Lorsqu'un compte s'auto-détruit, les ressources sont rendues à la tribu par mise à jour (`r1 r2 f1 f2`) - tout compte disposant de la clé de la tribu.
+
+**Lorsqu'un compte disparaît**, ni la clé ni l'id de la tribu n'étant pas accessible par le GC qui détecte la disparition (elles ne sont décodées qu'en session), le GC inscrit dans une table d'attente les volumes rendus et _la clé de la tribu cryptée par la clé publique du comptable_. Lors d'une session du comptable, ce dernier peut décrypter ces restitutions et en créditer les tribus.
+
+## Mise en alerte / sursis / blocage des tribus et des comptes
+Le **comptable** peut lever un statut d'alerte / sursis / blocage d'une tribu : il en explicite la raison dans l'enregistrement de la tribu, ce message apparaissant à chaque connexion d'un compte.
+- La raison majeure est que la _tribu_ n'acquitte plus sa juste part du financement de l'hébergement de l'application.
+- Une autre raison pourrait être liée à une organisation dont les tribus représentent une entité de l'organisation et que celle-ci est dissoute.
+
+Un **parrain d'une tribu** peut lever un statut d'alerte / sursis / blocage d'un compte de la tribu : il en explicite la raison dans l'enregistrement de la ligne comptable du compte, ce message apparaissant à chaque connexion du compte.
+- Le compte utilise un volume trop important et refuse de le réduire,
+- Le compte a quitté l'organisation et la politique de celle-ci prévoit qu'au bout d'un certain temps le compte soit bloqué.
+- Rupture d'éthique si ceci a été décidé au niveau de l'organisation.
 
 ##### Alerte (1)
-Le compte continue à vivre normalement mais un panneau de pop-up s'affiche très régulièrement au cours des sessions pour rappeler cet état, le temps restant et ce qui l'attend en _sursis 2_.
+Les comptes continuent à vivre normalement mais un panneau de pop-up s'affiche très régulièrement au cours des sessions pour rappeler cet état, le temps restant et ce qui l'attend en _sursis_.
 
 ##### En sursis (2)
-Le compte ne peut plus créer / mettre à jour de secrets, ni attacher des fichiers aux secrets, mais il peut supprimer des secrets et des fichiers attachés.
+Les comptes ne peuvent plus créer / mettre à jour de secrets, ni attacher des fichiers aux secrets, mais ils peuvent supprimer des secrets et des fichiers attachés.
 
 ##### Bloqué (3)
-Le compte est bloqué et son titulaire ne peut plus rien consulter. Il ne conserve que la possibilité de converser par l'ardoise de son contact avec son _parrain_ (s'il en a un) et d'écrire sur le _chat comptable_.
+Les comptes sont bloqués, leur titulaire ne peut plus rien consulter. Ils ne conservent que la possibilité de converser par le _chat du comptable_.
 
-Selon la raison de la suspension,
+Selon la _classe_ de la raison de la suspension,
 - le niveau de suspension peut être différent,
 - le temps de passage d'un niveau au suivant également.
 
-> La politique de l'organisation se traduit dans la configuration de l'organisation par a) la liste des raisons de blocage, b) pour chaque raison du niveau de suspension et des délais pour passer d'un niveau à un autre.
-> Quand aucune raison de blocage n'est configurée pour une organisation, le blocage n'y est pas possible.
+> La politique de l'organisation se traduit dans la configuration de l'organisation par,
+>- la liste des _classes_ de raisons de blocage,
+>- pour chaque classe du niveau de suspension et des délais pour passer d'un niveau à un autre, et si cette classe est de veau comptable ou parrain.
 
-## Annexes
+## Chat avec le comptable
+Ce chat est un canal de communication entre les comptes et le comptable qui peut être utilisé par un compte pour solliciter une fonction qui n'est que du pouvoir du comptable (demander à devenir parrain, obtenir la référence d'un parrain, changer de tribu, levée d'un blocage, etc.).
 
-### Détail des compteurs d'une ligne comptable
+Le chat comptable est une suite datée d'items, chacun comprenant :
+- l'identification de l'avatar primaire d'un compte,
+- la date-heure d'écriture portant aussi l'indication disant si l'item a été écrit par l'avatar ou par le _comptable_,
+- un texte court _crypté par la clé de la tribu_.
 
-Chaque ligne comptable dispose des compteurs suivants :
-- `j` : **la date du dernier calcul enregistré** : par exemple le 17 Mai de l'année A
-- **pour le mois en cours**, celui de la date ci-dessus :
-  - `v1 v1m` volume v1 des textes des secrets : 1) moyenne depuis le début du mois, 2) actuel, 
-  - `v2 v2m` volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
-  - `trm` cumul des volumes des transferts de pièces jointes : 14 compteurs pour les 14 derniers jours.
-- **forfaits v1 et v2** `f1 f2` : les plus élevés appliqués le mois en cours.
-- `rtr` : ratio de la moyenne des tr / forfait v2
-- **pour les 12 mois antérieurs** `hist` (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
-  - `f1 f2` les forfaits v1 et v2 appliqués dans le mois.
-  - `r1 r2` le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
-  - `r3` le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
-- `res1 res2` : pour un parrain, réserve de forfaits v1 et v2.
-- `t1 t2` : pour un parrain, total des forfaits 1 et 2 attribués aux filleuls.
-- `s1 s2` : pour un avatar primaire, total des forfaits alloués à ses avatars secondaires.
+Un item une fois écrit ne peut plus être modifié : une purge périodique intervient globalement sur critère de date.
+
+Le comptable accède à l'ensemble des items du chat, et peut les filtrer par avatar. Il peut y écrire des items. L'avatar n'accède qu'à ses items.
 
 ## Disparition par inactivité d'un compte
 
@@ -550,16 +530,11 @@ Des ressources sont immobilisées par les comptes (partagées pour les groupes) 
 - pour marquer que des ressources sont encore utiles, un compte dépose lors de la connexion des **jetons datés** ("approximativement datés" pour éviter des corrélations entre avatars / groupes / contacts) dans chacun de ses avatars et chacun des groupes et contacts auxquels il participe, ainsi que dans le compte lui-même.
 - la présence d'un jeton, par exemple sur un avatar, va garantir que ses données ne seront pas détruites dans les 400 jours qui suivent la date du jeton.
 - un traitement ramasse miettes tourne chaque jour, détecte les contacts / avatars / groupes dont le jeton est trop vieux et efface les données correspondantes jugées comme inutiles, l'avatar / contact / groupe correspondant ayant _disparu par inactivité_.
-- le jeton de l'avatar primitif apparaît toujours comme le plus ancien afin que par exemple un avatar secondaire ne soit détecté disparu avant son avatar primaire.
+- le jeton de l'avatar primitif apparaît toujours comme le plus ancien afin que par exemple un avatar secondaire ne soit pas détecté disparu avant son avatar primaire.
 
 >Comme aucune référence d'identification dans le monde réel n'est enregistrée pour préserver la confidentialité du système, aucune alerte du type mail ou SMS ne peut informer un compte de sa prochaine disparition s'il ne se connecte pas.
 
-### Mise _en sursis_ et _blocage_
-Un compte peut être marqué _en sursis_ par application d'une décision de l'organisation : un comptable inscrit dans la ligne comptable une date de mise en sursis.
-- **les dépôts de jetons effectués à la connexion et attestant de la vitalité du compte sont suspendus**. Le compte a au maximum un an avant la disparition de ses données (ou la sortie de cet état).
-- une date est notée dans la ligne comptable : **celle de la prise de connaissance de la mise _en sursis_**, c'est à dire de celle de la première connexion du compte après sa mise en sursis.
-
-# A propos des organisations
+# Réflexions à propos des organisations et du contrôle de l'éthique
 Des organisations bien différentes peuvent décider d'héberger l'application pour leurs adhérents. 
 
 Ci-après quelques réflexions sur leurs profils types et les approches qu'elles peuvent avoir sur la maîtrise des ressources consommées par les comptes.
