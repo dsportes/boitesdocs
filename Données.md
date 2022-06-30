@@ -28,11 +28,11 @@ Les date-heures _serveur_ sont exprimées en micro-secondes depuis le 1/1/1970, 
 - n'est jamais transmise au serveur en clair.
 - les données cryptées par K, ne sont lisibles dans le serveur que quand elles ont été transmises aussi en clair dans une opération. 
 
-### Nom complet d'un avatar ou d'un groupe
-Le **nom complet** d'un avatar / contact / groupe est un couple `[nom, rnd]`
-- `nom` : nom lisible et signifiant, entre 6 et 20 caractères.
+### Nom complet d'un avatar / contact / groupe / tribu
+Le **nom complet** d'un avatar / contact / groupe / tribu est un couple `[nom, rnd]`
+- `nom` : nom lisible et signifiant, entre 6 et 20 caractères. Le nom `Comptable` est réservé.
 - `rnd` : 32 bytes aléatoires. Clé de cryptage.
-- A l'écran le nom est affiché sous la forme `nom@abgh` ou `ab` sont les deux premiers caractères de l'id en base64 et `gh` les deux derniers.
+- A l'écran le nom est affiché sous la forme `nom@abgh` (sauf `Comptable`) ou `ab` sont les deux premiers caractères de l'id en base64 et `gh` les deux derniers.
 
 **Dans les noms,** les caractères `< > : " / \ | ? *` et ceux dont le code est inférieur à 32 (donc de 0 à 31) sont interdits afin de permettre d'utiliser le nom complet comme nom de fichier.
 
@@ -51,11 +51,17 @@ La **clé de cryptage** d'un groupe (carte de visite et secrets) est`rnd`.
 
 L'`id` d'un groupe est le hash (_integer_) des bytes de `rnd` + 2.
 
+### tribu
+La **clé de cryptage** d'une tribu (données de la tribu) est`rnd`.
+
+L'`id` d'une tribu est le hash (_integer_) des bytes de `rnd` + 3.
+
 ### Type d'objet majeur
 Le reste de la division par 4 de l'id d'un objet majeur donne son type:
 - 0 : avatar,
 - 1 : contact,
-- 2 : groupe.
+- 2 : groupe,
+- 3 : tribu.
 
 ### Secret
 - `id` : de l'avatar, du contact ou du groupe propriétaire
@@ -102,13 +108,14 @@ La table `cv` ne suit pas cette règle et a une séquence unique afin de synchro
 - `versions` (id) : table des prochains numéros de versions (actuel et dernière sauvegarde) et autres singletons (id value)
 - `avrsa` (id) : clé publique d'un avatar
 - `trec` (id) : transfert de fichier en cours (uploadé mais pas encore enregistré comme fichier d'un secret)
+- `gcvol` (id) : GC des volumes des comptes disparus.
 
 _**Tables transmises au client**_
 
 - `compte` (id) : authentification et liste des avatars d'un compte
 - `prefs` (id) : données et préférences d'un compte
 - `compta` (id) : ligne comptable du compte
-- `cv` (id) : statut d'existence, signature et carte de visite des avatars, contacts et groupes.
+- `cv` (id) : statut d'existence, signature et carte de visite des avatars, contacts et groupes
 - `avatar` (id) : données d'un avatar et liste de ses contacts et groupes
 - `couple` (id) : données d'un contact entre deux avatars
 - `groupe` (id) : données du groupe
@@ -118,6 +125,7 @@ _**Tables transmises au client**_
 - `invitgr` (id, ni) : **NON persistante en IDB**. invitation reçue par un avatar à devenir membre d'un groupe
 - `invitcp` (id, ni) : **NON persistante en IDB**. invitation reçue par un avatar à devenir membre d'un couple
 - `chat` (id, dh) : chat d'un avatar primaire (compte) avec les comptables.
+- `tribu` (id) : données et compteurs d'une tribu.
 
 ## Singletons id / valeur
 Ils sont identifiés par un numéro de singleton.  
@@ -141,6 +149,79 @@ L'id 0 correspondant à l'état courant et l'id 1 à la dernière sauvegarde.
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
 
+## Table : tribu CP id. Informations d'une tribu
+Les tribus sont crées et purgées par le comptable.
+
+Table : 
+
+    CREATE TABLE "tribu" (
+    "id"	INTEGER,
+    "v"		INTEGER,
+    "datak"	BLOB,
+    "datac"	BLOB,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id")
+    ) WITHOUT ROWID;
+
+- `id` : id de la tribu.
+- `datak` : cryptée par la clé K du comptable :
+  - `[nom, rnd]`: nom immuable et clé de la tribu.
+- `datat` : cryptée par la clé de la tribu :
+  - `nbc` : nombre de comptes actifs dans la tribu.
+  - `f1 f2` : sommes des volumes V1 et V2 déjà attribués comme forfaits aux comptes de la tribu.
+  - `r1 r2` : volumes V1 et V2 en réserve pour attribution aux comptes actuels et futurs de la tribu.
+  - `st` : statut de blocage `nc` :
+    - `n` : niveau de blocage (0 à 4).
+    - `c` : classe du blocage : 0 à 9 repris dans la configuration de l'organisation.
+  - `txt` : libellé explicatif du blocage.
+  - `dh` : date-heure de dernier changement du statut de blocage.
+
+## Table `chat` : CP `id dh`. Chat des avatars (primaires) avec le _comptable_
+Une ligne par item de chat.
+
+Table :
+
+    CREATE TABLE "chat" (
+    "id"	INTEGER,
+    "dh"	INTEGER,
+    "v"  INTEGER
+    "txt"	BLOB,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id", "dh")
+    );
+    CREATE INDEX "dh_chat" ON "chat" ( "dh" );
+
+- `id` : de l'avatar primaire.
+- `v` :
+- `dh` : date-heure d'écriture. Par convention si elle est paire c'est un texte écrit par l'avatar, sinon il est écrit par le comptable.
+- `txt` : texte crypté par la clé de la tribu _actuelle_ de l'avatar.
+
+Un item est logiquement immuable et purgé sur critère de date-heure. 
+
+Toutefois le comptable peut changer un avatar de tribu et dans ce cas il ré-encrypte les items cryptés avec la clé de la tribu antérieure.
+
+## Table `gcvol` : CP `id`. Récupération des forfaits des comptes disparus
+Quand un avatar primaire (un compte) disparaît, le GC stocke dans cette table les compteurs f1 f2 du forfait du compte pour que le comptable les réaffecte à la tribu et décrémente le compteur de compte actif. 
+
+Un certain délai se passe donc entre la détection d'une disparition et le crédit des forfaits à la tribu.
+
+L'id de la tribu est donné crypté par la clé publique du comptable (trouvée dans le row `compte`).
+
+Table :
+
+    CREATE TABLE "chat" (
+    "id"	INTEGER,
+    "idt"	BLOB,
+    "f1"  INTEGER
+    "f2"	INTEGER,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id")
+    ) WITHOUT ROWID;
+
+- `id` : de l'avatar primaire.
+- `idt` : id de la tribu est donné crypté par la clé publique du comptable.
+- `f1 f2` : volumes de forfaits à restituer à la tribu.
+
 ## Table : `compte` CP `id`. Authentification d'un compte
 _Phrase secrète_ : une ligne 1 de 16 caractères au moins et une ligne 2 de 16 caractères au moins.  
 `pcb` : PBKFD de la phrase complète (clé X) - 32 bytes.  
@@ -153,7 +234,10 @@ Table :
     "v"		INTEGER,
     "dpbh"	INTEGER,
     "pcbh"	INTEGER,
-    "kx"   BLOB,
+    "kx"  BLOB,
+    "stp"  INTEGER,
+    "nctk"  BLOB,
+    "idtpc"  BLOB,
     "mack"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -165,6 +249,11 @@ Table :
 - `dpbh` : hashBin (53 bits) du PBKFD du début de la phrase secrète (32 bytes). Pour la connexion, l'id du compte n'étant pas connu de l'utilisateur.
 - `pcbh` : hashBin (53 bits) du PBKFD de la phrase complète pour quasi-authentifier une connexion avant un éventuel échec de décryptage de `kx`.
 - `kx` : clé K du compte, cryptée par la X (phrase secrète courante).
+- `stp` : statut parrain (0: non, 1:oui).
+- `nctk` : nom complet `[nom, rnd]` de la tribu crypté,
+  - soit par la clé K du compte,
+  - soit par la clé publique de son avatar primaire après changement de tribu par le comptable.
+- `idtpc` : id de la tribu cryptée par la clé publique du comptabl.
 - `mack` {} : map des avatars du compte cryptée par la clé K. 
   - _Clé_: id,
   - _valeur_: `[nom, rnd, cpriv]`
@@ -176,7 +265,7 @@ Table :
 - un row `compte` ne peut être modifié que par une transaction du compte (mais peut être purgé par le traitement journalier de détection des disparus).
 - il est synchronisé lorsqu'il y a plusieurs sessions ouvertes en parallèle sur le même compte depuis plusieurs sessions de browsers.
 - chaque mise à jour vérifie que `v` actuellement en base est bien celle à partir de laquelle l'édition a été faite pour éviter les mises à jour parallèles intempestives.
-- le row `compte` change rarement : seulement à l'occasion de l'ajout / suppression d'un avatar et d'un changement de phrase secrète.
+- le row `compte` change rarement : seulement à l'occasion de l'ajout / suppression d'un avatar, d'un changement de phrase secrète et d'un changement de tribu.
 
 ## Table : `prefs` CP `id`. Préférences et données d'un compte
 Afin que le row compte qui donne la liste des avatars ne soit mis à jour que rarement, les données et préférences associées au compte sont mémorisées dans une autre table :
@@ -223,9 +312,9 @@ Table :
 - `clepub` : clé publique.
 - `vsh`
 
-### Table `cv` : CP `id`. Répertoire des objets majeurs : avatars, contacts et groupes
+### Table `cv` : CP `id`. Répertoire des objets majeurs : avatars, contacts, groupes, tribus
 Cette table a plusieurs objectifs :
-- `dds` : **garde la trace des signes de vie des objets** dans la propriété `dds`, dernière date de signature, remplie à l'ouverture d'une session pour signaler que les avatars, contacts et groupes de l'espace de données du compte de la session sont toujours _en vie_ (utiles) et se prémunir contre leur destruction pour non usage.
+- `dds` : **garde la trace des signes de vie des objets** dans la propriété `dds`, dernière date de signature, remplie à l'ouverture d'une session pour signaler que les avatars, contacts et groupes de l'espace de données du compte de la session sont toujours _en vie_ (utiles) et se prémunir contre leur destruction pour non usage. Pour une tribu `dds` est 99999 (pas de gestion de disparition).
 - `x` : **donne le statut d'existence de ces objets** et tracer leur disparition:
   - `0` : objet vivant,
   - `1` : le processus de disparition a été demandé. Pour les sessions l'objet (et ceux dépendants) a déjà disparu (le compte / avatar ne le référence plus), mais les purges techniques (`avatar contact groupe compta avrsa secret membre chat`) doivent encore être exécutées par le démon de purge quotidien.
@@ -337,24 +426,6 @@ La lecture de `avatar` permet d'obtenir,
 - la liste des groupes dont il est membre (avec leur nom, id et clé),
 - la liste des couples dont il fait partie (avec leur id et clé).
 
-## Table `chat` : CP `id dh`. Chat des avatars primaires avec les _comptables_
-Une ligne par item de chat.
-
-Table :
-
-    CREATE TABLE "chat" (
-    "id"	INTEGER,
-    "dh"	INTEGER,
-    "txt"	INTEGER,
-    "vsh"	INTEGER,
-    PRIMARY KEY("id", "dh")
-    );
-    CREATE INDEX "dh_chat" ON "chat" ( "dh" );
-
-- `id` : de l'avatar primaire.
-- `dh` : date-heure d'écriture. Par convention si elle est paire c'est un texte écrit par l'avatar, sinon il est écrit par un comptable.
-- `txt` : texte crypté _soft_.
-
 ## Table `compta` : CP `id`. Ligne comptable de l'avatar d'un compte
 Il y a une ligne par avatar, l'id étant l'id de l'avatar.
 
@@ -378,19 +449,13 @@ Table :
 - `id` : de l'avatar.
 - `t` :
   - (0) : avatar secondaire.
-  - (1) : avatar primaire parrain,
-  - (2) : avatar primaire filleul,
-  - (3) : avatar filleul orphelin, en attente d'un nouveau parrain.
-  - (4) : avatar parrain disparu.
+  - (1) : avatar primaire.
 - `v` :
-- `st` :
-  - 0 : normal.
-  - 1 : en alerte.
-  - 2 : en sursis.
-  - 3 : bloqué.
-- `rb` : code de la raison du statut de blocage en cours.
-- `dst` : date du dernier changement de st != 0 (sinon 0).
-- `dstc` : date de la première connexion après `dst` (prise de connaissance du statut != 0).
+- `st` : statut de blocage `nc` :
+  - `n` : niveau de blocage (0 à 4).
+  - `c` : classe du blocage : 0 à 9 repris dans la configuration de l'organisation.
+- `txtt` : libellé explicatif du blocage crypté par la clé de la tribu actuelle de l'avatar.
+- `dh` : date-heure de dernier changement du statut de blocage.
 - `data`: compteurs sérialisés (non cryptés)
 - `vsh` :
 
@@ -406,8 +471,6 @@ Table :
   - `f1 f2` les forfaits v1 et v2 appliqués dans le mois.
   - `r1 r2` le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
   - `r3` le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
-- `res1 res2` : pour un parrain, réserve de forfaits v1 et v2.
-- `t1 t2` : pour un parrain, total des forfaits 1 et 2 attribués aux filleuls.
 - `s1 s2` : pour un avatar primaire, total des forfaits attribués aux secondaires.
 
 #### Unités de volume
@@ -555,45 +618,12 @@ Quand A0 et A1 sont tous deux _disparu_, le contact disparaît.
 - pour un parrainage ou une rencontre, la prolongation ne peut s'effectuer qu'avant la fin de la `dlv`.
 - la `dlv` est modifiée sur les rows `contact` et `couple`.
 
-#### Parrainage
-L'état de parrainage est fixé par `tp` :
-- 0 : aucun lien de parrainage entre A0 et A1,
-- 1 : A0 est actuellement le parrain de A1.
-- 2 : A1 est actuellement le parrain de A0.
-
-_Remarque_ : quand A0 a parrainé A1 et l'a déclaré comme parrain lui-même, `tp` est à 0 : A1 n'est pas considéré comme un filleul.
-
-**Pour un filleul, retrait du statut _parrain_ de son parrain par un comptable :**
-- détecté à la connexion ou à la synchronisation
-- `tp` passe à 0
-
-**Pour un filleul, disparition de son parrain :**
-- détecté à la connexion ou à la synchronisation
-- `tp` passe à 0
-
-**Changement de parrain par le filleul :**
-- le code pin d'autorisation fixé par le nouveau parrain a été donné par le filleul.
-- contact de l'ancien parrain (s'il y en avait un): 
-  - `tp` passe à 0,
-  - `data.f1 f2` passent à 0
-  - les ressources `res1 / res2` de sa compta sont augmentées.
-- contact du nouveau parrain:
-  - `tp` passe à 1 ou 2
-  - `data.f1 f2` passent à 0
-  - les ressources `res1 / res2` de sa compta sont diminuées.
-
-**Disparation du _filleul_ :** détection par le parrain
-- passage du filleul en niveau d'activité 2 (disparu).
-- le parrain récupère les forfaits f1 et f2 en res1 / res2 de sa compta.
-
 Table :
 
     CREATE TABLE "couple" (
     "id"   INTEGER,
     "v"  	INTEGER,
     "st"  INTEGER,
-    "tp"  INTEGER,
-    "autp"  INTEGER,
     "v1"  INTEGER,
     "v2"  INTEGER,
     "mx10"  INTEGER,
@@ -619,17 +649,14 @@ Table :
   - `o` : origine du contact: (0) direct, (1) parrainage, (2) rencontre.
   - `0` : pour A0 - (0) pas de partage de secrets, (1) partage de secrets, (2) disparu.
   - `1` : pour A1 -
-- `tp` : 0: na, 1: A0 est parrain de A1, 2: A1 est parrain de A0
-- `autp` : code d'autorisation donné par le futur parrain pour le devenir sur action du filleul.
 - `v1 v2` : volumes actuels des secrets.
 - `mx10 mx20` : maximum des volumes autorisés pour A0
 - `mx11 mx21` : maximum des volumes autorisés pour A1
-- `dlv` : date limite de validité éventuelle de (re)prise de contact.
+- `dlv` : date limite de validité éventuelle de prise de contact.
 - `datac` : données cryptées par la clé `cc` du couple :
   - `x` : `[nom, rnd], [nom, rnd]` : nom et clé d'accès à la carte de visite respectivement de A0 et A1.
-  - `phrase` : phrase de parrainage / rencontre.
-  - `f1 f2` : en phase 1/4 (parrainage), forfaits attribués par le parrain A0 à son filleul A1.
-  - `r1 r2` : en phase 1 (parrainage) et si le compte filleul est lui-même parrain, ressources attribuées. `infok0 infok1` : commentaires personnels cryptés par leur clé K, respectivement de A0 et A1.
+- `phrasek` : phrase de parrainage / rencontre cryptée par la clé K du parrain (sera détruite après acceptation / refus hors délai).
+- `infok0 infok1` : commentaires personnels cryptés par leur clé K, respectivement de A0 et A1.
 - `mc0 mc1` : mots clé définis respectivement par A0 et A1.
 - `ardc` : ardoise commune cryptée par la clé cc. [dh, texte]
 - `vsh` :
@@ -667,9 +694,11 @@ Table :
 
 - `phch` : hash de la phrase de contact convenue entre le parrain A0 et son filleul A1 (s'il accepte)
 - `dlv`
-- `ccx` : [cle nom] cryptée par le PBKFD de la phrase de contact:
+- `ccx` : cryptée par le PBKFD de la phrase de contact:
   - `cle` : clé du couple (donne son id).
   - `nom` : nom de A1 pour première vérification immédiate en session que la phrase est a priori bien destinée à cet avatar. Le nom de A1 figure dans le nom du couple après celui de A1.
+  - `tribu` : [nom, rnd] nom complet de la tribu, pour un parrainage seulement.
+  - `forfaits` : `[f1, f2]` forfaits attribués par le parrain.
 - `vsh` :
 
 #### _Parrainage_
@@ -677,7 +706,7 @@ Table :
 - Le parrain peut prolonger la date-limite de son contact (encore en attente), sa `dlv` est augmentée.
 
 **Si le filleul refuse le parrainage :** 
-- L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2.
+- L'ardoise du `couple` contient une justification / remerciement du refus, la phase passe à 2, la phrase de contact est effacée du contact.
 - Le row `contact` est supprimé. 
 
 **Si le filleul ne fait rien à temps :** 
@@ -688,7 +717,6 @@ Table :
 - la ligne `compta` du filleul est créée et créditée des forfaits attribués par le parrain.
 - la ligne `compta` du parrain est mise à jour (réserve).
 - le row `couple` est mis à jour (phase 4), l'ardoise renseignée, les volumes maximum sont fixés.
-- si le compte créé est lui-même parrain, sa ligne `compta` créée reprend les valeurs `f1 f2 r1 r2` mais dans `data` de `couple` ces valeurs sont à 0 et le statut `tp` est à 0 aussi.
 
 #### _Rencontre_ initiée par A0 avec A1
 - A0 peut détruire physiquement son contact avant acceptation / refus (remord).
