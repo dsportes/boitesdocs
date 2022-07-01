@@ -432,17 +432,23 @@ La ligne comptable d'un avatar dispose des compteurs suivants :
 "Le" **comptable** d'une organisation est un compte particulier :
 - sa phrase secrète est déclarée dans la configuration de l'organisation (son hash, pas celle en clair).
 - il n'est pas limité en volumes.
-- il peut avoir des _contacts_ mais pas de groupes.
+- il peut avoir des _contacts_ (les parrains qu'il a créé),
+- il peut faire partie de groupes mais ne peut pas en créer : il peut par exemple être invité en tant que lecteur pour juger le cas échéant du côté éthique ou non de certains secrets.
+- son nom est `Comptable`,
+- son id est une constante universelle ( 9007199254740988 : plus grand entier sur 53 bits divisible par 4).
 
 Il peut déclarer des **tribus**, les doter en ressources et les bloquer, le cas échéant jusqu'à disparition.
 
 ## Tribus et leurs parrains
 Une tribu rassemble un ensemble de comptes.
 - tout compte n'appartient qu'à une seule tribu à un instant donné,
-- le **comptable** peut, au cas par cas, passer un compte d'une tribu à une autre. 
+- le **comptable** peut, au cas par cas, passer un compte d'une tribu à une autre (fermeture d'une tribu, changement d'affectation dans l'organisation ...). 
 
 **Informations attachées à une tribu**  
-_Identifiant_ : `[nom, cle, id]` de la tribu. La clé est tirée aléatoirement à la création, le nom est un code immuable et l'id est un hash de la clé.
+_Identifiant_ : `[nom, cle, id]` de la tribu.
+- La clé est tirée aléatoirement à la création,
+- L'id est un hash de la clé.
+
 
 L'identifiant `[nom, rnd]` est transmis crypté par la clé de leur contact,
 - par le comptable lors de la création d'un compte parrain de la tribu,
