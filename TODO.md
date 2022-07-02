@@ -1,3 +1,6 @@
+Mettre dans data.clepuC le clepubc retourné à la connexion compte. Dans création Comptable aussi
+
+Après get Compte du serveur, update serveur nstk de compte si c.nstk (reçu en crypté clé pub du compte)
 
 ## Couple et groupe
 - détection de la disparition d'un membre / conjoint : opération de MAJ du serveur.

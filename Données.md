@@ -157,6 +157,11 @@ Table :
     CREATE TABLE "tribu" (
     "id"	INTEGER,
     "v"		INTEGER,
+    "nbc" INTEGER,
+    "f1"  INTEGER,
+    "f2"  INTEGER,
+    "r1"  INTEGER,
+    "r2"  INTEGER,
     "datak"	BLOB,
     "datat"	BLOB,
     "vsh"	INTEGER,
@@ -164,14 +169,15 @@ Table :
     ) WITHOUT ROWID;
 
 - `id` : id de la tribu.
+- `v`
+- `nbc` : nombre de comptes actifs dans la tribu.
+- `f1 f2` : sommes des volumes V1 et V2 déjà attribués comme forfaits aux comptes de la tribu.
+- `r1 r2` : volumes V1 et V2 en réserve pour attribution aux comptes actuels et futurs de la tribu.
 - `datak` : cryptée par la clé K du comptable :
   - `[nom, rnd]`: nom immuable et clé de la tribu.
   - `info` : commentaire privé du comptable.
   - `lp` : liste des ids des parrains (certains _pourraient_ être disparu)
 - `datat` : cryptée par la clé de la tribu :
-  - `nbc` : nombre de comptes actifs dans la tribu.
-  - `f1 f2` : sommes des volumes V1 et V2 déjà attribués comme forfaits aux comptes de la tribu.
-  - `r1 r2` : volumes V1 et V2 en réserve pour attribution aux comptes actuels et futurs de la tribu.
   - `st` : statut de blocage `nc` :
     - `n` : niveau de blocage (0 à 4).
     - `c` : classe du blocage : 0 à 9 repris dans la configuration de l'organisation.
@@ -197,7 +203,9 @@ Table :
 - `id` : de l'avatar primaire.
 - `v` :
 - `dh` : date-heure d'écriture. Par convention si elle est paire c'est un texte écrit par l'avatar, sinon il est écrit par le comptable.
-- `txtt` : texte crypté par la clé de la tribu _actuelle_ de l'avatar.
+- `txtt` : `[k, t]`
+  - `k` : clé random cryptée par la clé publique de l'avatar ou du comptable.
+  - `t` texte crypté par k
 
 Un item est logiquement immuable et purgé sur critère de date-heure. 
 
