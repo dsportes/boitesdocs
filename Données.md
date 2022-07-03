@@ -193,7 +193,6 @@ Table :
     CREATE TABLE "chat" (
     "id"	INTEGER,
     "dh"	INTEGER,
-    "v"  INTEGER
     "txtt"	BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id", "dh")
@@ -201,15 +200,19 @@ Table :
     CREATE INDEX "dh_chat" ON "chat" ( "dh" );
 
 - `id` : de l'avatar primaire.
-- `v` :
 - `dh` : date-heure d'écriture. Par convention si elle est paire c'est un texte écrit par l'avatar, sinon il est écrit par le comptable.
-- `txtt` : `[k, t]`
-  - `k` : clé random cryptée par la clé publique de l'avatar ou du comptable.
-  - `t` texte crypté par k
+- `txtt` : serial de [x, t, l]
+  - x : [nom, rnd] de l'avatar crypté par la clé publique du comptable
+  - t : texte crypté pat rnd
+  - l : liste de noms d'avatar : [[nom, rnd] ...]
+La liste l permet au comptable de retourner des contacts, par exemple des parrains
+d'une tribu sur demande d'un avatar cherchant un autre parrain ou changeant de tribu.
 
 Un item est logiquement immuable et purgé sur critère de date-heure. 
 
-Toutefois le comptable peut changer un avatar de tribu et dans ce cas il ré-encrypte les items cryptés avec la clé de la tribu antérieure.
+Pour qu'un avatar puisse écrire un item de chat il doit avoir le [nom, rnd] de l'avatar à qui il écrit:
+- soit c'est un _parrain_ et il l'a en tant que contact,
+- soit il a reçu un item sur lequel le [non, rnd] a été fourni (c'est donc toujours une _réponse_).
 
 ## Table: `gcvol`. Récupération des forfaits des comptes disparus
 Quand un avatar primaire (un compte) disparaît, le GC stocke dans cette table les compteurs f1 f2 du forfait du compte pour que le comptable les réaffecte à la tribu et décrémente le compteur de compte actif. 
@@ -229,7 +232,7 @@ Table :
     PRIMARY KEY("id")
     ) WITHOUT ROWID;
 
-- `id` : hash de idt comme clé primaire
+- `id` : date-heure comme clé primaire
 - `idt` : id de la tribu est donné crypté par la clé publique du comptable.
 - `f1 f2` : volumes de forfaits à restituer à la tribu.
 

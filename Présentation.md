@@ -376,7 +376,7 @@ Pour chaque avatar deux _forfaits_ sont définis :
 - pour v1 : 0,25 MB
 - pour v2 : 25 MB
 
-Les forfaits, pour les comptes, pour les groupes, pour la réserve, peuvent être donnés en nombre d'unités ci-dessus.
+Les forfaits et maximum autorisés (avatars, groupes, contacts) sont donnés en nombre d'unités ci-dessus.
 
 Le _prix sur le marché_ du méga-octet de volume v1 est environ 10 fois supérieur à celui du méga-octet de volume v2 ... mais comme l'utilisation de v2 pour stocker des photos, des sons et des clips video est considérable par rapport à du texte, le volume v2 peut-être prépondérant selon le profil d'utilisation.
 
@@ -389,7 +389,8 @@ Les forfaits typiques s'étagent de 1 à 255 : (coût mensuel)
 - (64) - XL - 16 MB / 1,6GB - 5,60c
 - (128) - XXL - 32 MB / 3,2GB - 11,20c
 - (255) - MAX - 64 MB / 6,4GB - 22,40c
-> A tout instant les volumes effectivement occupés par les secrets **ne peuvent pas dépasser les forfaits** attribués à leurs avatars.
+
+> A tout instant une augmentation des volumes effectivement occupés par les secrets **ne peut pas faire dépasser les forfaits** attribués à leurs avatars. Un forfait forcé en dessous du volume actuellement occupé impose à n'accepter que des opérations de réduction.
 
 > Le transfert sur le réseau des fichiers attachés (download) **est ralenti** dès qu'il s'approche ou dépasse sur les 14 derniers jours le volume v2 : la temporisation est d'autant plus forte que cet écart l'est.
 
@@ -410,10 +411,10 @@ La ligne comptable d'un avatar dispose des compteurs suivants :
   - `v2 v2m` volume v2 de leurs pièces jointes : 1) moyenne depuis le début du mois, 2) actuel, 
   - `trm` cumul des volumes des transferts de pièces jointes : 14 compteurs pour les 14 derniers jours.
 - **forfaits v1 et v2** `f1 f2` : les derniers appliqués.
-- `rtr` : ratio de la moyenne des tr / forfait v2
+- `rtr` : ratio de la moyenne des trm / forfait v2
 - **pour les 12 mois antérieurs** `hist` (dans l'exemple ci-dessus Mai de A-1 à Avril de A),
   - `f1 f2` les derniers forfaits v1 et v2 appliqués dans le mois.
-  - `r1 r2` le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
+  - `r1 r2` le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) pour v2.
   - `r3` le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
 - `s1 s2` : pour un avatar primaire, total des forfaits alloués à ses avatars secondaires.
 
@@ -433,36 +434,44 @@ La ligne comptable d'un avatar dispose des compteurs suivants :
 - sa phrase secrète est déclarée dans la configuration de l'organisation (son hash, pas celle en clair).
 - il n'est pas limité en volumes.
 - il peut avoir des _contacts_ (les parrains qu'il a créé),
-- il peut faire partie de groupes mais ne peut pas en créer : il peut par exemple être invité en tant que lecteur pour juger le cas échéant du côté éthique ou non de certains secrets.
+- il peut faire partie de _groupes_ : il peut par exemple être invité en tant que lecteur pour juger le cas échéant du côté éthique ou non de certains secrets.
 - son nom est `Comptable`,
 - son id est une constante universelle ( 9007199254740988 : plus grand entier sur 53 bits divisible par 4).
 
 Il peut déclarer des **tribus**, les doter en ressources et les bloquer, le cas échéant jusqu'à disparition.
 
 ## Tribus et leurs parrains
-Une tribu rassemble un ensemble de comptes.
+Une tribu rassemble un ensemble de comptes dont on souhaite maîtriser le volume global:
 - tout compte n'appartient qu'à une seule tribu à un instant donné,
 - le **comptable** peut, au cas par cas, passer un compte d'une tribu à une autre (fermeture d'une tribu, changement d'affectation dans l'organisation ...). 
+- quand il existe un système de facturation, c'est l'échelon _tribu_ qui paye.
 
 **Informations attachées à une tribu**  
 _Identifiant_ : `[nom, cle, id]` de la tribu.
 - La clé est tirée aléatoirement à la création,
 - L'id est un hash de la clé.
 
-
-L'identifiant `[nom, rnd]` est transmis crypté par la clé de leur contact,
+L'identifiant `[nom, rnd]` est transmis crypté par la clé de leur `couple`,
 - par le comptable lors de la création d'un compte parrain de la tribu,
 - par un compte parrain lors du parrainage d'un compte de la tribu.
+- par le comptable dans le cas où il change un compte de tribu.
 
-L'id de la tribu _cryptée par la clé publique du comptable_ est inscrite dans chaque compte.
+L'identifiant (nom, clé, id) de sa tribu _cryptée par la clé publique du comptable_ est inscrite dans chaque compte primaire:
+- c'est un calcul long mais le comptable _peut_ finir par associer à une tribu la liste de tous les comptes en faisant partie et obtenir les valeurs de leurs forfaits.
+- _en revanche seul un compte peut savoir quels volumes occupent effectivement ses avatars_ et son taux d'utilisation de ses forfaits (le comptable ne peut connaître l'occupation réelle que globalement, pas par tribu).
 
-- `id` : id de la tribu.
-- `nck` : `[nom, rnd]` crypté par la clé k du comptable.
-- `f1 f2` : sommes des volumes V1 et V2 déjà attribués aux comptes de la tribu.
-- `r1 r2` : volumes V1 et V2 en réserve pour attribution aux comptes actuels et futurs de la tribu.
-- `sb` : statut de blocage (0, 1, 2, 3).
-- `rbt` : libellé explicatif du blocage crypté par la clé de la tribu.
-- `dh` : date-heure de dernier changement du statut de blocage.
+**Données d'une tribu:**
+- identifiant, nom et clé.
+- commentaire du comptable.
+- liste des parrains de la tribu maintenue à jour par le comptable sur parrainage d'un parrain et détection d'un parrain disparu.
+- blocage:
+  - niveau (0 à 4)
+  - classe du blocage (0 à 9) reprise dans la configuration de l'organisation
+  - libellé explicatif
+  - date-heure de dernier changement de statut.
+- volumes:
+  - sommes des volumes V1 et V2 déjà attribués aux comptes de la tribu.
+  - volumes V1 et V2 en réserve pour attribution aux comptes actuels et futurs de la tribu.
 
 ### Parrains d'une tribu
 Les **parrains** d'une tribu sont des comptes habilités par le comptable à créer par parrainage d'autres comptes de leur tribu.
@@ -473,11 +482,11 @@ Les **parrains** d'une tribu sont des comptes habilités par le comptable à cr�
 
 > **Le comptable a dans ses _contacts_ les parrains actuels, passés et pressentis des tribus.** Un parrain pressenti est un contact établi pour discussion avant éventuelle attribution du statut de parrain par le comptable.
 
-> Un parrain ayant pour contact _certains_ comptes de sa tribu, mais pas forcément tous, personne, pas même le comptable, ne peut lister _tous_ les comptes d'une tribu.
+> Un parrain ayant pour contact _certains_ comptes de sa tribu, mais pas forcément tous.
 
-Un compte n'ayant plus de parrain de sa tribu dans sa liste de contacts peut discuter avec le comptable par _chat_ afin d'obtenir une phrase de rencontre qui sera communiquée par le comptable à un compte parrain de sa tribu de manière à ce qu'ils puissent établir un contact entre eux (si le parrain choisi par le comptable le veut bien).
+Un compte n'ayant plus de parrain de sa tribu dans sa liste de contacts peut discuter avec le comptable par _chat_ afin d'obtenir la référence d'un compte parrain de sa tribu de manière à ce qu'ils puissent établir un contact entre eux (si le parrain choisi par le comptable le veut bien).
 
-> Les comptes _parrains_ sont responsables de la consommation d'espace de leur tribu :
+> Les comptes _parrains_ sont responsables de la consommation d'espace de leur tribu:
 >- ils peuvent en contraindre l'expansion et l'accueil de nouveaux comptes,
 >- si l'organisation prévoit une forme ou l'autre de facturation, c'est la tribu qui est facturée. En cas de non paiement, les comptes de la tribu sont susceptibles d'être bloqués à la connexion et in fine de disparaître.
 
@@ -488,7 +497,7 @@ Un compte parrain peut augmenter / réduire les forfaits de volumes V1 et V2 des
 
 Lorsqu'un compte s'auto-détruit, les ressources sont rendues à la tribu par mise à jour (`r1 r2 f1 f2`) - tout compte disposant de la clé de la tribu.
 
-**Lorsqu'un compte disparaît**, ni la clé ni l'id de la tribu n'étant pas accessible par le GC qui détecte la disparition (elles ne sont décodées qu'en session), le GC inscrit dans une table d'attente les volumes rendus et _la clé de la tribu cryptée par la clé publique du comptable_. Lors d'une session du comptable, ce dernier peut décrypter ces restitutions et en créditer les tribus.
+**Lorsqu'un compte disparaît**, ni la clé ni l'id de la tribu n'étant accessible par le GC qui détecte la disparition (elles ne sont décodées qu'en session), le GC inscrit dans une table d'attente les volumes rendus et _la clé de la tribu cryptée par la clé publique du comptable_. Lors d'une session du comptable, ce dernier peut décrypter ces restitutions et en créditer les tribus.
 
 ## Mise en alerte / sursis / blocage des tribus et des comptes
 Le **comptable** peut lever un statut d'alerte / sursis / blocage d'une tribu : il en explicite la raison dans l'enregistrement de la tribu, ce message apparaissant à chaque connexion d'un compte.
