@@ -1,4 +1,4 @@
-Mettre dans data.clepuC le clepubc retourné à la connexion compte. Dans création Comptable aussi
+A la connexion mettre en compta du compte sommes V1 et v2 des avatars : si le compte demande à son parrain du volume celui-ci pourra regarder son taux d'occupation (le comptable aussi).
 
 Après get Compte du serveur, update serveur nstk de compte si c.nstk (reçu en crypté clé pub du compte)
 
