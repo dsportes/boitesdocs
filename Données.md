@@ -163,6 +163,7 @@ Table :
     "r1"  INTEGER,
     "r2"  INTEGER,
     "datak"	BLOB,
+    "mncpt" BLOB,
     "datat"	BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -176,7 +177,10 @@ Table :
 - `datak` : cryptée par la clé K du comptable :
   - `[nom, rnd]`: nom immuable et clé de la tribu.
   - `info` : commentaire privé du comptable.
-  - `lp` : liste des ids des parrains (certains _pourraient_ être disparu)
+- `mncpt` : map des noms complets des parrains:
+  - _valeur_ : `[nom, rnd]` crypté par la clé de la tribu
+  - _clé_ : (`chkt`), hash (integer) de (id du parrain base64 + id tribu base64)
+  - l'ajout d'un parrain ne se fait que par le comptable mais un retrait peut s'effectuer aussi par un traitement de GC
 - `datat` : cryptée par la clé de la tribu :
   - `st` : statut de blocage `nc` :
     - `n` : niveau de blocage (0 à 4).
@@ -225,7 +229,7 @@ Table :
 
     CREATE TABLE "gcvol" (
     "id"  INTEGER
-    "idt"	BLOB,
+    "nctpc"	BLOB,
     "f1"  INTEGER
     "f2"	INTEGER,
     "vsh"	INTEGER
@@ -233,7 +237,7 @@ Table :
     ) WITHOUT ROWID;
 
 - `id` : date-heure comme clé primaire
-- `idt` : id de la tribu est donné crypté par la clé publique du comptable.
+- `nctpc` : nom complet `[nom, rnd]` de la tribu cryptée par la clé publique du comptable.
 - `f1 f2` : volumes de forfaits à restituer à la tribu.
 
 ## Table: `trec` - CP `id idf`. Transfert de fichier en cours
@@ -261,7 +265,8 @@ Table :
     "kx"  BLOB,
     "stp"  INTEGER,
     "nctk"  BLOB,
-    "idtpc"  BLOB,
+    "nctpc"  BLOB,
+    "chkt"  INTEGER,
     "mack"  BLOB,
     "vsh"	INTEGER,
     PRIMARY KEY("id")
@@ -277,7 +282,7 @@ Table :
 - `nctk` : nom complet `[nom, rnd]` de la tribu crypté,
   - soit par la clé K du compte,
   - soit par la clé publique de son avatar primaire après changement de tribu par le comptable.
-- `idtpc` : id de la tribu cryptée par la clé publique du comptable.
+- `nctpc` : nom complet `[nom, rnd]` de la tribu cryptée par la clé publique du comptable.
 - `chkt` : hash (integer) de (id avatar base64 + id tribu base64)
 - `mack` {} : map des avatars du compte cryptée par la clé K. 
   - _Clé_: id,
