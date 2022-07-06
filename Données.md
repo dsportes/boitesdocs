@@ -726,14 +726,14 @@ Table :
 - `phch` : hash de la phrase de contact convenue entre le parrain A0 et son filleul A1 (s'il accepte)
 - `dlv`
 - `datax` : cryptée par le PBKFD de la phrase de contact:
-  - `cle` : clé du couple (donne son id).
-  - `nom` : nom de A1 pour première vérification immédiate en session que la phrase est a priori bien destinée à cet avatar. Le nom de A1 figure dans le nom du couple après celui de A1.
+  - `cc` : clé du couple (donne son id).
+  - `nom` : nom de A1 pour première vérification immédiate en session que la phrase est a priori bien destinée à cet avatar. Le nom de A1 figure dans le nom du couple après celui de A0.
   - Pour un parrainage seulement
-    - `tribu` : `[nom, rnd]` nom complet de la tribu.
-    - `idtpc` : id de la tribu cryptée par la clé publique du comptable.
-    - `forfaits` : `[f1, f2]` forfaits attribués par le parrain (pour un parrainage seulement).
+    - `nct` : `[nom, rnd]` nom complet de la tribu.
+    - `parrain` : true si parrain
+    - `forfaits` : `[f1, f2]` forfaits attribués par le parrain.
   - Pour une rencontre seulement
-    - `idt` : id de sa tribu SI A0 en est parrain.
+    - `idt` : id de la tribu de A0 SEULEMENT SI A0 en est parrain.
 - `vsh` :
 
 #### _Parrainage_
