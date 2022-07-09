@@ -189,35 +189,6 @@ Table :
   - `dh` : date-heure de dernier changement du statut de blocage.
 - `vsh`
 
-## Table: `chat` - CP `id dh`. Chat des avatars (primaires) avec le _comptable_
-Une ligne par item de chat.
-
-Table :
-
-    CREATE TABLE "chat" (
-    "id"	INTEGER,
-    "dh"	INTEGER,
-    "txtt"	BLOB,
-    "vsh"	INTEGER,
-    PRIMARY KEY("id", "dh")
-    );
-    CREATE INDEX "dh_chat" ON "chat" ( "dh" );
-
-- `id` : de l'avatar primaire.
-- `dh` : date-heure d'écriture. Par convention si elle est paire c'est un texte écrit par l'avatar, sinon il est écrit par le comptable.
-- `txtt` : serial de [x, t, l]
-  - x : [nom, rnd] de l'avatar crypté par la clé publique du comptable
-  - t : texte crypté pat rnd
-  - l : liste de noms d'avatar : [[nom, rnd] ...]
-La liste l permet au comptable de retourner des contacts, par exemple des parrains
-d'une tribu sur demande d'un avatar cherchant un autre parrain ou changeant de tribu.
-
-Un item est logiquement immuable et purgé sur critère de date-heure. 
-
-Pour qu'un avatar puisse écrire un item de chat il doit avoir le [nom, rnd] de l'avatar à qui il écrit:
-- soit c'est un _parrain_ et il l'a en tant que contact,
-- soit il a reçu un item sur lequel le [non, rnd] a été fourni (c'est donc toujours une _réponse_).
-
 ## Table: `gcvol`. Récupération des forfaits des comptes disparus
 Quand un avatar primaire (un compte) disparaît, le GC stocke dans cette table les compteurs f1 f2 du forfait du compte pour que le comptable les réaffecte à la tribu et décrémente le compteur de compte actif. 
 
@@ -327,6 +298,59 @@ Table :
   - _clé_ : code court (`mp, mc ...`)
   - _valeur_ : sérialisation cryptée par la clé K du compte de l'objet JSON correspondant.
 - `vsh`
+
+## Table: `chat` - CP `id dh`. Chat des avatars (primaires) avec le _comptable_
+Un row `chat` par compte, créé avec le `compte` et `prefs`.
+- une entête
+- une liste chronologique d'items.
+
+Table :
+
+    CREATE TABLE "chat" (
+    "id"	INTEGER,
+    "v" INTEGER,
+    "dhde"	INTEGER,
+    "lua" INTEGER,
+    "luc" INTEGER,
+    "st"  INTEGER,
+    "nrc" BLOB,
+    "ck"  BLOB,
+    "items" BLOB,
+    "vsh"	INTEGER,
+    PRIMARY KEY("id")
+    );
+    CREATE INDEX "dhdest_chat" ON "chat" ( "dhde", "st" );
+
+- `id` : de l'avatar primaire.
+- `v`
+- `dhde` : date-heure de dernière écriture par le compte (pas le comptable).
+- `lua` : date-heure de dernière lecture par l'avatar
+- `luc` : date-heure de dernière lecture par le comptable
+- `st` : 0: OK (résolu), 1: à traiter, 2: bloquant
+- `nrc` : `[nom, rnd, cle]` crypté par la clé publique du comptable. cle est la clé C de cryptage du chat (immuable, générée à la création).
+- `ck` : cle C cryptée par la clé K du compte.
+- `items` : sérialisation de la liste d'items. Item `[dh, it]`:
+  - `dh` : date-heure d'écriture
+  - `it` : crypté par la clé C du chat:
+    - `c` : true si écrit par le comptable
+    - `t` : texte
+    - `r` : références d'avatars données par le Comptable. [[nom, rnd] ...]
+- `vsh`
+
+La liste r permet au comptable de retourner des contacts, par exemple des parrains
+d'une tribu sur demande d'un avatar cherchant un autre parrain ou changeant de tribu.
+
+Un item est logiquement immuable et purgé sur critère de date-heure. 
+
+Pour qu'un avatar puisse écrire un item de chat il doit avoir l'id de l'avatar à qui il écrit:
+- soit c'est un _parrain_ et il l'a en tant que contact,
+- soit il a reçu un chat sur lequel le `[non, rnd]` de l'avatar a été fourni.
+
+**Remarques :**
+- le serveur gère lors de l'ajout de chaque nouvel item l'historique des items en ne conservant que ceux des 60 derniers jours mais toujours au moins les 4 derniers.
+- le comptable accède aux chats,
+  - en listant ceux qu'il n'a pas lu depuis N jours et optionnellement ceux ayant un statut _à traiter_ ou _important_.
+  - puis en lisant UN chat sélectionné dans la liste.
 
 ## Table `avrsa` : CP `id`. Clé publique RSA des avatars
 Cette table donne la clé RSA (publique) obtenue à la création de l'avatar : elle permet d'inviter un avatar à être contact ou à devenir membre d'un groupe.
