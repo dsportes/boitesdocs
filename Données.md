@@ -526,6 +526,7 @@ Table :
   - `r1 r2` le pourcentage du volume moyen dans le mois par rapport au forfait: 1) pour v1, 2) por v2.
   - `r3` le pourcentage du cumul des transferts des pièces jointes dans le mois par rapport au volume v2 du forfait.
 - `s1 s2` : pour un avatar primaire, total des forfaits attribués aux secondaires.
+- `v1c v2c` : total des v1 et v2 pour tous les avatars du compte constaté lors de la dernière connexion.
 
 #### Unités de volume
 - pour v1 : 0,25 MB
