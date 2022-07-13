@@ -1,6 +1,9 @@
 ## Comptable
 - filtrage et sélection d'un chat
 
+## Chat
+- avis de lecture sur ouverture
+
 ## Secret
 Au changement de secret revenir au tab Texte
 
