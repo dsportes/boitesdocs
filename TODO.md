@@ -1,20 +1,30 @@
-A la connexion mettre en compta du compte sommes V1 et v2 des avatars : si le compte demande à son parrain du volume celui-ci pourra regarder son taux d'occupation (le comptable aussi).
+## Comptable
+- filtrage et sélection d'un chat
 
-Après get Compte du serveur, update serveur nstk de compte si c.nstk (reçu en crypté clé pub du compte)
+## Secret
+Au changement de secret revenir au tab Texte
 
 ## Couple et groupe
 - détection de la disparition d'un membre / conjoint : opération de MAJ du serveur.
+- extension / réduction du volume max
 
 ## Contact
 - suppression : à réviser (cv.x à 1)
 
 ## Compte
 - changement de phrase secrète
+- création d'avatar : vérifier que le nom n'a pas déjà été donné (sur le serveur ?)
 
-## Rencontre
+## Rencontre / parrainage
 - suppression, prolongation, refus
 - vérifier refus parrainage
 - rencontre : A1 découvre que A0 est déjà contact ? chelou, le nom de A1 peut être détecté par A0 au moment de la demande de rencontre. Refus de A1 (ou non)
+- rencontre : passer par copier / coller (panel Contacts) au lieu du mode actuel
+
+## Gérer les blocages
+- par comptable sur tribu
+- par un parrain / filleul. Blocage parrain peut être changé par Comptable
+- détection dans une session (ou à la connexion seulement ?)
 
 ## Suppression d'un avatar (volontairement) : 
 - groupes hébergés : terminer l'hébergement.
@@ -31,27 +41,24 @@ Après get Compte du serveur, update serveur nstk de compte si c.nstk (reçu en 
 
 ## Ralentissement de download
 
-## Transfert de parrainage ???
-- table transfert (phrase, cédant, liste des filleuls)
-- option : plus parrain après transfert
-- déclenchable aussi par comptable
+## Changement de tribu d'un compte
 
 ## Extensions / réductions des forfaits
+- interne entre avatars (depuis le primaire)
 - par un parrain
-- par comptable
+- par Comptable
 
 ## Mots clés
 - ne pas sélectionner d'obsolètes, les enlever sur OK.
 
-## Partout : bloquer les maj en mode avion
+## Partout : bloquer les maj en mode avion et en situation de blocage
 
 ## Textes et pièces jointes en attente en mode avion
 
 ## Liste des fichiers locaux en mode avion
-- supprimer
-- afficher
+- supprimer, afficher : à vérifier
 
-## Gestion des bases
+## Gestion des bases locales
 - non connecté : sur page Org ?
 - nettoyage général
 - suppression des bases inutiles : comptes inexistants (? à vérifier)
@@ -60,14 +67,6 @@ Après get Compte du serveur, update serveur nstk de compte si c.nstk (reçu en 
   - suppression de celles non pointées
   - affectation d'un libellé local ?
   - calcul des volumes _utiles_ des bases
-
-## Gestion comptable
-- gestion affichage ardoise : dh de lecture. Popup à la connexion, icône rouge en cours de session
-- listes (filtrées) des ardoises -comptable / parrain-
-- cession / reprise de forfaits / réserves
-
-## Rencontre parrain / filleul à l'occasion d'un changement de parrain
-- ne rien faire pour l'instant ? on peut passer par les ardoises
 
 ## Démons serveur
 - quotidiens
