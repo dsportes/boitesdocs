@@ -327,7 +327,7 @@ Table :
 - `lua` : date-heure de dernière lecture par l'avatar
 - `luc` : date-heure de dernière lecture par le comptable
 - `st` : 0: OK (résolu), 1: à traiter, 2: bloquant
-- `nrc` : `[nom, rnd, cle]` crypté par la clé publique du comptable. cle est la clé C de cryptage du chat (immuable, générée à la création).
+- `nrc` : `[nom, rnd, cle]` nom complet du _compte_, crypté par la clé publique du comptable. `cle` est la clé C de cryptage du chat (immuable, générée à la création).
 - `ck` : cle C cryptée par la clé K du compte.
 - `items` : sérialisation de la liste d'items. Item `[dh, it]`:
   - `dh` : date-heure d'écriture
@@ -752,11 +752,13 @@ Table :
 - `dlv`
 - `datax` : cryptée par le PBKFD de la phrase de contact:
   - `cc` : clé du couple (donne son id).
-  - `nom` : nom de A1 pour première vérification immédiate en session que la phrase est a priori bien destinée à cet avatar. Le nom de A1 figure dans le nom du couple après celui de A0.
+  - `naf` : nom complet de A1 pour première vérification immédiate en session que la phrase est a priori bien destinée à cet avatar. Le nom de A1 figure dans le nom du couple après celui de A0.
   - Pour un parrainage seulement
     - `nct` : `[nom, rnd]` nom complet de la tribu.
     - `parrain` : true si parrain
     - `forfaits` : `[f1, f2]` forfaits attribués par le parrain.
+    - `clec` : clé du chat à créer
+    - `nrc` : `[n, r, c]` nom complet de l'avatar primaire / compte à créer et clé C de son chat crypté par la clé publique du Comptable.
   - Pour une rencontre seulement
     - `idt` : id de la tribu de A0 SEULEMENT SI A0 en est parrain.
 - `vsh` :
