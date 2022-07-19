@@ -1,3 +1,10 @@
+## Top
+- gérer le trigramme - Réviser AcceptParrain postCreation (et trigramme)
+- rendre / enlever l'attribut parrain à un compte
+- augmenter / réduire le volume d'une tribu (vérifier)
+- changement de tribu d'un compte
+- parrain: augmenter / réduire le forfait d'un compte de sa tribu
+
 ## Secret
 Au changement de secret revenir au tab Texte
 
